@@ -1,0 +1,17 @@
+// e-Saraban — Prisma schema
+// โมเดลข้อมูลตาม spec §9 จะถูกเพิ่มใน P1 (Identity & Org) เป็นต้นไป
+// ขั้น P0 ตั้งเฉพาะ generator / datasource / extensions ให้พร้อมใช้งาน
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+
+
+  // spec §11.1 + §9.2 — pg_trgm คือกลไกค้นหาหลักสำหรับภาษาไทย (ตัดคำด้วย tsvector ไม่ได้)
+  extensions = [pg_trgm, unaccent]
+}

@@ -1,0 +1,35 @@
+# ไฟล์ที่ไม่ต้องส่งเข้า build context
+
+node_modules
+.next
+out
+build
+.git
+.gitignore
+
+# ความลับ — ห้ามหลุดเข้า image เด็ดขาด
+.env
+.env.*
+!.env.example
+
+# เครื่องมือ dev / เอกสาร ไม่เกี่ยวกับ build
+docs
+.claude
+.agents
+.windsurf
+skills-lock.json
+.vscode
+.idea
+
+# ผลลัพธ์ที่ generate ใหม่ได้เสมอ
+src/generated
+*.tsbuildinfo
+coverage
+npm-debug.log*
+.pnpm-debug.log*
+
+# ไฟล์ของ Docker เอง
+Dockerfile
+.dockerignore
+docker-compose*.yml
+docker

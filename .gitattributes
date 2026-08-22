@@ -1,0 +1,17 @@
+# บังคับ LF ทั้งใน repo และใน working tree ให้ตรงกับ endOfLine: "lf" ของ prettier
+#
+# เครื่อง dev เป็น Windows และ git ตั้ง core.autocrlf=true ไว้ ถ้าไม่มีไฟล์นี้
+# git จะแปลงเป็น CRLF ตอน checkout แล้ว `pnpm format:check` จะฟ้องทุกไฟล์
+# ทั้งที่ยังไม่มีใครแก้อะไร · อีกทั้ง script/config ที่ถูกคัดเข้า Docker image
+# ต้องเป็น LF อยู่แล้วเพราะรันบน Linux
+* text=auto eol=lf
+
+# ไบนารี — ห้าม git แตะ line ending
+*.woff2 binary
+*.woff  binary
+*.ttf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.ico   binary
+*.pdf   binary

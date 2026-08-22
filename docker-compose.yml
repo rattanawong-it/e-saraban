@@ -1,0 +1,101 @@
+# e-Saraban — Docker Compose (spec §11.1: app + postgres + nginx)
+#
+# โหมด dev  : docker compose up -d                  → ได้ postgres อย่างเดียว แล้วรัน pnpm dev บนเครื่อง
+# โหมด prod : docker compose --profile prod up -d   → postgres + migrate + app + nginx ครบชุด
+#
+# ค่าตัวแปรอ่านจากไฟล์ .env ที่ root ของโปรเจกต์ (ดูตัวอย่างที่ .env.example)
+
+name: esaraban
+
+x-db-env: &db-env
+  DATABASE_URL: postgresql://${POSTGRES_USER:-esaraban}:${POSTGRES_PASSWORD:-esaraban_dev_password}@postgres:5432/${POSTGRES_DB:-esaraban}?schema=public
+
+services:
+  # ── ฐานข้อมูล ────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: esaraban-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-esaraban}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-esaraban_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-esaraban}
+      # extension pg_trgm / unaccent ติดตั้งผ่าน Prisma migration (previewFeatures = postgresqlExtensions)
+      # จึงไม่ต้องมี init script ที่นี่
+      #
+      # locale-provider=icu + icu-locale=th-TH — จำเป็นต่อการเรียงลำดับภาษาไทยให้ถูก
+      # musl ของ alpine ไม่มี collation จริง en_US.utf8 จึงเรียงตามลำดับ byte
+      # ทำให้สระหน้า (เ แ โ ใ ไ) ไปกองท้ายตาราง แทนที่จะเรียงตามพยัญชนะที่ตามมา
+      # ⚠️ ค่านี้ initdb อ่านครั้งเดียวตอนสร้าง cluster — เปลี่ยนทีหลังต้องลบ volume
+      #    postgres-data แล้วสร้างใหม่ (บน production = dump/restore)
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=th-TH"
+    ports:
+      # เปิดออกมาให้ prisma migrate / studio บนเครื่อง dev ต่อได้
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-esaraban} -d ${POSTGRES_DB:-esaraban}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ── รัน migration แล้วจบ (app รอ service นี้สำเร็จก่อนถึงจะสตาร์ท) ──
+  migrate:
+    build:
+      context: .
+      target: migrator
+    image: esaraban-migrator
+    container_name: esaraban-migrate
+    profiles: ["prod"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *db-env
+
+  # ── แอป Next.js ─────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      target: runner
+    image: esaraban-app
+    container_name: esaraban-app
+    profiles: ["prod"]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *db-env
+      NODE_ENV: production
+      # ปล่อยว่างได้ตอน P0 — จะบังคับตรวจตอนสตาร์ทแอปใน P1/P3 ที่เริ่มใช้จริง
+      FILE_MASTER_KEY: ${FILE_MASTER_KEY:-}
+      AUTH_SECRET: ${AUTH_SECRET:-}
+    volumes:
+      # ไฟล์แนบ (spec §12: ~100GB/ปี) ต้องอยู่นอก container เพื่อ backup ด้วย rsync ได้
+      - file-storage:/app/storage
+    expose:
+      - "3000"
+
+  # ── reverse proxy + TLS ─────────────────────────────────────────
+  nginx:
+    image: nginx:1.29-alpine
+    container_name: esaraban-nginx
+    profiles: ["prod"]
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+
+volumes:
+  postgres-data:
+  file-storage:

@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# ยกเว้น template ของ env ให้ commit ได้
+!.env.example
+
+# agent skills ที่ prisma init แถมมาโดยไม่ได้ขอ — เนื้อหาเดียวกัน 3 ชุด รวม 213 ไฟล์
+# ดึงกลับมาใหม่ได้เสมอผ่าน prisma CLI จึงไม่เก็บใน git
+# ระบุเจาะจงที่ skills/ ไม่ใช่ทั้งโฟลเดอร์ เผื่อวันหลังจะ commit .claude/settings.json
+/.claude/skills/
+/.agents/skills/
+/.windsurf/skills/
+/skills-lock.json

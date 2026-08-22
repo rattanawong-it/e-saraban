@@ -1,0 +1,25 @@
+# ผลลัพธ์ที่ generate ใหม่ได้เสมอ
+.next/
+out/
+build/
+node_modules/
+src/generated/
+next-env.d.ts
+*.tsbuildinfo
+
+# ไฟล์ที่เครื่องมืออื่นเป็นเจ้าของ — แก้เองแล้วจะถูกเขียนทับ
+pnpm-lock.yaml
+prisma/migrations/
+skills-lock.json
+.agents/
+.claude/
+.windsurf/
+
+# asset ไบนารี
+src/app/fonts/
+public/
+docker/nginx/certs/
+
+# เอกสารเป็นภาษาไทยและมีตาราง — prettier คำนวณความกว้างอักษรไทยผิด
+# แล้วจัดตารางเพี้ยน จึงปล่อยให้จัดมือ
+*.md
