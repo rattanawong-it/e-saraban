@@ -195,14 +195,17 @@ postgres 420MB · nginx 93.5MB
 ### 5.1 สถานะ git
 
 ```
-8181f87  P0 Foundation: วางฐานโปรเจกต์ e-Saraban ให้ครบ   <- branch p0-foundation (HEAD)
-e6b5e1e  Initial commit from Create Next App              <- branch master
+9be9046  docs: บันทึกสถานะ git · ลำดับงาน P1 · baseline การรันและทดสอบ
+8181f87  P0 Foundation: วางฐานโปรเจกต์ e-Saraban ให้ครบ    <- 60 ไฟล์ · +11,826 / −115
+e6b5e1e  Initial commit from Create Next App               <- branch master ค้างอยู่ตรงนี้
 ```
 
-- งาน P0 ทั้งหมด commit แล้วเมื่อ **22 ส.ค. 2569** — 60 ไฟล์ · +11,826 / −115
-- อยู่บน branch **`p0-foundation`** · `master` ยังค้างอยู่ที่ commit ของ template
-- **ยังไม่มี remote** — ถ้าจะ push ต้อง `git remote add origin <url>` ก่อน
-- รวมกลับ master: `git checkout master && git merge p0-foundation`
+- งาน P0 ทั้งหมด commit แล้วเมื่อ **22 ส.ค. 2569**
+- **remote:** <https://github.com/rattanawong-it/e-saraban> · **repo เป็น public**
+- local branch **`p0-foundation`** track อยู่กับ **`origin/main`**
+  (push ด้วย `git push -u origin p0-foundation:main` เพราะ default branch ของ GitHub ชื่อ `main`)
+- `master` ในเครื่องยังค้างที่ commit ของ template — เป็นบรรพบุรุษของ `main` อยู่แล้ว ไม่มีอะไรหาย
+  จะลบทิ้งหรือเปลี่ยนชื่อ local branch เป็น `main` (`git branch -m p0-foundation main`) ก็ได้
 
 **ที่ไม่ได้เข้า git โดยตั้งใจ**
 
