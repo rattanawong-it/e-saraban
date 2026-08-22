@@ -190,7 +190,28 @@ postgres 420MB · nginx 93.5MB
 | **Package manager** | pnpm เท่านั้น (spec §11.1) |
 | **รีวิวทีละขั้น** | ทำเสร็จแต่ละขั้นแล้วหยุดรายงานก่อนไปขั้นถัดไป |
 | **ภาษา** | UI ภาษาไทยอย่างเดียว · comment ในโค้ดเป็นไทยได้ |
-| **Git** | เก็บ repo ไว้ แต่ **ยังไม่ commit** งาน P0 — รอคำสั่ง |
+| **Git** | commit เมื่อผู้ใช้สั่งเท่านั้น · ถ้าอยู่บน branch หลักให้แตก branch ก่อน |
+
+### 5.1 สถานะ git
+
+```
+8181f87  P0 Foundation: วางฐานโปรเจกต์ e-Saraban ให้ครบ   <- branch p0-foundation (HEAD)
+e6b5e1e  Initial commit from Create Next App              <- branch master
+```
+
+- งาน P0 ทั้งหมด commit แล้วเมื่อ **22 ส.ค. 2569** — 60 ไฟล์ · +11,826 / −115
+- อยู่บน branch **`p0-foundation`** · `master` ยังค้างอยู่ที่ commit ของ template
+- **ยังไม่มี remote** — ถ้าจะ push ต้อง `git remote add origin <url>` ก่อน
+- รวมกลับ master: `git checkout master && git merge p0-foundation`
+
+**ที่ไม่ได้เข้า git โดยตั้งใจ**
+
+| อะไร | ทำไม |
+|---|---|
+| `.env` | มีค่า `FILE_MASTER_KEY` / `AUTH_SECRET` จริง — ตรวจแล้วว่าไม่หลุดเข้า commit |
+| `src/generated/prisma/` | generate ใหม่ได้ผ่าน `postinstall` |
+| `docker/nginx/certs/*` | private key ห้ามเข้า git เด็ดขาด |
+| `.claude/skills/` `.agents/skills/` `.windsurf/skills/` `skills-lock.json` | agent skills ที่ prisma init แถมมา — เนื้อหาเดียวกัน 3 ชุด 213 ไฟล์ · ดึงกลับได้ผ่าน prisma CLI · **ignore เจาะจงที่ `skills/` ไม่ใช่ทั้งโฟลเดอร์** เผื่อวันหลังจะ commit `.claude/settings.json` |
 
 ---
 
@@ -531,6 +552,98 @@ Context Switcher · Audit เบื้องต้น
 
 ### ยังไม่ได้ทำ เพราะยังไม่ถึงเวลา
 
-- **pre-commit hook** (husky + lint-staged) — รอ commit แรกก่อน แล้วค่อยทำพร้อม CI
+- **pre-commit hook** (husky + lint-staged) — ทำพร้อม CI เมื่อกลับมาทำ
 - **ตั้งค่า format-on-save ของ editor** — ยังไม่รู้ว่าทีมใช้ VS Code หรือ Windsurf
   (ในโปรเจกต์มีทั้ง `.claude/` และ `.windsurf/`) ระหว่างนี้ใช้ `pnpm format` เอาก่อน
+
+### ลำดับที่แนะนำสำหรับ P1
+
+เรียงตามการพึ่งพากัน — ทำสลับลำดับจะติดกันเอง
+
+| ลำดับ | งาน | หมายเหตุ |
+|:--:|---|---|
+| 1 | ติดตั้ง Vitest + `zod` `jose` `argon2` | เขียน test ชุดแรกให้ `src/lib/thai/` ทันที (มีโค้ดจริงรออยู่แล้ว · เคสสำคัญคือข้ามเที่ยงคืน / ข้ามปี พ.ศ. ตาม §6.11) |
+| 2 | **ออกแบบ schema §9** ลง `prisma/schema.prisma` | Tenant · OrgUnit (materialized path) · User · UserOrgRole · Role · Permission · Session · AuditLog · ใส่ `tenantId` ทุกตารางตั้งแต่วันแรก (§11.3 ข้อ 4) |
+| 3 | migration + seed จริง | permissions ทั้ง 22 รหัสจาก `src/lib/authz` · role→permission matrix ตาม §4.2 · org tree ตัวอย่าง · admin คนแรก · **ต้องได้คำตอบ §15 ข้อ 3 ก่อน** ไม่งั้น seed จะต้องรื้อ |
+| 4 | `src/lib/auth/` | argon2 + session table + jose · lockout ตาม §8.4 |
+| 5 | `src/lib/authz/can()` + scope resolver | **จุดที่ต้องมี unit test ครอบทุก scope** (OWN / UNIT / SUBTREE / ORG) — เป็น DoD ของ P1 |
+| 6 | `src/server/{repositories,services,actions}/` ชุดแรก | ตามกติกา §11.3: action บาง · service หนา · ตรวจสิทธิ์ที่ service |
+| 7 | UI — `(auth)/login` · `(app)/` layout + Context Switcher · `/admin/org-units` · `/admin/users` | ตอนนี้ค่อยสร้าง route group (§6.11) · ข้อความไทยลง `src/constants/` ห้ามเขียนใน component |
+| 8 | audit เบื้องต้น | เขียนใน transaction เดียวกับงานหลักตั้งแต่ตัวแรก (§11.3 ข้อ 5) — ย้อนกลับมาใส่ทีหลังยาก |
+
+### สิ่งที่วางรากไว้ให้ P1 แล้ว — อย่าสร้างซ้ำ
+
+| มีอยู่แล้วที่ | ใช้ทำอะไร |
+|---|---|
+| `src/lib/authz/permissions.ts` | `PERMISSIONS` ครบ 22 รหัส · `PERMISSION_SCOPES` · `ROLE_CODES` — seed อ่านจากที่นี่ |
+| `src/server/context.ts` | `ServiceContext` — service ทุกตัวรับเป็น argument แรก |
+| `src/lib/thai/` | `formatThaiDate` · `getBuddhistYear` (ใช้ตอนรีเซ็ตเลขทะเบียน) · เลขไทย |
+| `src/constants/` | `APP_NAME` · `CONFIDENTIALITY_LEVELS` · `URGENCY_LEVELS` · `ROLE_LABELS` |
+| `src/lib/storage/` · `src/lib/notification/` | interface พร้อมแล้ว — P1 ยังไม่ต้องแตะ แต่ห้ามข้ามไป import ตรง |
+| `src/lib/db.ts` | PrismaClient singleton + driver adapter — อย่าสร้าง client ใหม่ที่อื่น |
+
+---
+
+## 11. วิธีรันและทดสอบ — baseline ที่ยืนยันแล้ว
+
+ทดสอบครั้งล่าสุด **22 สิงหาคม 2569** ผ่านทั้งหมด · ตัวเลขข้างล่างใช้เทียบได้ว่าอะไรถดถอย
+
+### 11.1 โหมด dev (ใช้ทุกวัน)
+
+```bash
+docker compose up -d     # postgres อย่างเดียว
+pnpm dev                 # http://localhost:3000
+```
+
+| จุดตรวจ | ผลที่ควรได้ |
+|---|---|
+| สตาร์ท | `✓ Ready in ~0.9s` (Turbopack) · บรรทัด `- Environments: .env` ต้องขึ้น |
+| `GET /` | 200 · ~22.7KB · `lang="th"` · `<title>ระบบสารบรรณอิเล็กทรอนิกส์</title>` |
+| เส้นทางที่ไม่มี | 404 |
+| CSS · ฟอนต์ `.woff2` | 200 · `text/css` / `font/woff2` — เสิร์ฟจากเครื่อง ไม่ต่อ CDN |
+| `pnpm db:seed` | ✔ เชื่อมต่อ · ✔ collation ICU th-TH · ✔ extension ครบ |
+
+### 11.2 โหมด production
+
+```bash
+docker compose --profile prod up -d     # http://localhost/
+```
+
+| จุดตรวจ | ผลที่ควรได้ |
+|---|---|
+| ลำดับสตาร์ท | postgres healthy → migrate `Exited (0)` → app healthy → nginx |
+| `GET /` ผ่าน nginx | 200 · ~16ms · 18.8KB |
+| security header | `X-Content-Type-Options` · `X-Frame-Options: DENY` · `Referrer-Policy` |
+| gzip | 22.7KB → **3.6KB** (`curl -H "Accept-Encoding: gzip"`) |
+| หน้าตา | ต้องเหมือน dev ทุกประการ |
+
+### 11.3 ดูหน้าจอจริง (ไม่ต้องติดตั้ง Playwright)
+
+เครื่องนี้มี Chrome อยู่แล้ว ใช้โหมด headless ถ่ายภาพได้เลย —
+สำคัญเพราะ **หน้า smoke test มีไว้ตรวจฟอนต์ไทยโดยเฉพาะ** ดูแต่ HTML ไม่พอ
+
+```bash
+"/c/Program Files/Google/Chrome/Application/chrome.exe" \
+  --headless=new --disable-gpu --hide-scrollbars --window-size=1280,900 \
+  --screenshot="ที่เก็บ/home.png" --virtual-time-budget=6000 \
+  http://localhost:3000/
+```
+
+สิ่งที่ต้องเห็นในภาพ: หัวเรื่องไทย · น้ำหนักฟอนต์ต่างกันชัด 4 ระดับ (400/500/600/700) ·
+เลขไทย ๑๒๓๔๕๖๗๘๙๐ · หางสระและวรรณยุกต์ไม่ทับกัน · ปุ่ม shadcn 4 แบบ
+
+### 11.4 ตรวจคุณภาพโค้ด
+
+```bash
+pnpm lint && pnpm format:check && pnpm typecheck && pnpm build
+```
+
+ทั้ง 4 ต้องผ่านโดยไม่มี warning · `pnpm build` ได้ 4 static pages
+(ยังไม่มี CI คอยบังคับ — ต้องรันเอง ดู §6.12)
+
+### 11.5 กับดักตอนทดสอบบน Git Bash
+
+ยิง `curl http://localhost:3000/ไม่มีหน้านี้` แล้วได้ **200** ทั้งที่ควรเป็น 404
+— **ไม่ใช่บั๊กของแอป** Git Bash แปลงอักษรไทยเป็น `????????????` แล้ว `?` ตัวแรก
+กลายเป็นจุดเริ่ม query string จึงเท่ากับขอหน้าแรก
+ทดสอบ path ภาษาไทยต้อง **percent-encode เอง** ถึงจะได้ 404 ตามจริง
