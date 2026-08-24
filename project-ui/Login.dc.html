@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    @keyframes spin { to { transform: rotate(360deg); } }
+    body { margin:0; }
+    a { color:#3F6133; }
+    a:hover { color:#2A4327; }
+  </style>
+</helmet>
+
+<div style="{{ pageStyle }}">
+
+  <!-- LEFT BRAND PANEL -->
+  <div style="{{ brandPanelStyle }}">
+    <div style="position:absolute;right:-90px;top:-90px;width:320px;height:320px;border-radius:50%;background:rgba(255,255,255,0.06)"></div>
+    <div style="position:absolute;left:-70px;bottom:-70px;width:260px;height:260px;border-radius:50%;background:rgba(184,134,46,0.16)"></div>
+
+    <div style="position:relative;z-index:1">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:64px">
+        <div style="background:rgba(255,255,255,0.97);border-radius:14px;height:48px;padding:0 12px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><img src="assets/krirk-logo.png" alt="Krirk University" style="height:32px;width:auto;display:block" /></div>
+        <div>
+          <div style="font-size:15px;font-weight:700;letter-spacing:0.02em">e-Saraban</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.65)">ระบบสารบรรณอิเล็กทรอนิกส์</div>
+        </div>
+      </div>
+
+      <h1 style="font-size:32px;font-weight:700;line-height:1.35;margin:0 0 16px;max-width:400px">จัดการหนังสือราชการ<br/>ได้ครบในที่เดียว</h1>
+      <p style="font-size:15px;color:rgba(255,255,255,0.75);line-height:1.7;max-width:380px;margin:0 0 40px">ลดขั้นตอนงานสารบรรณ ออกเลขทะเบียนอัตโนมัติ ควบคุมชั้นความลับ และตรวจสอบย้อนหลังได้ทุกการกระทำ</p>
+
+      <sc-if value="{{ showFeatures }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:20px">{{ featureRows }}</div>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{ showFeatures }}" hint-placeholder-val="{{ true }}">
+    <div style="position:relative;z-index:1;font-size:12px;color:rgba(255,255,255,0.5)">© 2569 สถาบันการศึกษา · e-Saraban v1.0</div>
+    </sc-if>
+  </div>
+
+  <!-- RIGHT FORM PANEL -->
+  <div style="{{ formPanelStyle }}">
+    <div style="width:100%;max-width:392px">
+
+      <div style="display:flex;justify-content:center;margin-bottom:8px">
+        <div style="display:inline-flex;background:#EAF0E5;border:1px solid rgba(63,97,51,0.18);border-radius:20px;padding:3px">{{ previewTabs }}</div>
+      </div>
+
+      <div style="text-align:left;margin-bottom:32px;margin-top:24px">
+        <h2 style="font-size:24px;font-weight:700;color:#1E2A19;margin:0 0 8px">เข้าสู่ระบบ</h2>
+        <p style="font-size:14px;color:#7C8877;margin:0">กรอกชื่อผู้ใช้และรหัสผ่านของหน่วยงานคุณ</p>
+      </div>
+
+      <sc-if value="{{ isLocked }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:10px;background:#FBE7E4;border:1px solid rgba(194,59,46,0.25);border-radius:10px;padding:13px 14px;margin-bottom:20px">
+          <div style="flex-shrink:0;margin-top:1px">{{ alertIconLocked }}</div>
+          <div>
+            <div style="font-size:13.5px;font-weight:700;color:#8C2A20;margin-bottom:3px">บัญชีถูกล็อกชั่วคราว</div>
+            <div style="font-size:12.5px;color:#8C2A20;line-height:1.6">พยายามเข้าสู่ระบบผิดเกินกำหนด กรุณารอ 15 นาที หรือติดต่อผู้ดูแลระบบ</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isInvalid }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:10px;background:#FBE7E4;border:1px solid rgba(194,59,46,0.25);border-radius:10px;padding:13px 14px;margin-bottom:20px">
+          <div style="flex-shrink:0;margin-top:1px">{{ alertIconInvalid }}</div>
+          <div>
+            <div style="font-size:13.5px;font-weight:700;color:#8C2A20;margin-bottom:3px">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</div>
+            <div style="font-size:12.5px;color:#8C2A20;line-height:1.6">เหลือโอกาสอีก 2 ครั้งก่อนบัญชีจะถูกล็อกชั่วคราว</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <form style="display:flex;flex-direction:column;gap:18px" onSubmit="{{ handleSubmit }}">
+        <div>
+          <label style="display:block;font-size:13px;font-weight:600;color:#1E2A19;margin-bottom:6px">ชื่อผู้ใช้</label>
+          <div style="display:flex;align-items:center;gap:9px;background:#fff;border:1.5px solid #DDE3D6;border-radius:10px;padding:11px 14px">
+            {{ userIcon }}
+            <input type="text" placeholder="เช่น rattana.wong" value="{{ username }}" onChange="{{ onUsernameChange }}" style="flex:1;border:none;outline:none;font-size:14.5px;font-family:'Anuphan','Inter',sans-serif;color:#1E2A19;background:transparent" />
+          </div>
+        </div>
+
+        <div>
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
+            <label style="font-size:13px;font-weight:600;color:#1E2A19">รหัสผ่าน</label>
+            <a href="Forgot Password.dc.html" style="font-size:12.5px;font-weight:600;text-decoration:none">ลืมรหัสผ่าน?</a>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;background:#fff;border:1.5px solid #DDE3D6;border-radius:10px;padding:11px 14px">
+            {{ lockIcon }}
+            <input type="{{ passwordFieldType }}" placeholder="กรอกรหัสผ่าน" value="{{ password }}" onChange="{{ onPasswordChange }}" style="flex:1;border:none;outline:none;font-size:14.5px;font-family:'Anuphan','Inter',sans-serif;color:#1E2A19;background:transparent" />
+            <button type="button" onClick="{{ toggleShowPassword }}" style="background:none;border:none;padding:0;cursor:pointer;display:flex;color:#7C8877">{{ eyeIcon }}</button>
+          </div>
+        </div>
+
+        <label style="display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none">
+          <span style="width:19px;height:19px;border-radius:5px;border:1.5px solid #DDE3D6;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0" onClick="{{ toggleRemember }}">{{ rememberCheckIcon }}</span>
+          <span style="font-size:13px;color:#4B5647">จดจำการเข้าสู่ระบบไว้ 8 ชั่วโมง</span>
+        </label>
+
+        <button type="submit" style="{{ submitBtnStyle }}">{{ submitBtnContent }}</button>
+      </form>
+
+      <div style="margin-top:28px;padding-top:20px;border-top:1px solid #DDE3D6;text-align:center">
+        <p style="font-size:12.5px;color:#7C8877;line-height:1.6;margin:0">ยังไม่มีบัญชีผู้ใช้งาน? <a href="Register.dc.html" style="font-weight:600;text-decoration:none">ลงทะเบียนใช้งาน</a><br/>หรือติดต่อ <a href="#" style="font-weight:600;text-decoration:none">ผู้ดูแลระบบหน่วยงานของคุณ</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  C = { pri:'#3F6133', priDk:'#243A1E', priPale:'#EAF0E5', gold:'#B8862E', bg:'#F5F7F1', border:'#DDE3D6', txDk:'#1E2A19', txMd:'#4B5647', txSb:'#7C8877', lRd:'#C23B2E', aGr:'#2F7D4F' };
+  state = { username:'', password:'', showPassword:false, remember:true, demo:'idle', loading:false, vw: (typeof window!=='undefined'?window.innerWidth:1440) };
+  componentDidMount(){ this._onResize=()=>this.setState({vw:window.innerWidth}); window.addEventListener('resize',this._onResize); }
+  componentWillUnmount(){ window.removeEventListener('resize',this._onResize); }
+
+  ic(paths, size, color, sw) {
+    const h = React.createElement;
+    return h('svg', {viewBox:'0 0 24 24', width:size||18, height:size||18, fill:'none', stroke:color||'currentColor', strokeWidth:sw||1.6, strokeLinecap:'round', strokeLinejoin:'round', style:{display:'block',flexShrink:0}},
+      ...paths.map((p,i)=>h(p[0],{key:i,...p[1]})));
+  }
+  userIcon(){ return this.ic([["path",{d:"M17 8.5C17 5.74 14.76 3.5 12 3.5C9.24 3.5 7 5.74 7 8.5C7 11.26 9.24 13.5 12 13.5C14.76 13.5 17 11.26 17 8.5Z"}],["path",{d:"M19 20.5C19 16.63 15.87 13.5 12 13.5C8.13 13.5 5 16.63 5 20.5"}]], 17, this.C.txSb); }
+  lockIcon(){ return this.ic([["path",{d:"M4.27 18.84C4.49 20.52 5.88 21.82 7.56 21.9C8.98 21.97 10.42 22 12 22C13.58 22 15.02 21.97 16.44 21.9C18.12 21.82 19.51 20.52 19.73 18.84C19.88 17.75 20 16.64 20 15.5C20 14.36 19.88 13.25 19.73 12.16C19.51 10.48 18.12 9.18 16.44 9.1C15.02 9.03 13.58 9 12 9C10.42 9 8.98 9.03 7.56 9.1C5.88 9.18 4.49 10.48 4.27 12.16C4.12 13.25 4 14.36 4 15.5C4 16.64 4.12 17.75 4.27 18.84Z"}],["path",{d:"M7.5 9V6.5C7.5 4.01 9.51 2 12 2C14.49 2 16.5 4.01 16.5 6.5V9"}]], 17, this.C.txSb); }
+  eyeIcon(open){ return open ? this.ic([["path",{d:"M21.54 11.05C21.85 11.47 22 11.68 22 12C22 12.32 21.85 12.53 21.54 12.96C20.18 14.87 16.69 19 12 19C7.31 19 3.82 14.87 2.46 12.96C2.15 12.53 2 12.32 2 12C2 11.68 2.15 11.47 2.46 11.05C3.82 9.13 7.31 5 12 5C16.69 5 20.18 9.13 21.54 11.05Z"}],["path",{d:"M15 12C15 10.34 13.66 9 12 9C10.34 9 9 10.34 9 12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12Z"}]], 18) :
+    this.ic([["path",{d:"M22 8C22 8 18 14 12 14C6 14 2 8 2 8"}],["path",{d:"M15 13.5L16.5 16"}],["path",{d:"M20 11L22 13"}],["path",{d:"M2 13L4 11"}],["path",{d:"M9 13.5L7.5 16"}]], 18); }
+  checkIcon(){ return this.ic([["path",{d:"M4 12.5L9 17.5L20 6.5"}]], 12, '#fff', 2.6); }
+  loginArrow(){ return this.ic([["path",{d:"M6 18C6 18.46 6 18.7 6.02 18.89C6.2 20.51 7.49 21.8 9.11 21.98C9.3 22 9.54 22 10 22H13C16.3 22 17.95 22 18.97 20.97C20 19.95 20 18.3 20 15V9C20 5.7 20 4.05 18.97 3.03C17.95 2 16.3 2 13 2H10C9.54 2 9.3 2 9.11 2.02C7.49 2.2 6.2 3.49 6.02 5.11C6 5.3 6 5.54 6 6"}],["path",{d:"M4.08 11.12C4 11.3 4 11.54 4 12C4 12.47 4 12.7 4.08 12.88C4.18 13.13 4.37 13.32 4.62 13.42C4.8 13.5 5.03 13.5 5.5 13.5H10.5C10.5 15.25 10.51 16.13 11.06 16.39C11.7 16.64 12.4 16.01 13.79 14.77C15.26 13.46 16 12.79 16 11.96C16 11.13 15.26 10.45 13.79 9.14C12.4 7.9 11.7 7.28 11.06 7.5C10.5 7.79 10.5 8.69 10.5 10.5H5.5C5.03 10.5 4.8 10.5 4.62 10.58C4.37 10.68 4.18 10.87 4.08 11.12Z"}]], 18, '#fff', 2); }
+  alertIcon(){ return this.ic([["path",{d:"M12 9V13.5"}],["path",{d:"M12 17H12.01"}],["path",{d:"M10.29 3.86L2.82 17A2 2 0 0 0 4.53 20H19.47A2 2 0 0 0 21.18 17L13.71 3.86A2 2 0 0 0 10.29 3.86Z"}]], 17, this.C.lRd, 1.8); }
+  featureIcon(name){
+    const shield=[["path",{d:"M18.71 3.5C16.82 2.55 14.5 2 12 2C9.5 2 7.18 2.55 5.29 3.5C4.36 3.96 3.9 4.19 3.45 4.91C3 5.64 3 6.34 3 7.75V11.24C3 16.92 7.54 20.08 10.17 21.43C10.91 21.81 11.27 22 12 22C12.73 22 13.09 21.81 13.83 21.43C16.46 20.08 21 16.92 21 11.24V7.75C21 6.34 21 5.64 20.55 4.91C20.1 4.19 19.64 3.96 18.71 3.5Z"}]];
+    const hash=[["path",{d:"M4 9H20"}],["path",{d:"M4 15H20"}],["path",{d:"M10 3L7.5 21"}],["path",{d:"M16.5 3L14 21"}]];
+    const history=[["circle",{cx:"12",cy:"12",r:"10"}],["path",{d:"M9.5 9.5L13 13M16 8L11 13"}]];
+    const m={shield,hash,history}[name];
+    return this.ic(m, 20, '#fff', 1.7);
+  }
+
+  renderVals(){
+    const s = this.state;
+    const isLocked = s.demo==='locked';
+    const isInvalid = s.demo==='invalid';
+    const tab=(key,label)=>{
+      const active = s.demo===key;
+      return React.createElement('button',{key,type:'button',onClick:()=>this.setState({demo:key}),
+        style:{border:'none',cursor:'pointer',fontFamily:"'Anuphan',sans-serif",fontSize:11.5,fontWeight:600,padding:'6px 13px',borderRadius:16,
+          background:active?this.C.pri:'transparent',color:active?'#fff':this.C.txMd}}, label);
+    };
+    const vw = s.vw||1440; const stacked = vw<860;
+    return {
+      pageStyle: { minHeight:'100vh', display:'flex', flexDirection: stacked?'column':'row', fontFamily:"'Anuphan','Inter',sans-serif", background:'#F5F7F1' },
+      brandPanelStyle: { width: stacked?'100%':'44%', minWidth: stacked?'auto':420, background:'linear-gradient(160deg,#527A45 0%,#3F6133 55%,#243A1E 100%)', position:'relative', overflow:'hidden', display:'flex', flexDirection:'column', justifyContent:'space-between', padding: stacked?'32px 28px':'56px 52px', color:'#fff' },
+      formPanelStyle: { flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding: stacked?'36px 24px':'48px 32px' },
+      showFeatures: !stacked,
+      previewTabs: [tab('idle','ปกติ'),tab('invalid','รหัสผิด'),tab('locked','ถูกล็อก')],
+      isLocked, isInvalid,
+      alertIconLocked: this.alertIcon(), alertIconInvalid: this.alertIcon(),
+      featureRows: [
+        ['shield','ควบคุมชั้นความลับ 4 ระดับ พร้อมเข้ารหัสไฟล์แนบ'],
+        ['hash','ออกเลขทะเบียนอัตโนมัติ แยกตามหน่วยงานและปี'],
+        ['history','ตรวจสอบย้อนหลังได้ทุกการกระทำ (audit log)'],
+      ].map((f,i)=>React.createElement('div',{key:i,style:{display:'flex',gap:14,alignItems:'flex-start'}},
+        React.createElement('div',{style:{width:36,height:36,borderRadius:10,background:'rgba(255,255,255,0.14)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},this.featureIcon(f[0])),
+        React.createElement('div',{style:{fontSize:13.5,color:'rgba(255,255,255,0.88)',lineHeight:1.6,paddingTop:7}},f[1]))),
+      userIcon: this.userIcon(),
+      lockIcon: this.lockIcon(),
+      eyeIcon: this.eyeIcon(s.showPassword),
+      rememberCheckIcon: s.remember ? React.createElement('div',{style:{width:'100%',height:'100%',borderRadius:4,background:this.C.pri,display:'flex',alignItems:'center',justifyContent:'center'}}, this.checkIcon()) : null,
+      username: s.username, password: s.password,
+      passwordFieldType: s.showPassword ? 'text' : 'password',
+      onUsernameChange: e=>this.setState({username:e.target.value}),
+      onPasswordChange: e=>this.setState({password:e.target.value}),
+      toggleShowPassword: ()=>this.setState({showPassword:!s.showPassword}),
+      toggleRemember: ()=>this.setState({remember:!s.remember}),
+      handleSubmit: e=>{ e.preventDefault(); if(isLocked) return; this.setState({loading:true}); setTimeout(()=>this.setState({loading:false}),900); },
+      submitBtnStyle: {
+        background: isLocked ? '#BFC7B8' : this.C.pri, color:'#fff', border:'none', borderRadius:10, padding:'13px 22px',
+        fontSize:15, fontWeight:600, cursor: isLocked?'not-allowed':'pointer', fontFamily:"'Anuphan','Inter',sans-serif",
+        display:'flex', alignItems:'center', justifyContent:'center', gap:9,
+        boxShadow: isLocked? 'none' : '0 2px 10px rgba(63,97,51,0.28)', marginTop:4,
+      },
+      submitBtnContent: s.loading ?
+        [React.createElement('div',{key:'sp',style:{width:16,height:16,border:'2px solid rgba(255,255,255,0.35)',borderTopColor:'#fff',borderRadius:'50%',animation:'spin 0.7s linear infinite'}}),'กำลังตรวจสอบ...'] :
+        [this.loginArrow(),'เข้าสู่ระบบ'],
+    };
+  }
+}
+</script>
+</body>
+</html>

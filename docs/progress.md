@@ -1,7 +1,7 @@
 # สถานะการพัฒนา e-Saraban
 
 > เอกสารติดตามความคืบหน้า — คู่กับ [spec.md](./spec.md)
-> อัปเดตล่าสุด: **22 สิงหาคม 2569** · เฟสปัจจุบัน: **P0 — Foundation ปิดแล้ว · ถัดไปคือ P1**
+> อัปเดตล่าสุด: **24 สิงหาคม 2569** · เฟสปัจจุบัน: **P0 · P1 ปิดแล้ว · ถัดไปคือ P2 — Core Documents**
 
 ---
 
@@ -30,6 +30,87 @@ Checklist ตาม spec §13 · ประมาณการ 1 สัปดา�
 | `pnpm db:seed` | ✅ ผ่าน — collation ICU th-TH + `extension ครบ: pg_trgm, unaccent` |
 | stack ครบ (`--profile prod`) | ✅ nginx → app → postgres ตอบ HTTP 200 |
 | เรียงลำดับภาษาไทย | ✅ `กา · เก · ไก่ · ขา · เข · ครุย · เคย · งาน · สารบรรณ · เอกสาร` |
+
+---
+
+## 1B. สรุปสถานะ P1 — Identity & Org
+
+Checklist ตาม spec §13 · ประมาณการ 2–3 สัปดาห์ · **ปิดแล้ว 24 สิงหาคม 2569**
+
+| # | งาน | สถานะ |
+|---|-----|:---:|
+| 1 | Auth — login / logout / เปลี่ยนรหัสผ่าน / lockout | ✅ เสร็จ |
+| 2 | ตาราง `Session` + JWT ใน cookie (revoke ได้จริง) | ✅ เสร็จ |
+| 3 | OrgUnit CRUD + tree UI + materialized path | ✅ เสร็จ |
+| 4 | User CRUD + สังกัดหลายหน่วยงาน | ✅ เสร็จ |
+| 5 | Role / Permission + `can()` | ✅ เสร็จ · unit test 33 เคส |
+| 6 | Context Switcher | ✅ เสร็จ |
+| 7 | Audit เบื้องต้น | ✅ เสร็จ · **ทำ hash chain ครบตั้งแต่ P1 เลย** (เดิมวางไว้ P3) |
+
+**Definition of Done ของ P1: ✅ ปิดครบแล้ว**
+
+| เกณฑ์ | ผล |
+|---|---|
+| Admin สร้างโครงสร้าง 3 ระดับ | ✅ seed สร้างผัง 11 หน่วย ลึก 3 ระดับ · เพิ่ม/แก้/ย้าย/เก็บถาวรผ่าน UI ได้ |
+| ผู้ใช้ 2 สังกัด สลับ context ได้ | ✅ `rattana.wong` สังกัดคณะวิศวฯ (ธุรการหน่วยงาน) + ศูนย์คอมพิวเตอร์ (ผู้ใช้ทั่วไป) |
+| unit test ของ `can()` ครอบทุก scope | ✅ 33 เคส ครอบ OWN / UNIT / SUBTREE / ORG และครบทั้ง 6 ด่านของ §4.3 |
+| `pnpm lint` / `format:check` / `typecheck` / `build` | ✅ ผ่านทั้งหมด ไม่มี warning |
+| `pnpm test` | ✅ 41 เคสผ่าน (can() 33 + lib/thai 8) |
+
+### สิ่งที่ทำเกินขอบเขต P1 (และเหตุผล)
+
+| เรื่อง | ทำไมทำตั้งแต่ตอนนี้ |
+|---|---|
+| **Audit hash chain** (เดิมอยู่ P3) | ย้อนกลับไปใส่ทีหลังไม่ได้ — แถวที่เขียนไปแล้วก่อนมี chain จะพิสูจน์ย้อนหลังไม่ได้ตลอดไป |
+| **บังคับ append-only ที่ระดับ DB** | spec §8.5 เขียนว่า "บังคับที่ระดับฐานข้อมูล" ทำพร้อม migration แรกของตารางง่ายกว่ามาก |
+| **หน้า `/admin/audit` เต็มรูปแบบ** | มีข้อมูลให้ดูตั้งแต่ P1 อยู่แล้ว (login · จัดการผู้ใช้ · เปลี่ยนสิทธิ์) ปล่อยไว้เฉย ๆ ไม่ได้ประโยชน์ |
+| **หน้า `/register` + `/forgot-password`** | มีในดีไซน์ที่ผู้ใช้ส่งมา และเป็นงานฝั่ง Identity ล้วน — อยู่ใน P1 ตามธรรมชาติ |
+
+---
+
+## 1C. สิ่งที่สร้างขึ้นใน P1
+
+### ฐานข้อมูล — 12 ตาราง (migration `20260824145213_p1_identity_and_org`)
+
+```
+tenants · org_units · users · user_org_units
+roles · permissions · role_permissions · user_roles
+sessions · audit_logs · system_settings
+registration_requests · password_reset_requests
+```
+
+migration ที่สอง `20260824150000_audit_append_only` เพิ่ม trigger กัน UPDATE/DELETE บน `audit_logs`
+
+### หน้าจอที่ใช้งานได้จริง
+
+| เส้นทาง | สิทธิ์ที่ต้องมี | หมายเหตุ |
+|---|---|---|
+| `/login` | — | นับครั้งที่ผิด + lockout แบบ exponential backoff |
+| `/register` | — | สร้าง **คำขอ** ไม่ใช่บัญชี — ผู้ดูแลต้องอนุมัติก่อน |
+| `/forgot-password` | — | เข้าคิวให้ผู้ดูแลรีเซ็ตให้ (MVP ไม่มีอีเมล ตาม D10) |
+| `/change-password` | ล็อกอินแล้ว | บังคับผ่านหน้านี้ก่อนถ้า `mustChangePassword` |
+| `/dashboard` | ล็อกอินแล้ว | สถิติฝั่ง Identity & Org + กิจกรรมล่าสุด |
+| `/admin/org-units` | `orgunit.manage` | tree · เพิ่ม · แก้ · ย้าย (เขียน path ใหม่ทั้ง subtree) · เก็บถาวร |
+| `/admin/users` | `user.manage` | ค้นหา · เพิ่ม · แก้ · สังกัดหลายหน่วยงาน · รีเซ็ตรหัสผ่าน · ระงับบัญชี · คิวคำขอสมัคร · คิวคำขอรีเซ็ต |
+| `/admin/roles` | `role.manage` | แก้สิทธิ์และ scope ของแต่ละบทบาทได้จริง |
+| `/admin/audit` | `audit.read` | filter · แบ่งหน้า · ปุ่มตรวจ hash chain · export CSV |
+| `/admin/settings` | `setting.manage` | ปีที่รีเซ็ตเลข · ไฟล์แนบ · นโยบายรหัสผ่าน · session/lockout |
+| `/api/health` | — | healthcheck ของ container (ปิดข้อค้าง §8 ข้อ 8) |
+
+เมนูอื่นในผัง §10.1 (inbox · outbox · drafts · registry · search · reports · numbering)
+สร้างเป็นหน้า "อยู่ระหว่างพัฒนา" พร้อมป้ายบอกเฟส — ดีกว่าปล่อย 404 ให้ผู้ใช้เจอ
+
+### บัญชีตั้งต้นจาก seed
+
+รหัสผ่านทุกบัญชีคือ `Esaraban@2569` (ตั้งผ่าน env `SEED_PASSWORD` ได้) · ทุกบัญชีถูกบังคับเปลี่ยนรหัสผ่านครั้งแรก
+
+| username | บทบาท | สังกัด |
+|---|---|---|
+| `admin` | ผู้ดูแลระบบ (global) | ศูนย์คอมพิวเตอร์ |
+| `registrar` | สารบรรณกลาง | งานสารบรรณกลาง |
+| `rattana.wong` | ธุรการหน่วยงาน + ผู้ใช้ทั่วไป | **คณะวิศวฯ + ศูนย์คอมพิวเตอร์ (2 สังกัด)** |
+| `dean.eng` | ผู้บริหาร | คณะวิศวกรรมศาสตร์ |
+| `somchai.j` | ผู้ใช้ทั่วไป | ภาควิชาวิศวกรรมคอมพิวเตอร์ |
 
 ---
 
@@ -494,6 +575,86 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm build
 
 ---
 
+### 6.13 P1 — ของที่ต่างจาก spec โดยตั้งใจ
+
+| เรื่อง | spec เขียนว่า | ที่ทำจริง | เหตุผล |
+|---|---|---|---|
+| **ฟอนต์** | IBM Plex Sans Thai หรือ Sarabun (§10.2) | **Anuphan (ไทย) + Inter (อังกฤษ/ตัวเลข)** | ดีไซน์ที่ผู้ใช้ส่งมา (`project-ui/Design System.dc.html`) กำหนดคู่นี้ไว้ · ยัง self-host ผ่าน `@fontsource` ตามข้อบังคับ "ไม่พึ่ง CDN" |
+| **สีแบรนด์** | base color `neutral` ของ shadcn (P0) | **เขียว #3F6133 ของมหาวิทยาลัยเกริก** | ดีไซน์กำหนดชุดสีทั้งระบบ รวมสีชั้นความลับ 4 ระดับตาม §8.1 — ปิดข้อค้าง §8 ข้อ 3 |
+| **Argon2** | package `argon2` (§11.1) | **`@node-rs/argon2`** | `argon2` ต้อง compile ด้วย node-gyp ตอนติดตั้ง ซึ่งพังง่ายทั้งบน Windows (dev) และ alpine (Docker) · ตัวใหม่เป็น binding ของ Rust มี prebuilt ครบทั้ง `win32-x64` และ `linux-x64-musl` · **อัลกอริทึมเดียวกัน (argon2id) hash เข้ากันได้** |
+| **ฟอร์ม** | react-hook-form + Zod (§11.1) | **`useActionState` ของ React 19 + Zod** | ฟอร์มใน P1 ต้องตรวจกับฐานข้อมูลอยู่แล้ว (ชื่อผู้ใช้ซ้ำ · รหัสผ่านถูกไหม) การเพิ่ม state ฝั่ง client ไม่ได้อะไรกลับมา แถมทำให้ฟอร์มใช้ไม่ได้ตอน JS ยังโหลดไม่เสร็จ · **Zod schema ยังเป็นตัวเดียวกันทั้งสองฝั่งตามที่ spec ต้องการ** · ถ้า P2 มีฟอร์มที่ซับซ้อนขึ้น (สร้างหนังสือ + drag-drop ไฟล์) ค่อยเพิ่ม react-hook-form เฉพาะจุดนั้น |
+| **ไอคอน** | lucide-react (§11.1) | lucide-react | ดีไซน์ใช้ Hugeicons แต่ spec ระบุ lucide และติดตั้งไว้แล้วตั้งแต่ P0 — รูปทรงใกล้เคียงกัน (stroke rounded 24×24) |
+| **ย้ายหน่วยงาน** | "tree view, drag-to-move" (§10.1) | **เลือกหน่วยงานแม่ใหม่จาก dropdown** | การย้ายเขียน `path` ใหม่ทั้ง subtree และกระทบสิทธิ์ SUBTREE ทันที — ลากพลาดครั้งเดียวเสียหายกว่าที่ความสะดวกจะคุ้ม · drag-and-drop บนต้นไม้ยังใช้กับคีย์บอร์ด/screen reader ได้ยาก ซึ่งขัด WCAG 2.1 AA ที่ §12 กำหนด |
+| **ลืมรหัสผ่าน** | ดีไซน์วาดขั้นตอน "ส่งลิงก์ทางอีเมล" | **คำขอเข้าคิวให้ผู้ดูแลรีเซ็ตให้** | D10 กำหนดว่า MVP แจ้งเตือน in-app เท่านั้น ไม่มีอีเมล · โครงสร้างในฐานข้อมูลเก็บ TTL 30 นาทีไว้แล้ว เผื่อเปิดใช้อีเมลในอนาคต |
+| **สมัครใช้งาน** | ไม่มีในสเปก (มีในดีไซน์) | สร้าง **คำขอ** ไม่ใช่บัญชี | บัญชีที่ยังไม่ผ่านการตรวจสอบต้องไม่มีตัวตนในระบบเลย ไม่ใช่มีอยู่แต่ปิดใช้งาน — กันบัญชีค้างครึ่ง ๆ กลาง ๆ |
+| **ธีมมืด** | ไม่มีในสเปก (มีในดีไซน์) | ทำ · เก็บใน **cookie ไม่ใช่ localStorage** | layout อ่านค่าฝั่ง server ได้เลย จึงไม่ต้องมี inline script (ซึ่ง CSP ตาม §8.4 ห้าม) และไม่มีจอกระพริบตอนโหลด |
+
+### 6.14 P1 — กับดักที่เจอจริงตอนพัฒนา
+
+**1. `pg_advisory_xact_lock()` คืนค่า `void` ที่ driver adapter อ่านไม่ได้**
+
+```
+DriverAdapterError: UnsupportedNativeDataType
+Failed to deserialize column of type 'void'
+```
+
+เขียนเป็น `tx.$queryRaw` แล้วพังทุกครั้งที่เขียน audit — ซึ่งคือ **ทุก mutation ของทั้งระบบ**
+ต้องใช้ `tx.$executeRaw` แทน เพราะไม่พยายามถอดรหัสผลลัพธ์ที่คืนมา
+
+> ⚠️ เจอเฉพาะตอนรันจริงกับฐานข้อมูล — typecheck กับ build ผ่านหมด
+> เป็นเหตุผลที่ต้องมีสคริปต์ยิงจริงก่อนปิดเฟส ไม่ใช่ดูแค่ว่า build ผ่าน
+
+**2. ส่ง icon component ข้ามขอบเขต Server → Client Component ไม่ได้**
+
+```
+Error: Functions cannot be passed directly to Client Components
+  {$$typeof: ..., render: function Inbox}
+```
+
+`(app)/layout.tsx` (Server Component) กรองเมนูแล้วส่งผัง `NAV_GROUPS` ที่มี `icon: LucideIcon`
+เข้าไปใน `AppShell` (Client Component) → ทุกหน้าใต้ `(app)` ขึ้น 500 พร้อมกันหมด
+
+**ทางแก้:** layout ส่งแค่ **รายการรหัสสิทธิ์** (ข้อมูลล้วน) แล้วให้ sidebar ฝั่ง client
+`import` ผังเมนูเองและกรองเอง — icon จึงไม่เคยข้ามขอบเขต
+
+**3. seed เขียน `sortOrder` ลงหน่วยงานแม่แทนที่จะเป็นลูก**
+
+```ts
+for (const [index, child] of node.children.entries()) {
+  await prisma.orgUnit.update({ where: { id: unit.id }, ... })  // ← unit คือ "แม่"
+  await walk(child, ...)
+}
+```
+
+ผลคือผังหน่วยงานเรียงมั่ว (คณะวิทยาศาสตร์ขึ้นก่อนคณะวิศวกรรมศาสตร์)
+เห็นได้จากภาพหน้าจอเท่านั้น — ไม่มี test ตัวไหนจับได้ · แก้โดยส่ง `sortOrder` เป็นพารามิเตอร์ของ `walk`
+
+**4. lint ฟ้อง 882 error จาก `project-ui/`**
+
+ไฟล์ดีไซน์ที่ผู้ใช้ส่งมาเป็น artifact ของเครื่องมือ ไม่ใช่ซอร์สของแอป
+→ เพิ่ม `project-ui/**` ใน `globalIgnores` ของ ESLint และใน `.prettierignore`
+
+**5. `react-hooks/set-state-in-effect` ของ ESLint 9**
+
+Next 16 เปิด rule นี้เป็น **error** ไม่ใช่ warning — pattern `useEffect(() => setX(...))`
+ที่เคยเขียนกันทั่วไปใช้ไม่ได้แล้ว
+→ เปลี่ยนเป็นคำนวณค่าตอน render แทน (เช่น `const selected = list.find(...) ?? list[0] ?? null`)
+ซึ่งอ่านง่ายกว่าเดิมด้วย
+
+### 6.15 P1 — เรื่องความปลอดภัยที่ตัดสินใจไว้
+
+| จุด | สิ่งที่ทำ |
+|---|---|
+| **ไม่บอกใบ้ว่าบัญชีมีจริงไหม** | ชื่อผู้ใช้ไม่มี → ยัง hash รหัสผ่านทิ้งหนึ่งครั้งให้เวลาตอบใกล้เคียงกัน · ตรวจ "บัญชีถูกระงับ" **หลัง** ตรวจรหัสผ่าน |
+| **หน้าลืมรหัสผ่านตอบเหมือนกันเสมอ** | ไม่ว่าอีเมลจะมีบัญชีหรือไม่ — กันไม่ให้หน้านี้กลายเป็นเครื่องมือไล่หาอีเมลที่มีอยู่จริง |
+| **เปลี่ยนรหัสผ่าน/ระงับบัญชี → เตะทุกเซสชัน** | `revokeAllSessions()` ทำงานทันที ไม่รอเซสชันหมดอายุเอง |
+| **audit DENY ทุกครั้งที่ถูกปฏิเสธ** | `toActionError()` เขียน `access.denied` ระดับ WARNING ให้อัตโนมัติเมื่อ service โยน `FORBIDDEN` |
+| **เปลี่ยนสิทธิ์ของบทบาท = CRITICAL** | กระทบผู้ใช้ทุกคนที่ถือบทบาทนั้นพร้อมกัน · เปลี่ยน clearance ของผู้ใช้ก็ CRITICAL เช่นกัน |
+| **`SYSTEM_ADMIN` ไม่ได้ `document.read`** | ตาม §4.2 — มี unit test ยืนยันไว้ด้วย |
+| **ผู้ดูแลระบบรีเซ็ตรหัสผ่านแล้วเห็นรหัสชั่วคราวครั้งเดียว** | ไม่เก็บ plaintext ที่ไหน · ผู้ดูแลคัดลอกไปแจ้งผู้ใช้เอง (MVP ไม่มีอีเมล) |
+
+---
+
 ## 7. ตัวบล็อกที่ค้างอยู่
 
 **ไม่มี** — Docker Desktop ติดตั้งแล้ว ตัวบล็อกเดิมของ P0 ถูกปลดครบ
@@ -506,12 +667,12 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm build
 |---|-------|---------|
 | 1 | ~~agent skills ที่ Prisma แถมมา~~ | ✅ **gitignore ทั้ง 3 ชุด** (22 ส.ค. 2569) — ไฟล์ยังอยู่ในเครื่อง ใช้งานได้ปกติ แต่ไม่เข้า git · ระบุเจาะจงที่ `skills/` ไม่ใช่ทั้งโฟลเดอร์ เผื่อวันหลังจะ commit `.claude/settings.json` |
 | 2 | ~~ติดตั้ง Docker Desktop~~ | ✅ ทำแล้ว |
-| 3 | **base color `neutral`** | เก็บไว้ / เปลี่ยนเป็นโทน slate อมฟ้า |
-| 4 | **`public/*.svg` ของ Next** | ลบเมื่อไร (next.svg, vercel.svg, file.svg, globe.svg, window.svg) |
+| 3 | ~~base color `neutral`~~ | ✅ **เปลี่ยนเป็นชุดสีของดีไซน์** (24 ส.ค. 2569) — เขียว #3F6133 + สีชั้นความลับ 4 ระดับตาม §8.1 · token ทั้งหมดอยู่ใน `src/app/globals.css` |
+| 4 | ~~`public/*.svg` ของ Next~~ | ✅ **ลบแล้ว** (24 ส.ค. 2569) · `public/brand/krirk-logo.png` เข้ามาแทน |
 | 5 | **`AGENTS.md` / `CLAUDE.md`** | template ของ Next 16 — ยังไม่ได้แก้ให้ตรงกับโปรเจกต์ |
 | 6 | ~~metadata ยัง hardcode~~ | ✅ ย้ายไป `src/constants/app.ts` แล้ว — `layout.tsx` อ้างจากที่นั่น |
 | 7 | ~~ICU collation ภาษาไทยของ Postgres~~ | ✅ ทำแล้ว — ดู §6.9 |
-| 8 | **endpoint `/api/health`** | ตอนนี้ healthcheck ของ container ยิง `/` ซึ่งเป็นหน้า render จริง — ควรทำ endpoint เบา ๆ ตอน P1 |
+| 8 | ~~endpoint `/api/health`~~ | ✅ **ทำแล้ว** (24 ส.ค. 2569) — ตรวจว่าแอปตอบได้ + ต่อฐานข้อมูลติด · `HEALTHCHECK` ใน Dockerfile ชี้มาที่นี่แล้ว |
 | 9 | **default password ใน `docker-compose.yml`** | `${POSTGRES_PASSWORD:-esaraban_dev_password}` ทำให้ dev รันได้ทันทีโดยไม่ต้องตั้ง `.env` แต่ถ้าขึ้น production แล้วลืมสร้าง `.env` จะได้รหัสผ่านที่รู้กันทั้ง repo → **ก่อน deploy จริงต้องตัด fallback ทิ้ง** ให้ compose fail ถ้าไม่มีค่า |
 
 ---
@@ -523,7 +684,7 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm build
 | # | คำถาม | กระทบขั้นไหน |
 |---|-------|-------------|
 | 7 | สเปกเซิร์ฟเวอร์ on-premise + TLS cert | **ยังค้าง** — เขียน compose/nginx ด้วยค่ามาตรฐานไปก่อนแล้ว · block HTTPS คอมเมนต์รออยู่ใน `docker/nginx/conf.d/default.conf` |
-| 3 | ผังหน่วยงานจริง + รหัสหนังสือ | seed data ของ P1 |
+| 3 | ผังหน่วยงานจริง + รหัสหนังสือ | **ยังค้าง** — P1 ใช้ผังตัวอย่าง 11 หน่วย (`ศธ 0512.x`) ไปก่อน · แก้ `ORG_TREE` ใน `prisma/seed.ts` แล้ว seed ใหม่บนฐานข้อมูลเปล่าเมื่อได้ผังจริง |
 | 5 | ปีที่ใช้รีเซ็ตเลข (ปีงบ / ปีปฏิทิน) | P2 — เปลี่ยนทีหลังทำให้เลขทะเบียนไม่ต่อเนื่อง |
 | 2 | ตัวอย่างเลขหนังสือจริง 3–5 แบบ | P2 — ผิดแล้วต้องแก้เอกสารที่ออกเลขไปแล้ว |
 | 6 | นโยบายเอกสารลับ | P3 |
@@ -534,56 +695,56 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm build
 
 ## 10. แผนงานถัดไป
 
-**P0 ปิดแล้ว** (ขั้นที่ 7 ข้ามตามคำสั่ง — ดู §6.12) ถัดไปคือ **P1 — Identity & Org**
-ประมาณการ 2–3 สัปดาห์ · Definition of Done ตาม spec §13:
-*"Admin สร้างโครงสร้าง 3 ระดับ + ผู้ใช้ 2 สังกัด แล้วสลับ context ได้ ·
-unit test ของ `can()` ครอบทุก scope"*
+**P0 · P1 ปิดแล้ว** ถัดไปคือ **P2 — Core Documents**
+ประมาณการ 3–4 สัปดาห์ · Definition of Done ตาม spec §13:
+*"ทำ flow บันทึกข้อความและหนังสือส่งได้ครบตั้งแต่ร่างถึงปิดเรื่อง · **test เลขซ้ำผ่าน**"*
 
-ขอบเขต P1: Auth (login/logout/เปลี่ยนรหัส/lockout) · Session table · OrgUnit CRUD +
-tree UI + materialized path · User CRUD + multi-affiliation · Role/Permission + `can()` ·
-Context Switcher · Audit เบื้องต้น
+ขอบเขต P2: DocumentType · สร้าง/แก้/ส่งร่าง · NumberSequence + ออกเลข (พร้อม concurrency test) ·
+Attachment upload + PDF preview · Inbox/Outbox/Drafts · state machine + DocumentAction timeline ·
+คิวออกเลข + bulk issue · ตีกลับแก้ไข
 
-### ของที่ต้องเคลียร์ก่อนเริ่ม P1
+### ⚠️ ของที่ต้องเคลียร์ก่อนเริ่ม P2 — เป็นตัวบล็อกจริง
 
-| # | เรื่อง | หมายเหตุ |
+| # | เรื่อง | ทำไมบล็อก |
 |---|-------|---------|
-| 1 | **ติดตั้ง Vitest** | DoD ของ P1 บังคับให้มี unit test ของ `can()` — ปิดไม่ได้ถ้าไม่มี (ดู §6.12) |
-| 2 | ติดตั้ง `zod` · `jose` · `argon2` | spec §11.1 · โฟลเดอร์ `src/schemas/` และ `src/lib/auth/` รออยู่แล้ว |
-| 3 | **คำถาม §15 ข้อ 3** — ผังหน่วยงานจริง + รหัสหนังสือ | ต้องใช้เป็น seed data ของ P1 |
-| 4 | ตัดสินใจเรื่องค้างใน §8 (ข้อ 1, 3, 4, 5, 8) | ไม่บล็อก แต่ยิ่งทิ้งไว้ยิ่งแก้ยาก |
-| 5 | **commit งาน P0** | ยังไม่เคย commit เลย — repo มีแต่ initial commit ของ template |
+| 1 | **spec §15 ข้อ 2** — ตัวอย่างเลขหนังสือจริง 3–5 แบบ | pattern ผิดแล้วต้องแก้เอกสารที่ออกเลขไปแล้ว ซึ่งขัดกับ §6.4 ที่ห้ามแก้เลขทะเบียนหลังออกเลข |
+| 2 | **spec §15 ข้อ 5** — ปีที่ใช้รีเซ็ตเลข (ปีงบ / ปีปฏิทิน) | เป็นส่วนหนึ่งของคีย์ `NumberSequence` — เปลี่ยนทีหลังทำให้เลขทะเบียนไม่ต่อเนื่อง · ตอนนี้ตั้งค่าปริยายเป็น `CALENDAR` ไว้ที่ `/admin/settings` แล้ว |
+| 3 | **spec §15 ข้อ 3** — ผังหน่วยงานจริง + รหัสหนังสือ | รหัสหนังสือของหน่วยงานคือส่วนหนึ่งของเลขทะเบียน (`{unitCode}/{seq:4}`) · P1 ใช้ผังตัวอย่างไปก่อนได้ แต่ P2 ใช้ไม่ได้แล้ว |
+| 4 | **spec §15 ข้อ 1** — ยืนยัน A1 (โมดูลหนังสือรับ) | กระทบว่าจะออกแบบ `direction` กับ bookCode ยังไง |
 
-### ยังไม่ได้ทำ เพราะยังไม่ถึงเวลา
+### ลำดับที่แนะนำสำหรับ P2
 
-- **pre-commit hook** (husky + lint-staged) — ทำพร้อม CI เมื่อกลับมาทำ
-- **ตั้งค่า format-on-save ของ editor** — ยังไม่รู้ว่าทีมใช้ VS Code หรือ Windsurf
-  (ในโปรเจกต์มีทั้ง `.claude/` และ `.windsurf/`) ระหว่างนี้ใช้ `pnpm format` เอาก่อน
-
-### ลำดับที่แนะนำสำหรับ P1
-
-เรียงตามการพึ่งพากัน — ทำสลับลำดับจะติดกันเอง
+เรียงตามการพึ่งพากัน
 
 | ลำดับ | งาน | หมายเหตุ |
 |:--:|---|---|
-| 1 | ติดตั้ง Vitest + `zod` `jose` `argon2` | เขียน test ชุดแรกให้ `src/lib/thai/` ทันที (มีโค้ดจริงรออยู่แล้ว · เคสสำคัญคือข้ามเที่ยงคืน / ข้ามปี พ.ศ. ตาม §6.11) |
-| 2 | **ออกแบบ schema §9** ลง `prisma/schema.prisma` | Tenant · OrgUnit (materialized path) · User · UserOrgRole · Role · Permission · Session · AuditLog · ใส่ `tenantId` ทุกตารางตั้งแต่วันแรก (§11.3 ข้อ 4) |
-| 3 | migration + seed จริง | permissions ทั้ง 22 รหัสจาก `src/lib/authz` · role→permission matrix ตาม §4.2 · org tree ตัวอย่าง · admin คนแรก · **ต้องได้คำตอบ §15 ข้อ 3 ก่อน** ไม่งั้น seed จะต้องรื้อ |
-| 4 | `src/lib/auth/` | argon2 + session table + jose · lockout ตาม §8.4 |
-| 5 | `src/lib/authz/can()` + scope resolver | **จุดที่ต้องมี unit test ครอบทุก scope** (OWN / UNIT / SUBTREE / ORG) — เป็น DoD ของ P1 |
-| 6 | `src/server/{repositories,services,actions}/` ชุดแรก | ตามกติกา §11.3: action บาง · service หนา · ตรวจสิทธิ์ที่ service |
-| 7 | UI — `(auth)/login` · `(app)/` layout + Context Switcher · `/admin/org-units` · `/admin/users` | ตอนนี้ค่อยสร้าง route group (§6.11) · ข้อความไทยลง `src/constants/` ห้ามเขียนใน component |
-| 8 | audit เบื้องต้น | เขียนใน transaction เดียวกับงานหลักตั้งแต่ตัวแรก (§11.3 ข้อ 5) — ย้อนกลับมาใส่ทีหลังยาก |
+| 1 | เพิ่ม schema ฝั่งเอกสาร | `DocumentType` · `Document` · `NumberSequence` · `Attachment` · `DocumentRecipient` · `DocumentAction` — ใส่ `@@unique` ของเลขทะเบียนตาม §7.3 ตั้งแต่ migration แรก |
+| 2 | **renderer ของ pattern เลขหนังสือ** ใน `src/lib/thai/` | `{unitCode}` `{unitShort}` `{seq}` `{seq:4}` `{year}` `{yearShort}` `{docType}` `{bookCode}` — เขียน unit test คู่กันเลย |
+| 3 | **`issueNumber()` + concurrency test** ⚠️ | จุดที่ spec §7.3 ทำเครื่องหมาย Critical · ยิง 50 requests พร้อมกัน → ต้องได้เลข 1–50 ครบ ไม่ซ้ำ ไม่ข้าม · **เป็น acceptance criteria ของ P2** |
+| 4 | state machine + `DocumentAction` | ใช้ `can()` ที่มีอยู่แล้วพร้อม `allowedStatuses` — ด่าน STATE ของ §4.3 ทำรอไว้แล้วใน P1 |
+| 5 | Attachment upload + StorageAdapter (LocalFs) | interface พร้อมแล้วที่ `src/lib/storage/` · magic-number check ตาม §8.4 · ค่าขนาดไฟล์อ่านจาก `/admin/settings` ที่ทำไว้แล้ว |
+| 6 | UI — `/documents/new` · `/documents/[id]` · Inbox/Outbox/Drafts · คิวออกเลข | หน้าเหล่านี้ตอนนี้เป็นหน้า "อยู่ระหว่างพัฒนา" อยู่ — แทนที่ทีละหน้า · ดีไซน์มีครบใน `project-ui/` |
+| 7 | เปลี่ยน `/admin/numbering` ให้ตั้ง pattern ได้จริง | ตอนนี้เป็นหน้า placeholder |
 
-### สิ่งที่วางรากไว้ให้ P1 แล้ว — อย่าสร้างซ้ำ
+### สิ่งที่วางรากไว้ให้ P2 แล้ว — อย่าสร้างซ้ำ
 
 | มีอยู่แล้วที่ | ใช้ทำอะไร |
 |---|---|
-| `src/lib/authz/permissions.ts` | `PERMISSIONS` ครบ 22 รหัส · `PERMISSION_SCOPES` · `ROLE_CODES` — seed อ่านจากที่นี่ |
-| `src/server/context.ts` | `ServiceContext` — service ทุกตัวรับเป็น argument แรก |
-| `src/lib/thai/` | `formatThaiDate` · `getBuddhistYear` (ใช้ตอนรีเซ็ตเลขทะเบียน) · เลขไทย |
-| `src/constants/` | `APP_NAME` · `CONFIDENTIALITY_LEVELS` · `URGENCY_LEVELS` · `ROLE_LABELS` |
-| `src/lib/storage/` · `src/lib/notification/` | interface พร้อมแล้ว — P1 ยังไม่ต้องแตะ แต่ห้ามข้ามไป import ตรง |
-| `src/lib/db.ts` | PrismaClient singleton + driver adapter — อย่าสร้าง client ใหม่ที่อื่น |
+| `src/lib/authz/can.ts` | ครบทั้ง 6 ด่านของ §4.3 รวม ACL · clearance · **ด่าน STATE** (`allowedStatuses`) — P2 แค่ส่งสถานะเข้าไป |
+| `src/lib/audit/` | `writeAudit(tx, …)` + hash chain — ทุก transition ของเอกสารเรียกตัวนี้ |
+| `src/server/services/errors.ts` | `assertPermission()` + `ServiceError` — service ใหม่ใช้รูปแบบเดียวกัน |
+| `src/server/actions/{types,helpers}.ts` | `ActionState` · `zodErrorState` · `toActionError` (เขียน audit DENY ให้อัตโนมัติ) |
+| `src/components/ui/` | ปุ่ม · ฟอร์ม · การ์ด · badge · **`ConfidentialityBadge` 4 ระดับ** พร้อมใช้ |
+| `src/lib/settings/` | ขนาดไฟล์สูงสุด · ประเภทไฟล์ที่อนุญาต · `yearMode` — อ่านผ่าน `getSystemSettings()` |
+| `src/lib/storage/` · `src/lib/notification/` | interface พร้อมแล้ว — ห้ามข้ามไป import ตรง |
+| `src/constants/ui.ts` | ข้อความ UI ทั้งหมด — หน้าใหม่เพิ่มกลุ่มของตัวเองที่นี่ ห้ามเขียนไทยลง component |
+
+### ยังไม่ได้ทำ เพราะยังไม่ถึงเวลา
+
+- **CI** (GitHub Actions) — ผู้ใช้สั่งข้ามตั้งแต่ P0 (§6.12) · คำสั่งพร้อมหมดแล้ว เหลือแค่ workflow ไฟล์เดียว
+- **pre-commit hook** (husky + lint-staged) — ทำพร้อม CI
+- **Playwright e2e** — อยู่ใน P5 · ระหว่างนี้ทดสอบด้วยสคริปต์ CDP (ดู §11.6)
+- **CSP strict + security headers ครบ** — อยู่ใน P3 · ตอนนี้ nginx ใส่ให้บางส่วนแล้ว
 
 ---
 
@@ -650,3 +811,43 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm build
 — **ไม่ใช่บั๊กของแอป** Git Bash แปลงอักษรไทยเป็น `????????????` แล้ว `?` ตัวแรก
 กลายเป็นจุดเริ่ม query string จึงเท่ากับขอหน้าแรก
 ทดสอบ path ภาษาไทยต้อง **percent-encode เอง** ถึงจะได้ 404 ตามจริง
+
+### 11.6 ตรวจ P1 — flow ที่ยืนยันแล้วด้วยการรันจริง (24 ส.ค. 2569)
+
+ทดสอบผ่านเบราว์เซอร์จริง (Chrome headless + DevTools Protocol) ไม่ใช่แค่ดูว่า build ผ่าน
+
+| flow | ผลที่ได้ |
+|---|---|
+| `GET /` ตอนยังไม่ล็อกอิน | 307 → `/login` |
+| `GET /api/health` | 200 `{"status":"ok"}` |
+| ล็อกอินด้วยรหัสผ่านผิด | ขึ้น "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง — **เหลือโอกาสอีก 4 ครั้ง**ก่อนบัญชีจะถูกล็อกชั่วคราว" |
+| ล็อกอินด้วยรหัสผ่านถูก (บัญชีใหม่) | → `/change-password` โดยบังคับ (`mustChangePassword`) |
+| ตั้งรหัสผ่านใหม่ | → `/dashboard` · `mustChangePassword` ถูกล้าง |
+| `DEPT_OFFICER` เปิด `/admin/users` | 307 → `/dashboard` (ไม่มีสิทธิ์ `user.manage`) |
+| `DEPT_OFFICER` เปิด `/admin/audit` | 200 (มี `audit.read` scope UNIT) |
+| `SYSTEM_ADMIN` เปิดหน้า `/admin/*` ทั้งหมด | 200 ทุกหน้า |
+| สมัครใช้งานผ่าน `/register` | สร้างคำขอ · ขึ้นหน้า "ส่งคำขอเรียบร้อยแล้ว" |
+| สมัครด้วยชื่อผู้ใช้ซ้ำ | ปฏิเสธ: `ชื่อผู้ใช้ "test.register" ถูกใช้ไปแล้ว` |
+| คำขอโผล่ในคิวที่ `/admin/users` | ✅ พร้อมปุ่มอนุมัติ/ปฏิเสธ และเลือกบทบาทให้ |
+| materialized path ของผัง 3 ระดับ | ✅ `subtree ของคณะวิศวฯ` คืน 3 หน่วย (ตัวเอง + 2 ภาควิชา) |
+| audit hash chain | ✅ `verifyAuditChain()` คืน `valid: true` |
+| `UPDATE audit_logs` ตรงจาก SQL | ✅ **ฐานข้อมูลปฏิเสธ** — `P0001: audit_logs เป็นตารางแบบ append-only` |
+
+**คำสั่งที่ใช้ตรวจคุณภาพ (ต้องผ่านทั้งหมดก่อนปิดเฟส)**
+
+```bash
+pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build
+```
+
+ผลล่าสุด: lint 0 error · format ผ่าน · typecheck ผ่าน · **test 41 เคสผ่าน** · build ได้ 24 routes
+
+**ถ่ายภาพหน้าจอที่ต้องล็อกอิน** — Chrome headless อย่างเดียวตั้ง cookie ไม่ได้
+ต้องคุยผ่าน DevTools Protocol (Node 24 มี `WebSocket` มาให้แล้ว ไม่ต้องติดตั้ง Playwright):
+
+```bash
+chrome --headless=new --remote-debugging-port=9222 --user-data-dir=<tmp> about:blank
+# แล้วส่ง Network.setCookie → Page.navigate → Page.captureScreenshot ผ่าน ws://
+```
+
+> ⚠️ บน Git Bash ต้องนำหน้าด้วย `MSYS_NO_PATHCONV=1` ไม่งั้น argument ที่ขึ้นต้นด้วย `/`
+> (เช่น `/dashboard`) จะถูกแปลงเป็นพาธของ Windows แล้ว CDP จะตอบ `Cannot navigate to invalid URL`

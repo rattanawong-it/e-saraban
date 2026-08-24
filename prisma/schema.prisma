@@ -1,6 +1,18 @@
 // e-Saraban — Prisma schema
-// โมเดลข้อมูลตาม spec §9 จะถูกเพิ่มใน P1 (Identity & Org) เป็นต้นไป
-// ขั้น P0 ตั้งเฉพาะ generator / datasource / extensions ให้พร้อมใช้งาน
+// โมเดลข้อมูลตาม spec §9
+//
+// ขอบเขตไฟล์นี้ตอนนี้คือ **P1 — Identity & Org**:
+//   Tenant · OrgUnit · User · UserOrgUnit · Role · Permission · RolePermission ·
+//   UserRole · Session · AuditLog · SystemSetting + โมเดลช่วยของ flow สมัคร/ลืมรหัสผ่าน
+//
+// โมเดลฝั่งเอกสาร (Document, NumberSequence, Attachment, DocumentRecipient,
+// DocumentAction, DocumentAcl, Notification) จะเพิ่มใน P2/P3/P5
+//
+// กติกาที่ยึดตาม spec §9.3 และ §11.3 ข้อ 4:
+//   - ทุกตารางหลักมี `tenantId` ตั้งแต่วันแรก
+//   - FK ใช้ onDelete: Restrict ทั้งหมด (ไม่ cascade) กันข้อมูลทะเบียนหายเป็นลูกโซ่
+//   - ลบเป็น soft delete ด้วย `deletedAt` / `isActive`
+//   - เวลาเก็บเป็น timestamptz (UTC) แปลงเป็น Asia/Bangkok ที่ชั้น presentation
 
 generator client {
   provider        = "prisma-client"
@@ -11,7 +23,411 @@ generator client {
 datasource db {
   provider = "postgresql"
 
-
   // spec §11.1 + §9.2 — pg_trgm คือกลไกค้นหาหลักสำหรับภาษาไทย (ตัดคำด้วย tsvector ไม่ได้)
   extensions = [pg_trgm, unaccent]
+}
+
+// ---------------------------------------------------------------------------
+// Enum
+// ---------------------------------------------------------------------------
+
+/// ประเภทหน่วยงาน (spec §5.1) — ใช้เป็นป้ายกำกับ ไม่ได้บังคับลำดับชั้น
+enum OrgUnitType {
+  UNIVERSITY /// มหาวิทยาลัย / สถาบัน
+  FACULTY /// คณะ
+  OFFICE /// สำนัก / สำนักงาน
+  DIVISION /// กอง
+  DEPARTMENT /// ภาควิชา
+  CENTER /// ศูนย์
+  SECTION /// งาน / ฝ่าย
+}
+
+/// ขอบเขตของสิทธิ์ (spec §4.2)
+enum PermissionScope {
+  OWN /// ของตนเอง
+  UNIT /// หน่วยงานปัจจุบัน
+  SUBTREE /// หน่วยงานตนและลูกหลาน
+  ORG /// ทั้งองค์กร
+}
+
+/// ผลการตัดสินสิทธิ์ที่บันทึกลง audit (spec §8.5)
+enum AuditResult {
+  ALLOW
+  DENY
+}
+
+/// ความรุนแรงของเหตุการณ์ใน audit log (spec §8.5)
+enum AuditSeverity {
+  INFO
+  NOTICE
+  WARNING
+  CRITICAL
+}
+
+/// สถานะคำขอ (ใช้ทั้งคำขอสมัครใช้งานและคำขอรีเซ็ตรหัสผ่าน)
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ---------------------------------------------------------------------------
+// Tenant — เผื่ออนาคต · MVP มีแถวเดียว (spec §9.1, D1)
+// ---------------------------------------------------------------------------
+
+model Tenant {
+  id        String   @id @default(uuid(7))
+  code      String   @unique
+  nameTh    String
+  nameEn    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  orgUnits             OrgUnit[]
+  users                User[]
+  auditLogs            AuditLog[]
+  settings             SystemSetting[]
+  registrationRequests RegistrationRequest[]
+
+  @@map("tenants")
+}
+
+// ---------------------------------------------------------------------------
+// OrgUnit — โครงสร้างลำดับชั้นไม่จำกัดระดับ (spec §5.1)
+// Adjacency List (parentId) + Materialized Path (path) คู่กัน
+// path เก็บรูปแบบ "/<id>/<id>/" → query subtree ด้วย path LIKE '/a/b/%'
+// ---------------------------------------------------------------------------
+
+model OrgUnit {
+  id       String  @id @default(uuid(7))
+  tenantId String
+  parentId String?
+
+  /// materialized path ของ **ตนเองรวมอยู่ด้วย** เช่น "/root/faculty/dept/"
+  /// ลูกหลานทั้งหมดหาได้ด้วย `path LIKE '<path ของ node>%'`
+  path String
+
+  /// รหัสหนังสือของหน่วยงาน เช่น "0512.1" (spec §5.1)
+  code      String
+  nameTh    String
+  shortName String?
+  type      OrgUnitType @default(SECTION)
+
+  /// ระดับความลึก — root = 0 · เก็บซ้ำไว้เพื่อ sort/แสดงผลโดยไม่ต้องนับ path
+  level      Int     @default(0)
+  sortOrder  Int     @default(0)
+  headUserId String?
+  isActive   Boolean @default(true)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  parent   OrgUnit?  @relation("OrgUnitTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children OrgUnit[] @relation("OrgUnitTree")
+  head     User?     @relation("OrgUnitHead", fields: [headUserId], references: [id], onDelete: Restrict)
+
+  members              UserOrgUnit[]
+  userRoles            UserRole[]
+  sessions             Session[]
+  registrationRequests RegistrationRequest[]
+
+  @@unique([tenantId, code])
+  /// spec §9.2 — subtree query ด้วย LIKE 'path%'
+  @@index([path])
+  @@index([tenantId, parentId, sortOrder])
+  @@map("org_units")
+}
+
+// ---------------------------------------------------------------------------
+// User (spec §9.1) + สังกัดหลายหน่วยงาน (spec §5.2)
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String  @id @default(uuid(7))
+  tenantId     String
+  username     String  @unique
+  passwordHash String
+  email        String?
+  prefix       String?
+  firstName    String
+  lastName     String
+
+  /// ชั้นความลับสูงสุดที่เข้าถึงได้ 0–3 (spec §8.1)
+  clearanceLevel Int @default(0)
+
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(true)
+  failedLoginCount   Int       @default(0)
+  lockedUntil        DateTime? @db.Timestamptz(3)
+  lastLoginAt        DateTime? @db.Timestamptz(3)
+  passwordChangedAt  DateTime? @db.Timestamptz(3)
+
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  orgUnits              UserOrgUnit[]
+  roles                 UserRole[]             @relation("UserRoleUser")
+  grantedRoles          UserRole[]             @relation("UserRoleGrantedBy")
+  sessions              Session[]
+  auditLogs             AuditLog[]
+  headOfUnits           OrgUnit[]              @relation("OrgUnitHead")
+  updatedSettings       SystemSetting[]
+  resetRequests         PasswordResetRequest[] @relation("ResetRequestUser")
+  resolvedResets        PasswordResetRequest[] @relation("ResetRequestResolvedBy")
+  reviewedRegistrations RegistrationRequest[]  @relation("RegistrationReviewedBy")
+
+  @@index([tenantId, isActive])
+  @@index([tenantId, lastName, firstName])
+  @@map("users")
+}
+
+/// สังกัดของผู้ใช้ (spec §5.2) — คนหนึ่งอยู่ได้หลายหน่วยงานพร้อมกัน
+model UserOrgUnit {
+  id            String    @id @default(uuid(7))
+  userId        String
+  orgUnitId     String
+  positionTitle String?
+  isPrimary     Boolean   @default(false)
+  startDate     DateTime? @db.Timestamptz(3)
+  endDate       DateTime? @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  orgUnit OrgUnit @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, orgUnitId])
+  @@index([orgUnitId])
+  @@map("user_org_units")
+}
+
+// ---------------------------------------------------------------------------
+// RBAC (spec §4) — Role ผูกกับคู่ (User, OrgUnit) ไม่ใช่กับ User เดี่ยว
+// ---------------------------------------------------------------------------
+
+model Role {
+  id          String  @id @default(uuid(7))
+  code        String  @unique
+  nameTh      String
+  description String?
+
+  /// บทบาทของระบบ — ห้ามลบ แก้ได้เฉพาะชุดสิทธิ์
+  isSystem  Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  permissions RolePermission[]
+  userRoles   UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  code   String @id
+  group  String
+  nameTh String
+
+  /// คำอธิบายว่าสิทธิ์นี้ทำอะไรได้ — แสดงในหน้า /admin/roles
+  description String?
+  sortOrder   Int     @default(0)
+
+  roles RolePermission[]
+
+  @@index([group, sortOrder])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId         String
+  permissionCode String
+  scope          PermissionScope @default(UNIT)
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  permission Permission @relation(fields: [permissionCode], references: [code], onDelete: Restrict)
+
+  @@id([roleId, permissionCode])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id     String @id @default(uuid(7))
+  userId String
+  roleId String
+
+  /// null = บทบาทระดับทั้งองค์กร (global) เช่น SYSTEM_ADMIN
+  orgUnitId String?
+
+  grantedById String?
+  grantedAt   DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt   DateTime? @db.Timestamptz(3)
+
+  user      User     @relation("UserRoleUser", fields: [userId], references: [id], onDelete: Restrict)
+  grantedBy User?    @relation("UserRoleGrantedBy", fields: [grantedById], references: [id], onDelete: Restrict)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  orgUnit   OrgUnit? @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, roleId, orgUnitId])
+  @@index([userId])
+  @@index([orgUnitId])
+  @@map("user_roles")
+}
+
+// ---------------------------------------------------------------------------
+// Session (spec §8.4) — JWT ใน cookie + ตาราง Session เพื่อให้ revoke ได้จริง
+// ---------------------------------------------------------------------------
+
+model Session {
+  id     String @id @default(uuid(7))
+  userId String
+
+  /// หน่วยงานที่ผู้ใช้กำลังสวมบทบาทอยู่ (Context Switcher · spec §5.2)
+  activeOrgUnitId String?
+
+  ip        String?
+  userAgent String?
+
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  lastSeenAt DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt  DateTime  @db.Timestamptz(3)
+  revokedAt  DateTime? @db.Timestamptz(3)
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  activeOrgUnit OrgUnit? @relation(fields: [activeOrgUnitId], references: [id], onDelete: Restrict)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ---------------------------------------------------------------------------
+// AuditLog (spec §8.5) — append-only + hash chain
+// ห้ามมีคำสั่ง UPDATE/DELETE กับตารางนี้ในโค้ด
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id       String   @id @default(uuid(7))
+  tenantId String
+  at       DateTime @default(now()) @db.Timestamptz(3)
+
+  actorUserId    String?
+  actorOrgUnitId String?
+
+  /// รหัสการกระทำ เช่น "auth.login" "orgunit.create" (ดู src/lib/audit/actions.ts)
+  action     String
+  entityType String
+  entityId   String?
+
+  result    AuditResult   @default(ALLOW)
+  severity  AuditSeverity @default(INFO)
+  ip        String?
+  userAgent String?
+  sessionId String?
+
+  metadata Json?
+
+  /// hash chain (spec §8.5) — hash = SHA256(prevHash + payload)
+  prevHash String?
+  hash     String
+
+  /// ลำดับต่อเนื่องภายใน tenant — ใช้ไล่ตรวจ chain ให้เร็วและตรวจว่าไม่มีแถวหาย
+  seq BigInt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  actor  User?  @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, seq])
+  @@index([at(sort: Desc)])
+  @@index([actorUserId, at(sort: Desc)])
+  @@index([entityType, entityId])
+  @@index([tenantId, action])
+  @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// SystemSetting (spec §9.1) — ค่าระบบที่ผู้ดูแลแก้ได้จาก /admin/settings
+// ---------------------------------------------------------------------------
+
+model SystemSetting {
+  tenantId String
+  key      String
+
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  updatedBy User?  @relation(fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@id([tenantId, key])
+  @@map("system_settings")
+}
+
+// ---------------------------------------------------------------------------
+// คำขอสมัครใช้งาน (หน้า /register)
+// ไม่สร้าง User จนกว่าผู้ดูแลจะอนุมัติ — กันบัญชีค้างครึ่ง ๆ กลาง ๆ ในระบบ
+// ---------------------------------------------------------------------------
+
+model RegistrationRequest {
+  id       String @id @default(uuid(7))
+  tenantId String
+
+  prefix        String?
+  firstName     String
+  lastName      String
+  email         String
+  username      String
+  passwordHash  String
+  orgUnitId     String
+  positionTitle String?
+  note          String?
+
+  status       RequestStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?     @db.Timestamptz(3)
+  rejectReason String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  tenant     Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  orgUnit    OrgUnit @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+  reviewedBy User?   @relation("RegistrationReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, status, createdAt])
+  @@map("registration_requests")
+}
+
+// ---------------------------------------------------------------------------
+// คำขอรีเซ็ตรหัสผ่าน (หน้า /forgot-password)
+// MVP ไม่มีอีเมล (D10 — in-app เท่านั้น) คำขอจึงเข้าคิวให้ผู้ดูแลรีเซ็ตให้
+// โครงสร้างเก็บ token + TTL ไว้แล้ว เผื่อเปิดใช้ลิงก์ทางอีเมลในอนาคต
+// ---------------------------------------------------------------------------
+
+model PasswordResetRequest {
+  id     String  @id @default(uuid(7))
+  userId String?
+
+  /// อีเมลที่ผู้ใช้กรอก — เก็บไว้แม้หาบัญชีไม่เจอ เพื่อให้ผู้ดูแลตามเรื่องได้
+  email String
+
+  status       RequestStatus @default(PENDING)
+  resolvedById String?
+  resolvedAt   DateTime?     @db.Timestamptz(3)
+  note         String?
+
+  ip        String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+
+  user       User? @relation("ResetRequestUser", fields: [userId], references: [id], onDelete: Restrict)
+  resolvedBy User? @relation("ResetRequestResolvedBy", fields: [resolvedById], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@map("password_reset_requests")
 }

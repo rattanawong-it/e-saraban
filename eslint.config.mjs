@@ -23,6 +23,13 @@ const eslintConfig = defineConfig([
       // ใช้ของ @stylistic ไม่ใช่ rule `semi` ในตัว ESLint เพราะตัวในรู้จักแต่ไวยากรณ์ JS
       // เจอ syntax เฉพาะของ TS (interface, index signature, declare) แล้วรายงานผิด
       "@stylistic/semi": ["error", "never"],
+
+      // Server Action ที่ใช้กับ useActionState ต้องรับ state เดิมเป็นพารามิเตอร์แรก
+      // แม้จะไม่ได้ใช้ค่านั้น — ตั้งชื่อขึ้นต้นด้วย _ แล้วให้ rule ข้ามไป
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
     },
   },
 
@@ -34,6 +41,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Prisma Client ที่ generate มา — ไม่ได้เขียนเอง และไม่อยู่ใน git
     "src/generated/**",
+    // ไฟล์ดีไซน์จาก Claude Design — เป็น artifact ของเครื่องมือ ไม่ใช่ซอร์สของแอป
+    "project-ui/**",
   ]),
 ])
 

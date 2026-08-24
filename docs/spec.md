@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | เวอร์ชัน | 1.0 (Draft for Approval) |
-| วันที่ | 21 สิงหาคม 2569 |
+| วันที่ | 21 สิงหาคม 2569 · อัปเดตสถานะ 24 สิงหาคม 2569 |
 | ผู้จัดทำ | rattana.wong@krirk.ac.th |
-| สถานะ | รอยืนยันคำถามค้าง §15 ก่อนเริ่ม P2 |
+| สถานะ | **P0 · P1 ปิดแล้ว** · รอยืนยันคำถามค้าง §15 ก่อนเริ่ม P2 |
 | ที่มา | สรุปจากการสัมภาษณ์เก็บ requirements |
 
 ---
@@ -106,20 +106,34 @@ D2 ไม่รวมหนังสือรับ แต่ D12 ขอรา�
 
 ### 3.1 In Scope — MVP
 
-| # | ความสามารถ |
-|---|---|
-| F01 | จัดการโครงสร้างหน่วยงานแบบลำดับชั้นไม่จำกัดระดับ |
-| F02 | จัดการผู้ใช้ + สังกัดหลายหน่วยงาน + RBAC/Permission |
-| F03 | หนังสือภายใน (บันทึกข้อความ): ร่าง → ส่งออกเลข → ออกเลข → เวียน → รับทราบ → ปิดเรื่อง |
-| F04 | หนังสือส่งภายนอก: ร่าง → ส่งออกเลข → ออกเลข → ส่งออก → ปิดเรื่อง |
-| F05 | ลงทะเบียนหนังสือรับแบบเบา (ตาม A1) |
-| F06 | เลขทะเบียนอัตโนมัติ แยกตามหน่วยงาน/ประเภท/ปี พร้อม pattern ตั้งค่าได้ |
-| F07 | ไฟล์แนบหลายไฟล์/หลายเวอร์ชัน + PDF preview + watermark |
-| F08 | ชั้นความลับ 4 ระดับ + encryption at rest + ห้ามดาวน์โหลดสำหรับเอกสารลับ |
-| F09 | ค้นหาขั้นสูง + Dashboard สถิติ + Export ทะเบียน (Excel/PDF) |
-| F10 | Audit log ครบทุก action + หน้าตรวจสอบสำหรับผู้ดูแล |
-| F11 | แจ้งเตือน In-app (กระดิ่ง + Inbox) |
-| F12 | Responsive Web (Desktop-first, ใช้งานบนมือถือได้) |
+`[x]` = ทำเสร็จและตรวจแล้ว · `[~]` = ทำบางส่วน (ดูหมายเหตุ) · `[ ]` = ยังไม่เริ่ม
+
+| # | สถานะ | ความสามารถ | เฟส |
+|---|:---:|---|:---:|
+| F01 | [x] | จัดการโครงสร้างหน่วยงานแบบลำดับชั้นไม่จำกัดระดับ | P1 |
+| F02 | [x] | จัดการผู้ใช้ + สังกัดหลายหน่วยงาน + RBAC/Permission | P1 |
+| F03 | [ ] | หนังสือภายใน (บันทึกข้อความ): ร่าง → ส่งออกเลข → ออกเลข → เวียน → รับทราบ → ปิดเรื่อง | P2 |
+| F04 | [ ] | หนังสือส่งภายนอก: ร่าง → ส่งออกเลข → ออกเลข → ส่งออก → ปิดเรื่อง | P2 |
+| F05 | [ ] | ลงทะเบียนหนังสือรับแบบเบา (ตาม A1) | P5 |
+| F06 | [ ] | เลขทะเบียนอัตโนมัติ แยกตามหน่วยงาน/ประเภท/ปี พร้อม pattern ตั้งค่าได้ | P2 |
+| F07 | [ ] | ไฟล์แนบหลายไฟล์/หลายเวอร์ชัน + PDF preview + watermark | P2/P3 |
+| F08 | [~] | ชั้นความลับ 4 ระดับ + encryption at rest + ห้ามดาวน์โหลดสำหรับเอกสารลับ | P3 |
+| F09 | [ ] | ค้นหาขั้นสูง + Dashboard สถิติ + Export ทะเบียน (Excel/PDF) | P4 |
+| F10 | [x] | Audit log ครบทุก action + หน้าตรวจสอบสำหรับผู้ดูแล | P1 |
+| F11 | [ ] | แจ้งเตือน In-app (กระดิ่ง + Inbox) | P5 |
+| F12 | [x] | Responsive Web (Desktop-first, ใช้งานบนมือถือได้) | P1+ |
+
+**หมายเหตุสถานะ (อัปเดต 24 ส.ค. 2569 — ปิด P1)**
+
+- **F01 · F02** ครบแล้ว: ผัง tree ไม่จำกัดระดับ + materialized path + ย้ายหน่วยงาน + เก็บถาวร ·
+  ผู้ใช้หลายสังกัด + บทบาทผูกกับคู่ (User, OrgUnit) + Context Switcher + `can()` ครบ 6 ด่านของ §4.3
+- **F08 [~]** — โครงสร้างพร้อมแล้วบางส่วน: `clearanceLevel` ของผู้ใช้ · `confidentialityLevel` และ
+  ด่าน CLEARANCE/ACL ใน `can()` · ป้ายสี 4 ระดับใน design token
+  **ยังไม่มี**: envelope encryption · watermark · secure file route (ทั้งหมดเป็นงาน P3)
+- **F10** ครบแล้ว: audit hash chain + append-only บังคับด้วย trigger ระดับ PostgreSQL +
+  หน้า `/admin/audit` พร้อม filter · export CSV · ปุ่มตรวจ hash chain
+- **F12** โครงสร้าง responsive ครบทุกหน้าที่มีในเฟสนี้ — sidebar ยุบเป็น drawer ที่ `< 1024px`
+  ส่วนตารางที่ต้องยุบเป็น card จะมาพร้อมหน้ารายการเอกสารใน P2
 
 ### 3.2 Out of Scope — MVP
 
@@ -676,16 +690,25 @@ docs/
 
 ## 13. แผนการพัฒนา (Roadmap)
 
-| Phase | ขอบเขต | ประมาณการ | Definition of Done |
-|-------|--------|-----------|-------------------|
-| **P0 — Foundation** | `pnpm create next-app` (Next 16 + TS strict) · Tailwind v4 + shadcn · Prisma 7 + Postgres · Docker Compose · ESLint/Prettier · โครงโฟลเดอร์ §11.2 · CI (typecheck/lint/test) | **1 สัปดาห์** | `pnpm dev` + `pnpm build` ผ่าน · migrate + seed สำเร็จ |
-| **P1 — Identity & Org** | Auth (login/logout/เปลี่ยนรหัส/lockout) · Session table · OrgUnit CRUD + tree UI + materialized path · User CRUD + multi-affiliation · Role/Permission + `can()` · Context Switcher · Audit เบื้องต้น | **2–3 สัปดาห์** | Admin สร้างโครงสร้าง 3 ระดับ + ผู้ใช้ 2 สังกัด แล้วสลับ context ได้ · unit test ของ `can()` ครอบทุก scope |
-| **P2 — Core Documents** | DocumentType · สร้าง/แก้/ส่งร่าง · NumberSequence + ออกเลข (พร้อม concurrency test) · Attachment upload + PDF preview · Inbox/Outbox/Drafts · state machine + DocumentAction timeline · คิวออกเลข + bulk issue · ตีกลับแก้ไข | **3–4 สัปดาห์** | ทำ flow บันทึกข้อความและหนังสือส่งได้ครบตั้งแต่ร่างถึงปิดเรื่อง · **test เลขซ้ำผ่าน** |
-| **P3 — Security & Confidential** | ชั้นความลับ 4 ระดับ + clearance · envelope encryption · secure file route + watermark + view-only · DocumentAcl (grant/revoke) · Audit hash chain + `/admin/audit` · security headers + CSP + rate limit | **2 สัปดาห์** | เอกสารลับที่สุดเปิดดูได้แต่ดาวน์โหลดไม่ได้ · ไฟล์บนดิสก์เปิดตรงไม่ได้ · audit ครบทุก access |
-| **P4 — Search & Reports** | ค้นหาขั้นสูง (pg_trgm) · Dashboard สถิติ · ทะเบียนหนังสือ + Export Excel/PDF ตามรูปแบบราชการ | **2 สัปดาห์** | ค้นภาษาไทยเจอ · export เปิดใน Excel ได้ฟอนต์ไม่เพี้ยน |
-| **P5 — Incoming & Hardening** | โมดูลลงทะเบียนหนังสือรับ (A1) · Notification in-app · Responsive polish · Playwright e2e · Backup script · คู่มือผู้ใช้ + UAT | **2–3 สัปดาห์** | UAT ผ่านกับผู้ใช้จริง ≥ 5 คนจาก 3 หน่วยงาน |
+| Phase | สถานะ | ขอบเขต | ประมาณการ | Definition of Done |
+|-------|:---:|--------|-----------|-------------------|
+| **P0 — Foundation** | [x] | `pnpm create next-app` (Next 16 + TS strict) · Tailwind v4 + shadcn · Prisma 7 + Postgres · Docker Compose · ESLint/Prettier · โครงโฟลเดอร์ §11.2 · CI (typecheck/lint/test) | **1 สัปดาห์** | `pnpm dev` + `pnpm build` ผ่าน · migrate + seed สำเร็จ |
+| **P1 — Identity & Org** | [x] | Auth (login/logout/เปลี่ยนรหัส/lockout) · Session table · OrgUnit CRUD + tree UI + materialized path · User CRUD + multi-affiliation · Role/Permission + `can()` · Context Switcher · Audit เบื้องต้น | **2–3 สัปดาห์** | Admin สร้างโครงสร้าง 3 ระดับ + ผู้ใช้ 2 สังกัด แล้วสลับ context ได้ · unit test ของ `can()` ครอบทุก scope |
+| **P2 — Core Documents** | [ ] | DocumentType · สร้าง/แก้/ส่งร่าง · NumberSequence + ออกเลข (พร้อม concurrency test) · Attachment upload + PDF preview · Inbox/Outbox/Drafts · state machine + DocumentAction timeline · คิวออกเลข + bulk issue · ตีกลับแก้ไข | **3–4 สัปดาห์** | ทำ flow บันทึกข้อความและหนังสือส่งได้ครบตั้งแต่ร่างถึงปิดเรื่อง · **test เลขซ้ำผ่าน** |
+| **P3 — Security & Confidential** | [ ] | ชั้นความลับ 4 ระดับ + clearance · envelope encryption · secure file route + watermark + view-only · DocumentAcl (grant/revoke) · Audit hash chain + `/admin/audit` · security headers + CSP + rate limit | **2 สัปดาห์** | เอกสารลับที่สุดเปิดดูได้แต่ดาวน์โหลดไม่ได้ · ไฟล์บนดิสก์เปิดตรงไม่ได้ · audit ครบทุก access |
+| **P4 — Search & Reports** | [ ] | ค้นหาขั้นสูง (pg_trgm) · Dashboard สถิติ · ทะเบียนหนังสือ + Export Excel/PDF ตามรูปแบบราชการ | **2 สัปดาห์** | ค้นภาษาไทยเจอ · export เปิดใน Excel ได้ฟอนต์ไม่เพี้ยน |
+| **P5 — Incoming & Hardening** | [ ] | โมดูลลงทะเบียนหนังสือรับ (A1) · Notification in-app · Responsive polish · Playwright e2e · Backup script · คู่มือผู้ใช้ + UAT | **2–3 สัปดาห์** | UAT ผ่านกับผู้ใช้จริง ≥ 5 คนจาก 3 หน่วยงาน |
 
 **รวมประมาณ 12–15 สัปดาห์** สำหรับ MVP ที่ใช้งานจริงได้
+
+### ผลการปิดเฟส
+
+| Phase | ปิดเมื่อ | Definition of Done ผ่านครบไหม |
+|---|---|---|
+| **P0** | 22 ส.ค. 2569 | ✅ ผ่าน — ยกเว้นข้อ CI ที่ผู้ใช้สั่งข้าม (ดู `docs/progress.md` §6.12) |
+| **P1** | 24 ส.ค. 2569 | ✅ ผ่านครบ — Admin สร้างผัง 3 ระดับได้ · `rattana.wong` มี 2 สังกัดและสลับ context ได้ · unit test ของ `can()` ครอบทุก scope (OWN/UNIT/SUBTREE/ORG) รวม 33 เคส |
+
+รายละเอียดของแต่ละเฟสอยู่ใน [progress.md](./progress.md)
 
 ### Post-MVP
 

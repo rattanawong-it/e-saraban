@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; }
+    a { color:#3F6133; text-decoration:none; }
+    a:hover { color:#2A4327; }
+    ::-webkit-scrollbar { width:8px; height:8px; }
+    ::-webkit-scrollbar-thumb { background:#C9D2C1; border-radius:8px; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;font-family:'Anuphan','Inter',sans-serif;background:#F5F7F1;color:#1E2A19">
+
+  <!-- SIDEBAR -->
+  <div style="{{ sidebarStyle }}">
+    <div style="display:flex;align-items:center;gap:11px;padding:0 20px 22px;border-bottom:1px solid rgba(255,255,255,0.1);margin-bottom:16px">
+      <div style="background:#fff;border-radius:10px;height:36px;padding:0 8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><img src="assets/krirk-logo.png" alt="Krirk University" style="height:24px;width:auto;display:block" /></div>
+      <sc-if value="{{ isExpanded }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div style="font-size:13.5px;font-weight:700;white-space:nowrap">e-Saraban</div>
+        <div style="font-size:10.5px;color:rgba(255,255,255,0.55);white-space:nowrap">ระบบสารบรรณอิเล็กทรอนิกส์</div>
+      </div>
+      </sc-if>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:0 12px;display:flex;flex-direction:column;gap:2px">{{ navItems }}</div>
+
+  </div>
+
+  <!-- MAIN -->
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+
+    <!-- HEADER -->
+    <div style="height:68px;flex-shrink:0;background:#fff;border-bottom:1px solid #DDE3D6;display:flex;align-items:center;gap:16px;padding:0 28px">
+      <div style="font-size:14px;font-weight:700">ลงทะเบียนหนังสือรับ</div>
+      <div style="flex:1"></div>
+      <div style="position:relative;width:38px;height:38px;border-radius:10px;background:#F5F7F1;display:flex;align-items:center;justify-content:center;cursor:pointer">{{ bellIcon }}</div>
+
+      <div style="position:relative;flex-shrink:0">
+        <div style="width:38px;height:38px;border-radius:10px;background:#3F6133;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;cursor:pointer" onClick="{{ toggleProfile }}">รว</div>
+        <sc-if value="{{ profileOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="position:fixed;inset:0;z-index:70" onClick="{{ closeProfile }}"></div>
+        <div style="position:absolute;top:48px;right:0;z-index:71;width:248px;background:#fff;border:1px solid #DDE3D6;border-radius:12px;box-shadow:0 12px 32px rgba(20,30,16,0.18);overflow:hidden">
+          <div style="padding:16px 18px 14px">
+            <div style="font-size:14.5px;font-weight:700;color:#1E2A19">รัตนา วงศ์ประเสริฐ</div>
+            <div style="font-size:12.5px;color:#7C8877;margin-top:3px">ratana.w@university.ac.th</div>
+            <div style="font-size:11px;color:#7C8877;margin-top:8px">ธุรการหน่วยงาน · คณะวิศวกรรมศาสตร์</div>
+          </div>
+          <div style="height:1px;background:#EEF1EA"></div>
+          <div style="padding:12px 18px;font-size:13.5px;font-weight:600;color:#4B5647;cursor:pointer">แก้ไขโปรไฟล์</div>
+          <div style="height:1px;background:#EEF1EA"></div>
+          <div style="padding:12px 18px;font-size:13.5px;font-weight:600;color:#C23B2E;cursor:pointer">ออกจากระบบ</div>
+        </div>
+        </sc-if>
+      </div>
+
+    </div>
+
+    <!-- CONTENT -->
+    <div style="flex:1;overflow-y:auto;padding:28px 32px 40px">
+
+      <div style="margin-bottom:20px">
+        <h1 style="font-size:22px;font-weight:700;margin:0 0 4px">ลงทะเบียนหนังสือรับ</h1>
+        <p style="font-size:13.5px;color:#7C8877;margin:0">ออกเลขรับ แนบไฟล์ต้นฉบับ และส่งต่อไปยังหน่วยงานที่เกี่ยวข้อง</p>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">
+
+        <!-- FORM -->
+        <div style="flex:1 1 460px;min-width:340px;background:#fff;border:1px solid #DDE3D6;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:16px">
+
+          <div style="display:flex;align-items:center;justify-content:space-between;background:#EAF0E5;border-radius:10px;padding:12px 14px">
+            <span style="font-size:12.5px;color:#4B5647;white-space:nowrap;flex-shrink:0">เลขรับที่จะออก</span>
+            <span style="font-size:16px;font-weight:700;color:#3F6133;font-family:'Inter',sans-serif;white-space:nowrap;flex-shrink:0">รับ 1043/2569</span>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:600;color:#1E2A19;margin-bottom:6px">จาก (หน่วยงาน/บุคคลภายนอก)</label>
+            <input type="text" placeholder="เช่น สำนักงานคณะกรรมการการอุดมศึกษา" value="{{ fromSender }}" onChange="{{ onFromChange }}" style="width:100%;box-sizing:border-box;border:1.5px solid #DDE3D6;border-radius:9px;padding:10px 13px;font-size:14px;font-family:'Anuphan',sans-serif;color:#1E2A19;outline:none" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:600;color:#1E2A19;margin-bottom:6px">เรื่อง</label>
+            <input type="text" placeholder="เช่น ขอเชิญเข้าร่วมประชุมวิชาการ" value="{{ subject }}" onChange="{{ onSubjectChange }}" style="width:100%;box-sizing:border-box;border:1.5px solid #DDE3D6;border-radius:9px;padding:10px 13px;font-size:14px;font-family:'Anuphan',sans-serif;color:#1E2A19;outline:none" />
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label style="display:block;font-size:13px;font-weight:600;color:#1E2A19;margin-bottom:6px">เลขที่หนังสือต้นทาง</label>
+              <input type="text" placeholder="ถ้ามี" style="width:100%;box-sizing:border-box;border:1.5px solid #DDE3D6;border-radius:9px;padding:10px 13px;font-size:13.5px;font-family:'Inter',sans-serif;color:#1E2A19;outline:none" />
+            </div>
+            <div>
+              <label style="display:block;font-size:13px;font-weight:600;color:#1E2A19;margin-bottom:6px">วันที่ได้รับ</label>
+              <input type="text" placeholder="21/08/2569" style="width:100%;box-sizing:border-box;border:1.5px solid #DDE3D6;border-radius:9px;padding:10px 13px;font-size:13.5px;font-family:'Inter',sans-serif;color:#1E2A19;outline:none" />
+            </div>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:600;color:#1E2A19;margin-bottom:8px">ส่งต่อไปยังหน่วยงาน</label>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">{{ forwardChips }}</div>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:600;color:#1E2A19;margin-bottom:8px">ไฟล์ต้นฉบับ (สแกน)</label>
+            <div style="border:1.5px dashed #DDE3D6;border-radius:12px;padding:18px 14px;display:flex;flex-direction:column;align-items:center;gap:6px;background:#F9FAF7">
+              {{ uploadIcon }}
+              <div style="font-size:12px;color:#4B5647;font-weight:600">ลากไฟล์สแกนมาวาง หรือคลิกเพื่อเลือก</div>
+            </div>
+          </div>
+
+          <button style="display:flex;align-items:center;justify-content:center;gap:8px;background:#3F6133;color:#fff;border:none;border-radius:10px;padding:12px 20px;font-size:14.5px;font-weight:600;cursor:pointer;font-family:'Anuphan',sans-serif;box-shadow:0 2px 10px rgba(63,97,51,0.28);margin-top:4px">{{ hashIcon }}ลงทะเบียนรับ + ออกเลข</button>
+        </div>
+
+        <!-- RECENT LIST -->
+        <div style="flex:1 1 460px;min-width:400px">
+          <div style="font-size:13px;font-weight:700;color:#1E2A19;margin-bottom:12px">รายการล่าสุด</div>
+          <div style="background:#fff;border:1px solid #DDE3D6;border-radius:14px;overflow:hidden">
+            <div>{{ incomingRows }}</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  C = { pri:'#3F6133', priPale:'#EAF0E5', gold:'#B8862E', bg:'#F5F7F1', border:'#DDE3D6', txDk:'#1E2A19', txMd:'#4B5647', txSb:'#7C8877',
+    aGr:'#2F7D4F', aBg:'#E3F3E7', aTx:'#1F5C37', cyGr:'#2B6CB0', cyBg:'#E5F0FB', cyTx:'#1F4E80', c0:'#6B7280', c0Bg:'#F1F2F0', c0Tx:'#374151' };
+  state = { fromSender:'', subject:'', forwards:['คณะวิศวกรรมศาสตร์'], vw: (typeof window!=='undefined'?window.innerWidth:1440) };
+  componentDidMount(){ this._onResize=()=>this.setState({vw:window.innerWidth}); window.addEventListener('resize',this._onResize); }
+  componentWillUnmount(){ window.removeEventListener('resize',this._onResize); }
+
+  INCOMING = [
+    { no:'รับ 1042/2569', from:'สำนักงานประกันคุณภาพ', subject:'แจ้งกำหนดการตรวจประเมินคุณภาพภายใน', date:'20 ส.ค. 69', status:'ส่งต่อแล้ว', statusC:'cyGr' },
+    { no:'รับ 1038/2569', from:'สำนักทะเบียนและประมวลผล', subject:'ขอความอนุเคราะห์ข้อมูลสถิตินักศึกษา', date:'18 ส.ค. 69', status:'ปิดเรื่อง', statusC:'c0' },
+    { no:'รับ 1031/2569', from:'บริษัท ไทยซอฟต์แวร์ จำกัด', subject:'เสนอราคาระบบเครือข่ายไร้สาย', date:'15 ส.ค. 69', status:'ปิดเรื่อง', statusC:'c0' },
+    { no:'รับ 1024/2569', from:'สกอ.', subject:'แจ้งเวียนหลักเกณฑ์การประกันคุณภาพใหม่', date:'11 ส.ค. 69', status:'ส่งต่อแล้ว', statusC:'cyGr' },
+  ];
+
+  ic(paths, size, color, sw){
+    const h=React.createElement;
+    return h('svg',{viewBox:'0 0 24 24',width:size||18,height:size||18,fill:'none',stroke:color||'currentColor',strokeWidth:sw||1.6,strokeLinecap:'round',strokeLinejoin:'round',style:{display:'block',flexShrink:0}},
+      ...paths.map((p,i)=>h(p[0],{key:i,...p[1]})));
+  }
+  I = {
+    home:[["path",{d:"M3 12V14.5C3 17.8 3 19.45 4.03 20.47C5.05 21.5 6.7 21.5 10 21.5H14C17.3 21.5 18.95 21.5 19.97 20.47C21 19.45 21 17.8 21 14.5V12"}],["path",{d:"M3.36 8.74C3 9.47 3 10.31 3 11.99V14.5C3 17.8 3 19.45 4.03 20.47C5.05 21.5 6.7 21.5 10 21.5H14C17.3 21.5 18.95 21.5 19.97 20.47C21 19.45 21 17.8 21 14.5V11.99C21 10.31 21 9.47 20.64 8.74C20.29 8.01 19.62 7.5 18.3 6.46L16.3 4.91C14.23 3.3 13.2 2.5 12 2.5C10.8 2.5 9.77 3.3 7.7 4.91L5.7 6.46C4.38 7.5 3.71 8.01 3.36 8.74Z"}]],
+    inbox:[["path",{d:"M3 12H7L9 15H15L17 12H21"}],["path",{d:"M5.45 5.11L3 12V18C3 19.1 3.9 20 5 20H19C20.1 20 21 19.1 21 18V12L18.55 5.11C18.25 4.14 17.6 3.5 16.76 3.5H7.24C6.4 3.5 5.75 4.14 5.45 5.11Z"}]],
+    send:[["path",{d:"M21.5 2.5L10.5 13.5"}],["path",{d:"M21.5 2.5L14.8 21.4C14.63 21.9 14.4 22.2 14.02 22.17C13.68 22.14 13.83 21.83 13.72 21.32L11 13.5L3.18 10.78C2.67 10.67 2.36 10.62 2.33 10.24C2.3 9.9 2.61 9.87 3.1 9.7L21.5 2.5Z"}]],
+    edit:[["path",{d:"M14.07 3.89C14.82 3.08 15.19 2.67 15.59 2.44C16.54 1.87 17.72 1.85 18.69 2.39C19.09 2.62 19.48 3.01 20.25 3.79C21.01 4.58 21.4 4.97 21.62 5.38C22.14 6.37 22.13 7.57 21.57 8.55C21.34 8.96 20.94 9.34 20.15 10.1L10.75 19.15C9.25 20.6 8.5 21.32 7.57 21.68C6.63 22.05 5.6 22.02 3.55 21.97L3.27 21.96C2.64 21.94 2.33 21.94 2.14 21.73C1.96 21.52 1.99 21.2 2.04 20.57L2.06 20.22C2.2 18.42 2.27 17.53 2.62 16.72C2.97 15.91 3.58 15.26 4.79 13.94L14.07 3.89Z"}]],
+    hash:[["path",{d:"M4 9H20"}],["path",{d:"M4 15H20"}],["path",{d:"M10 3L7.5 21"}],["path",{d:"M16.5 3L14 21"}]],
+    search:[["path",{d:"M17 17L21 21"}],["path",{d:"M19 11C19 6.58 15.42 3 11 3C6.58 3 3 6.58 3 11C3 15.42 6.58 19 11 19C15.42 19 19 15.42 19 11Z"}]],
+    reports:[["path",{d:"M8 13V17"}],["path",{d:"M12 9V17"}],["path",{d:"M16 11V17"}],["path",{d:"M3 5C3 3.9 3.9 3 5 3H19C20.1 3 21 3.9 21 5V19C21 20.1 20.1 21 19 21H5C3.9 21 3 20.1 3 19V5Z"}]],
+    building:[["path",{d:"M4.5 21V6.5C4.5 4.5 5.5 3.5 7.5 3.5H13.5C15.5 3.5 16.5 4.5 16.5 6.5V21"}],["path",{d:"M16.5 10H17.5C19.5 10 20.5 11 20.5 13V21"}],["path",{d:"M2.5 21.5H21.5"}],["path",{d:"M8.5 8H12.5"}],["path",{d:"M8.5 12H12.5"}],["path",{d:"M8.5 16H12.5"}]],
+    users:[["path",{d:"M14.5 8.5C14.5 10.43 12.93 12 11 12C9.07 12 7.5 10.43 7.5 8.5C7.5 6.57 9.07 5 11 5C12.93 5 14.5 6.57 14.5 8.5Z"}],["path",{d:"M17 20.5C17 17.19 14.31 14.5 11 14.5C7.69 14.5 5 17.19 5 20.5"}],["path",{d:"M16.5 6C17.98 6.29 19 7.52 19 9C19 10.29 18.22 11.39 17.1 11.83"}],["path",{d:"M19 14.7C20.75 15.24 22 16.71 22 18.5"}]],
+    shieldLock:[["path",{d:"M18.71 3.5C16.82 2.55 14.5 2 12 2C9.5 2 7.18 2.55 5.29 3.5C4.36 3.96 3.9 4.19 3.45 4.91C3 5.64 3 6.34 3 7.75V11.24C3 16.92 7.54 20.08 10.17 21.43C10.91 21.81 11.27 22 12 22C12.73 22 13.09 21.81 13.83 21.43C16.46 20.08 21 16.92 21 11.24V7.75C21 6.34 21 5.64 20.55 4.91C20.1 4.19 19.64 3.96 18.71 3.5Z"}]],
+    settings:[["path",{d:"M12 15A3 3 0 1 0 12 9A3 3 0 0 0 12 15Z"}],["path",{d:"M19.4 15A1.65 1.65 0 0 0 20.73 16.82A2 2 0 1 1 17.9 19.65A1.65 1.65 0 0 0 16.08 20.98A1.65 1.65 0 0 0 15.08 22.5H9A1.65 1.65 0 0 0 8 20.98A1.65 1.65 0 0 0 6.18 19.65A2 2 0 1 1 3.35 16.82A1.65 1.65 0 0 0 4.68 15A1.65 1.65 0 0 0 3.35 13.18A2 2 0 1 1 6.18 10.35A1.65 1.65 0 0 0 8 9.02A1.65 1.65 0 0 0 9 7.5H15.08A1.65 1.65 0 0 0 16.08 9.02A1.65 1.65 0 0 0 17.9 10.35A2 2 0 1 1 20.73 13.18A1.65 1.65 0 0 0 19.4 15Z"}]],
+    logout:[["path",{d:"M18 18C18 18.46 18 18.7 17.98 18.89C17.8 20.51 16.51 21.8 14.89 21.98C14.7 22 14.46 22 14 22H11C7.7 22 6.05 22 5.03 20.97C4 19.95 4 18.3 4 15V9C4 5.7 4 4.05 5.03 3.03C6.05 2 7.7 2 11 2H14C14.46 2 14.7 2 14.89 2.02C16.51 2.2 17.8 3.49 17.98 5.11C18 5.3 18 5.54 18 6"}],["path",{d:"M8.08 11.12C8 11.3 8 11.54 8 12C8 12.47 8 12.7 8.08 12.88C8.18 13.13 8.37 13.32 8.62 13.42C8.8 13.5 9.03 13.5 9.5 13.5H14.5C14.5 15.25 14.51 16.13 15.06 16.39C15.7 16.64 16.4 16.01 17.79 14.77C19.26 13.46 20 12.79 20 11.96C20 11.13 19.26 10.45 17.79 9.14C16.4 7.9 15.7 7.28 15.06 7.5C14.5 7.79 14.5 8.69 14.5 10.5H9.5C9.03 10.5 8.8 10.5 8.62 10.58C8.37 10.68 8.18 10.87 8.08 11.12Z"}]],
+    bell:[["path",{d:"M20 18.5L18.35 7.93C17.86 4.81 15.17 2.5 12 2.5C8.83 2.5 6.14 4.81 5.65 7.93L4 18.5"}],["path",{d:"M20 18.5C20 16.84 16.42 15.5 12 15.5C7.58 15.5 4 16.84 4 18.5C4 20.16 7.58 21.5 12 21.5C16.42 21.5 20 20.16 20 18.5Z"}]],
+    upload:[["path",{d:"M12 15V3"}],["path",{d:"M7 8L12 3L17 8"}],["path",{d:"M3 20H21"}]],
+    x:[["path",{d:"M18 6L6 18"}],["path",{d:"M6 6L18 18"}]],
+    doc:[["path",{d:"M8 7H16"}],["path",{d:"M8 11H12"}],["path",{d:"M4 10C4 6.23 4 4.34 5.17 3.17C6.34 2 8.23 2 12 2C15.77 2 17.66 2 18.83 3.17C20 4.34 20 6.23 20 10V14C20 17.77 20 19.66 18.83 20.83C17.66 22 15.77 22 12 22C8.23 22 6.34 22 5.17 20.83C4 19.66 4 17.77 4 14V10Z"}]],
+    chevronR:[["path",{d:"M9 6C9 6 15 10.42 15 12C15 13.58 9 18 9 18"}]],
+  };
+  navGroups = [
+    { label:null, items:[
+      { icon:'home', label:'ภาพรวม' },
+      { icon:'inbox', label:'กล่องรับเอกสาร', badge:'16' },
+      { icon:'send', label:'กล่องส่งเอกสาร' },
+      { icon:'edit', label:'ร่างของฉัน' },
+    ]},
+    { label:'สารบรรณ', items:[
+      { icon:'hash', label:'ทะเบียนหนังสือ', children:[{ label:'ทะเบียนรับ', active:true }, { label:'ทะเบียนส่ง' }, { label:'ออกเลขหนังสือ', badge:'12' }] },
+      { icon:'search', label:'ค้นหาขั้นสูง' },
+      { icon:'reports', label:'รายงานทะเบียน' },
+    ]},
+    { label:'ผู้ดูแลระบบ', items:[
+      { icon:'building', label:'โครงสร้างองค์กร', children:[{ label:'หน่วยงาน' }, { label:'ผู้ใช้งาน' }, { label:'บทบาทและสิทธิ์' }] },
+      { icon:'settings', label:'ตั้งค่าระบบ', children:[{ label:'รูปแบบเลขหนังสือ' }, { label:'ค่าตั้งทั่วไป' }] },
+      { icon:'shieldLock', label:'ตรวจสอบ Audit' },
+    ]},
+  ];
+  defaultOpenMenus = {'ทะเบียนหนังสือ':true};
+
+  navRow(item,collapsed){
+    const h=React.createElement;
+    const active=!!item.active, kids=item.children||[];
+    const menus=this.state.openMenus||this.defaultOpenMenus||{};
+    const open=!!menus[item.label];
+    const chev=[["path",{d:"M6 9C6 9 10.42 15 12 15C13.58 15 18 9 18 9"}]];
+    const onClick=(kids.length&&!collapsed)?(()=>this.setState(s=>({openMenus:{...(s.openMenus||this.defaultOpenMenus||{}),[item.label]:!menus[item.label]}}))):undefined;
+    const row=h('div',{title:collapsed?item.label:undefined,onClick,style:{display:'flex',alignItems:'center',gap:11,padding:collapsed?'9px 0':'9px 12px',justifyContent:collapsed?'center':'flex-start',borderRadius:9,cursor:'pointer',
+        background:active?'rgba(255,255,255,0.14)':'transparent', color:active?'#fff':'rgba(255,255,255,0.72)'}},
+      this.ic(this.I[item.icon],17,active?'#fff':'rgba(255,255,255,0.6)',1.7),
+      collapsed?null:h('span',{style:{flex:1,fontSize:13,fontWeight:active?700:500,whiteSpace:'nowrap'}},item.label),
+      (collapsed||!item.badge)?null:h('span',{style:{fontSize:10.5,fontWeight:700,color:'rgba(255,255,255,0.72)',background:'rgba(255,255,255,0.12)',borderRadius:20,padding:'2px 8px',fontFamily:"'Inter',sans-serif"}},item.badge),
+      (collapsed||!kids.length)?null:h('span',{style:{width:22,height:22,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:open?'rgba(255,255,255,0.12)':'transparent',transform:open?'rotate(180deg)':'none',transition:'transform 0.15s ease'}},this.ic(chev,14,'rgba(255,255,255,0.6)',2)));
+    if(collapsed||!kids.length||!open) return h('div',{key:item.label},row);
+    return h('div',{key:item.label},row,
+      h('div',{style:{marginLeft:21,paddingLeft:1,borderLeft:'1px solid rgba(255,255,255,0.16)',marginTop:2,display:'flex',flexDirection:'column'}},
+        ...kids.map(k=>h('div',{key:k.label,style:{display:'flex',alignItems:'center',gap:8,padding:'7px 12px',marginLeft:-1,borderLeft:`2px solid ${k.active?'#A8CF8E':'transparent'}`,cursor:'pointer',color:k.active?'#fff':'rgba(255,255,255,0.62)'}},
+          h('span',{style:{flex:1,fontSize:12.5,fontWeight:k.active?700:500,whiteSpace:'nowrap'}},k.label),
+          k.badge?h('span',{style:{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.7)',background:'rgba(255,255,255,0.1)',borderRadius:20,padding:'1px 7px',fontFamily:"'Inter',sans-serif"}},k.badge):null))));
+  }
+
+  profileVals(){
+    return {
+      profileOpen: !!this.state.profileOpen,
+      toggleProfile: ()=>this.setState(s=>({profileOpen:!s.profileOpen})),
+      closeProfile: ()=>this.setState({profileOpen:false}),
+    };
+  }
+  badge(label,bg,tx,dot){
+    const h=React.createElement;
+    return h('span',{style:{display:'inline-flex',alignItems:'center',gap:5,background:bg,color:tx,fontSize:10.5,fontWeight:700,padding:'3px 10px',borderRadius:20,whiteSpace:'nowrap'}},
+      h('span',{style:{width:6,height:6,borderRadius:'50%',background:dot,display:'block',flexShrink:0}}),label);
+  }
+
+  renderVals(){
+    const C=this.C; const s=this.state;
+    const statusColorMap = { cyGr:[C.cyBg,C.cyTx,C.cyGr], c0:[C.c0Bg,C.c0Tx,C.c0] };
+
+    return {
+      ...this.profileVals(),
+      navItems: this.navGroups.map((g,gi)=>React.createElement('div',{key:gi,style:{marginTop:gi>0?14:0}},
+        (g.label&&!((this.state.vw||1440)<1024))?React.createElement('div',{style:{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.4)',textTransform:'uppercase',letterSpacing:'0.06em',padding:'8px 12px 4px'}},g.label):null,
+        ...g.items.map(it=>this.navRow(it,(this.state.vw||1440)<1024)))),
+      sidebarStyle: { width:(this.state.vw||1440)<1024?76:248, flexShrink:0, background:'#243A1E', color:'#fff', display:'flex', flexDirection:'column', padding:'20px 0', transition:'width 0.15s ease' },
+      isExpanded: !((this.state.vw||1440)<1024),
+      logoutIcon: this.ic(this.I.logout,16,'rgba(255,255,255,0.5)',1.7),
+      bellIcon: this.ic(this.I.bell,19,C.txMd,1.7),
+      uploadIcon: this.ic(this.I.upload,20,C.pri,1.6),
+      hashIcon: this.ic(this.I.hash,16,'#fff',2),
+
+      fromSender: s.fromSender, subject: s.subject,
+      onFromChange: e=>this.setState({fromSender:e.target.value}),
+      onSubjectChange: e=>this.setState({subject:e.target.value}),
+
+      forwardChips: [...s.forwards.map((f,i)=>React.createElement('span',{key:i,style:{display:'inline-flex',alignItems:'center',gap:7,background:C.priPale,color:C.pri,fontSize:12,fontWeight:600,padding:'6px 8px 6px 12px',borderRadius:20,whiteSpace:'nowrap'}},
+        f, React.createElement('button',{type:'button',onClick:()=>this.setState({forwards:s.forwards.filter((_,j)=>j!==i)}),style:{background:'none',border:'none',cursor:'pointer',padding:0,display:'flex',color:C.pri}},this.ic(this.I.x,11,C.pri,2.4)))),
+        React.createElement('button',{key:'add',type:'button',onClick:()=>this.setState({forwards:[...s.forwards,'หน่วยงานที่ '+(s.forwards.length+1)]}),style:{background:'none',border:`1.5px dashed ${C.border}`,borderRadius:20,padding:'6px 13px',fontSize:12,fontWeight:600,color:C.pri,cursor:'pointer',fontFamily:"'Anuphan',sans-serif",whiteSpace:'nowrap'}},'+ เพิ่มหน่วยงาน')],
+
+      incomingRows: this.INCOMING.map((r,i,arr)=>{
+        const sc = statusColorMap[r.statusC];
+        return React.createElement('div',{key:i,style:{display:'flex',alignItems:'center',gap:14,padding:'13px 18px',borderBottom:i<arr.length-1?'1px solid #EEF1EA':'none'}},
+          React.createElement('div',{style:{width:36,height:36,borderRadius:9,background:C.priPale,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}, this.ic(this.I.doc,17,C.pri,1.7)),
+          React.createElement('div',{style:{flex:1,minWidth:0}},
+            React.createElement('div',{style:{fontSize:13,fontWeight:600,color:C.txDk,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}, r.subject),
+            React.createElement('div',{style:{fontSize:11.5,color:C.txSb,marginTop:2,fontFamily:"'Inter',sans-serif"}}, r.no+' · '+r.from+' · '+r.date)),
+          this.badge(r.status, sc[0], sc[1], sc[2]),
+          this.ic(this.I.chevronR,16,C.txSb,2));
+      }),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

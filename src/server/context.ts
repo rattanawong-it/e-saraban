@@ -1,5 +1,4 @@
-import type { ConfidentialityLevel } from "@/constants"
-import type { GrantedPermissions } from "@/lib/authz"
+import type { AuthzContext } from "@/lib/authz"
 
 // ServiceContext — spec §11.3 ข้อ 2:
 // "ทุก service method รับ ctx เป็น argument แรก" และ
@@ -9,24 +8,45 @@ import type { GrantedPermissions } from "@/lib/authz"
 // service จะได้ทดสอบได้โดยไม่ต้องมี request จริง และมองเห็นได้จาก signature
 // ว่าเมธอดนั้นทำงาน "ในนามใคร ในหน่วยงานไหน"
 
-export interface ServiceContext {
-  userId: string
+export interface ServiceContext extends AuthzContext {
+  /** id ของแถวในตาราง Session — บันทึกลง audit เพื่อไล่ย้อนได้ว่ามาจากเซสชันไหน */
+  sessionId: string
 
-  /**
-   * spec §11.3 ข้อ 4 — ต้องใส่ใน where clause **ทุก query** ตั้งแต่วันแรก
-   * เพื่อเปิด multi-tenant ภายหลังได้โดยไม่ต้อง migrate ใหญ่
-   */
-  tenantId: string
+  ip: string | null
+  userAgent: string | null
+}
 
-  /**
-   * หน่วยงานที่ผู้ใช้กำลังสวมบทบาทอยู่ (จาก Context Switcher · spec §10.2)
-   * คนหนึ่งมีได้หลายสังกัด — ค่านี้คือสังกัดที่ "กำลังทำงานอยู่" ไม่ใช่ทั้งหมด
-   */
-  activeOrgUnitId: string
+/** ข้อมูลผู้ใช้ที่ UI ต้องใช้แสดงผล — แยกจาก ServiceContext เพราะเป็นคนละหน้าที่ */
+export interface CurrentUser {
+  id: string
+  username: string
+  prefix: string | null
+  firstName: string
+  lastName: string
+  email: string | null
+  fullName: string
+  initials: string
+  clearanceLevel: number
+  mustChangePassword: boolean
+}
 
-  /** สิทธิ์ในหน่วยงานปัจจุบัน พร้อม scope ของแต่ละสิทธิ์ (spec §4.2) */
-  permissions: GrantedPermissions
+/** สังกัดหนึ่งของผู้ใช้ พร้อมบทบาทที่ถือในสังกัดนั้น (ใช้ใน Context Switcher) */
+export interface UserAffiliation {
+  orgUnitId: string
+  orgUnitName: string
+  orgUnitShortName: string | null
+  orgUnitCode: string
+  orgUnitPath: string
+  positionTitle: string | null
+  isPrimary: boolean
+  roleCodes: string[]
+  roleLabels: string[]
+}
 
-  /** ชั้นความลับสูงสุดที่ผู้ใช้เข้าถึงได้ 0–3 (spec §8.1) */
-  clearanceLevel: ConfidentialityLevel
+/** ทุกอย่างที่ layout ของ (app) ต้องใช้ในการ render — โหลดครั้งเดียวต่อ request */
+export interface AppSession {
+  ctx: ServiceContext
+  user: CurrentUser
+  affiliations: UserAffiliation[]
+  activeAffiliation: UserAffiliation | null
 }
