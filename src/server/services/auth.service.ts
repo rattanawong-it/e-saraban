@@ -9,6 +9,8 @@ import {
   getRequestMeta,
   hashPassword,
   checkRateLimit,
+  PUBLIC_FORM_LIMIT,
+  PUBLIC_FORM_WINDOW_MS,
   LOGIN_IP_LIMIT,
   LOGIN_IP_WINDOW_MS,
   resetRateLimit,
@@ -333,6 +335,8 @@ async function reserveUsername(email: string): Promise<string> {
 export async function submitRegistration(input: RegisterInput): Promise<RegistrationSummary> {
   const { ip, userAgent } = await getRequestMeta()
 
+  assertPublicFormRate("register", ip, "ส่งคำขอสมัครถี่เกินไป กรุณารอสักครู่แล้วลองใหม่")
+
   const orgUnit = await prisma.orgUnit.findFirst({
     where: { id: input.orgUnitId, isActive: true },
   })
@@ -414,6 +418,8 @@ export async function submitRegistration(input: RegisterInput): Promise<Registra
  */
 export async function requestPasswordReset(email: string): Promise<void> {
   const { ip, userAgent } = await getRequestMeta()
+
+  assertPublicFormRate("reset", ip, "ขอรีเซ็ตรหัสผ่านถี่เกินไป กรุณารอสักครู่แล้วลองใหม่")
   const user = await prisma.user.findFirst({ where: { email, deletedAt: null } })
 
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000)
@@ -497,4 +503,15 @@ async function getDefaultTenantSettings() {
   const tenant = await prisma.tenant.findFirst({ orderBy: { createdAt: "asc" } })
   const { DEFAULT_SETTINGS } = await import("@/lib/settings/definitions")
   return tenant ? getSystemSettings(tenant.id) : DEFAULT_SETTINGS
+}
+
+/** ด่านกันการยิงซ้ำของหน้าที่ไม่ต้องล็อกอิน (spec §8.4) */
+function assertPublicFormRate(scope: string, ip: string | null, message: string) {
+  const limit = checkRateLimit(
+    `${scope}:${ip ?? "unknown"}`,
+    PUBLIC_FORM_LIMIT,
+    PUBLIC_FORM_WINDOW_MS,
+  )
+
+  if (!limit.allowed) throw new ServiceError(message, "RATE_LIMIT")
 }
