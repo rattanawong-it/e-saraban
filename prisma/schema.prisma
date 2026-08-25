@@ -108,11 +108,16 @@ model OrgUnit {
   /// ลูกหลานทั้งหมดหาได้ด้วย `path LIKE '<path ของ node>%'`
   path String
 
-  /// รหัสหนังสือของหน่วยงาน เช่น "0512.1" (spec §5.1)
+  /// รหัสงานสารบรรณ 6 หลัก เช่น "510200" (spec §5.1 · D14)
   code      String
   nameTh    String
   shortName String?
   type      OrgUnitType @default(SECTION)
+
+  /// ออกเลขหนังสือในนามหน่วยงานนี้ได้ไหม (spec D15)
+  /// ระดับ 1–2 เป็น true · ระดับ "งาน" และหลักสูตรเป็น false
+  /// เก็บเป็นฟิลด์ ไม่คำนวณจาก level ตอน runtime เพราะมีข้อยกเว้นที่ต้องแก้ด้วยมือ (spec §16)
+  canIssueNumber Boolean @default(true)
 
   /// ระดับความลึก — root = 0 · เก็บซ้ำไว้เพื่อ sort/แสดงผลโดยไม่ต้องนับ path
   level      Int     @default(0)
