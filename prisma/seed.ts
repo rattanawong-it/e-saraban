@@ -9,7 +9,8 @@ import { DEFAULT_SETTINGS, SETTING_KEYS } from "../src/lib/settings/definitions"
 // Seed ขั้น P1 — Identity & Org
 //
 // สร้าง: tenant · permission ทั้ง 22 รหัส · role 5 บทบาทพร้อมชุดสิทธิ์ตาม spec §4.2 ·
-//        ผังหน่วยงานจริงจาก prisma/org-units.csv · ผู้ใช้ตั้งต้น (รวมคนที่มี 2 สังกัด) · ค่าระบบปริยาย
+//        ผังหน่วยงานจริงจาก prisma/org-units.csv · ผู้ใช้ตั้งต้น (รวมคนที่มี 2 สังกัด) ·
+//        ประเภทหนังสือ 3 ประเภทของ MVP · ค่าระบบปริยาย
 //
 // **ผังหน่วยงานมาจาก `prisma/org-units.csv` เท่านั้น** — ห้าม hardcode ผังในไฟล์นี้
 // ที่มาของ CSV คือรหัสงานสารบรรณของมหาวิทยาลัย (spec D14 · §16)
@@ -509,6 +510,66 @@ async function seedUsers(
   return userIdByUsername.size
 }
 
+interface DocumentTypeSeed {
+  code: string
+  nameTh: string
+  direction: "INTERNAL" | "OUTGOING" | "INCOMING"
+  /** null = ใช้ค่าปริยาย {unitCode}/{seq:4} ตาม D16 — เปลี่ยนที่เดียวแล้วมีผลทุกประเภท */
+  numberPattern: string | null
+  sortOrder: number
+}
+
+// ประเภทหนังสือของ MVP — ผู้ใช้ยืนยัน 3 ประเภทเมื่อ 25 ส.ค. 2569
+// คำสั่ง/ประกาศ เพิ่มทีหลังได้เมื่อรู้รูปแบบเลขที่แน่ชัด (spec §7.1)
+const DOCUMENT_TYPES: DocumentTypeSeed[] = [
+  {
+    code: "MEMO",
+    nameTh: "บันทึกข้อความ",
+    direction: "INTERNAL",
+    numberPattern: null,
+    sortOrder: 1,
+  },
+  {
+    code: "OUTGOING",
+    nameTh: "หนังสือส่งภายนอก",
+    direction: "OUTGOING",
+    numberPattern: null,
+    sortOrder: 2,
+  },
+  {
+    // หนังสือรับใช้ทะเบียนคนละเล่มกับหนังสือส่ง เลขจึงเป็นคนละชุด (spec §7.1)
+    code: "INCOMING",
+    nameTh: "หนังสือรับ",
+    direction: "INCOMING",
+    numberPattern: "รับ {seq}/{year}",
+    sortOrder: 3,
+  },
+]
+
+async function seedDocumentTypes(tenantId: string) {
+  for (const seed of DOCUMENT_TYPES) {
+    await prisma.documentType.upsert({
+      where: { tenantId_code: { tenantId, code: seed.code } },
+      update: {
+        nameTh: seed.nameTh,
+        direction: seed.direction,
+        numberPattern: seed.numberPattern,
+        sortOrder: seed.sortOrder,
+      },
+      create: {
+        tenantId,
+        code: seed.code,
+        nameTh: seed.nameTh,
+        direction: seed.direction,
+        numberPattern: seed.numberPattern,
+        sortOrder: seed.sortOrder,
+      },
+    })
+  }
+
+  return DOCUMENT_TYPES.length
+}
+
 async function seedSettings(tenantId: string) {
   const entries: [string, unknown][] = [
     [SETTING_KEYS.NUMBERING, DEFAULT_SETTINGS.numbering],
@@ -555,6 +616,9 @@ async function main() {
   console.log(
     `✔ ผู้ใช้: ${userCount} บัญชี · รหัสผ่านตั้งต้น "${SEED_PASSWORD}" (ต้องเปลี่ยนตอนเข้าครั้งแรก)`,
   )
+
+  const documentTypeCount = await seedDocumentTypes(tenant.id)
+  console.log(`✔ ประเภทหนังสือ: ${documentTypeCount} ประเภท`)
 
   const settingCount = await seedSettings(tenant.id)
   console.log(`✔ ค่าระบบปริยาย: ${settingCount} กลุ่ม`)
