@@ -21,6 +21,9 @@ skills-lock.json
 .vscode
 .idea
 
+# ไฟล์แนบบนเครื่อง dev — ของจริงอยู่ใน volume ไม่ใช่ใน image
+storage
+
 # ผลลัพธ์ที่ generate ใหม่ได้เสมอ
 src/generated
 *.tsbuildinfo

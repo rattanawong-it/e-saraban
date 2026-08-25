@@ -45,6 +45,10 @@ next-env.d.ts
 # ยกเว้น template ของ env ให้ commit ได้
 !.env.example
 
+# ไฟล์แนบที่ผู้ใช้อัปโหลด — เป็นข้อมูลจริงของหน่วยงาน ห้ามเข้า git เด็ดขาด
+# บน production ผูกกับ volume `file-storage` ใน docker-compose.yml
+/storage
+
 # agent skills ที่ prisma init แถมมาโดยไม่ได้ขอ — เนื้อหาเดียวกัน 3 ชุด รวม 213 ไฟล์
 # ดึงกลับมาใหม่ได้เสมอผ่าน prisma CLI จึงไม่เก็บใน git
 # ระบุเจาะจงที่ skills/ ไม่ใช่ทั้งโฟลเดอร์ เผื่อวันหลังจะ commit .claude/settings.json

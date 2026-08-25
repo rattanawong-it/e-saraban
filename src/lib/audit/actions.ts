@@ -51,6 +51,9 @@ export const AUDIT_ACTIONS = {
   DOCUMENT_FORWARDED: "document.forwarded",
   DOCUMENT_CLOSED: "document.closed",
   DOCUMENT_CANCELLED: "document.cancelled",
+  ATTACHMENT_UPLOADED: "attachment.uploaded",
+  ATTACHMENT_DOWNLOADED: "attachment.downloaded",
+  ATTACHMENT_DELETED: "attachment.deleted",
 
   // ── บทบาทและสิทธิ์ ───────────────────────────────────────────────
   ROLE_CREATED: "role.created",
@@ -113,6 +116,9 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "document.forwarded": "ส่งต่อหนังสือรับ",
   "document.closed": "ปิดเรื่อง",
   "document.cancelled": "ยกเลิกเอกสาร",
+  "attachment.uploaded": "แนบไฟล์",
+  "attachment.downloaded": "เปิด/ดาวน์โหลดไฟล์แนบ",
+  "attachment.deleted": "ลบไฟล์แนบ",
   "role.created": "สร้างบทบาท",
   "role.updated": "แก้ไขบทบาท",
   "role.permissions.updated": "แก้ไขสิทธิ์ของบทบาท",
@@ -136,6 +142,7 @@ export const AUDIT_ENTITY_TYPES = {
   PASSWORD_RESET: "PasswordResetRequest",
   AUDIT: "AuditLog",
   DOCUMENT: "Document",
+  ATTACHMENT: "Attachment",
 } as const
 
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[keyof typeof AUDIT_ENTITY_TYPES]
@@ -148,6 +155,7 @@ export const AUDIT_ENTITY_LABELS: Record<AuditEntityType, string> = {
   SystemSetting: "ค่าระบบ",
   RegistrationRequest: "คำขอสมัครใช้งาน",
   PasswordResetRequest: "คำขอรีเซ็ตรหัสผ่าน",
+  Attachment: "ไฟล์แนบ",
   AuditLog: "Audit Log",
   Document: "หนังสือ",
 }
