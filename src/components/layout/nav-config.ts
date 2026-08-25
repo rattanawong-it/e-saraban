@@ -40,9 +40,9 @@ export const NAV_GROUPS: NavGroup[] = [
     label: NAV.groupMain,
     items: [
       { label: NAV.dashboard, href: "/dashboard", icon: Home },
-      { label: NAV.inbox, href: "/inbox", icon: Inbox, phase: "P2" },
-      { label: NAV.outbox, href: "/outbox", icon: Send, phase: "P2" },
-      { label: NAV.drafts, href: "/drafts", icon: FileEdit, phase: "P2" },
+      { label: NAV.inbox, href: "/inbox", icon: Inbox },
+      { label: NAV.outbox, href: "/outbox", icon: Send },
+      { label: NAV.drafts, href: "/drafts", icon: FileEdit },
     ],
   },
   {
@@ -52,11 +52,14 @@ export const NAV_GROUPS: NavGroup[] = [
         label: NAV.registry,
         href: "/registry",
         icon: Hash,
-        phase: "P2",
         children: [
-          { label: NAV.registryOutgoing, href: "/registry/outgoing", phase: "P2" },
-          { label: NAV.registrySent, href: "/registry/sent", phase: "P2" },
-          { label: NAV.registryIncoming, href: "/registry/incoming", phase: "P5" },
+          {
+            label: NAV.registryOutgoing,
+            href: "/registry/outgoing",
+            permission: PERMISSIONS.DOCUMENT_NUMBER_ISSUE,
+          },
+          { label: NAV.registrySent, href: "/registry/sent" },
+          { label: NAV.registryIncoming, href: "/registry/incoming" },
         ],
       },
       { label: NAV.search, href: "/search", icon: FileSearch, phase: "P4" },
@@ -96,7 +99,6 @@ export const NAV_GROUPS: NavGroup[] = [
             label: NAV.numbering,
             href: "/admin/numbering",
             permission: PERMISSIONS.SETTING_MANAGE,
-            phase: "P2",
           },
           {
             label: NAV.generalSettings,
