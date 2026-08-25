@@ -198,9 +198,9 @@ export const DASHBOARD = {
   recentActivity: "กิจกรรมล่าสุด",
   recentActivityEmpty: "ยังไม่มีกิจกรรมในระบบ",
   myAffiliations: "สังกัดและบทบาทของฉัน",
-  phaseNoticeTitle: "โมดูลเอกสารยังอยู่ระหว่างพัฒนา (P2)",
+  phaseNoticeTitle: "โมดูลเอกสารพร้อมใช้งานแล้ว (P2)",
   phaseNoticeBody:
-    "เฟสปัจจุบันคือ P1 — Identity & Org ระบบจึงยังไม่มีสถิติหนังสือ กล่องรับ/ส่ง และคิวออกเลข หน้านี้แสดงสถิติฝั่งผู้ใช้และหน่วยงานแทน",
+    "สร้างหนังสือ ส่งออกเลขทะเบียน เวียนหนังสือ และลงทะเบียนหนังสือรับ ใช้งานได้แล้วจากเมนูด้านซ้าย · หน้านี้ยังแสดงสถิติฝั่งผู้ใช้และหน่วยงาน ส่วนสถิติหนังสือ (คิวออกเลข · ค้างรับทราบ) จะเพิ่มในเฟสถัดไป",
   primaryBadge: "สังกัดหลัก",
 } as const
 
@@ -244,6 +244,160 @@ export const ORG_UNITS = {
   collapseAll: "พับทั้งหมด",
   unitCount: (total: number, issuing: number) =>
     `${total.toLocaleString("th-TH")} หน่วยงาน · ออกเลขได้ ${issuing.toLocaleString("th-TH")}`,
+} as const
+
+export const DOCUMENTS = {
+  // ── หน้ารายการ ──────────────────────────────────────────────
+  draftsTitle: "ร่างของฉัน",
+  draftsDescription: "หนังสือที่คุณร่างไว้และที่ถูกตีกลับให้แก้ไข",
+  inboxTitle: "กล่องรับเอกสาร",
+  inboxDescription: "หนังสือที่ส่งถึงคุณหรือหน่วยงานของคุณ",
+  outboxTitle: "กล่องส่งเอกสาร",
+  outboxDescription: "หนังสือที่หน่วยงานของคุณออกเลขและส่งออกแล้ว",
+  queueTitle: "ออกเลขหนังสือ",
+  queueDescription: "คิวหนังสือที่รอสารบรรณออกเลขทะเบียน",
+  registrySentTitle: "ทะเบียนส่ง",
+  registrySentDescription: "หนังสือที่ออกเลขไปแล้วทั้งหมด รวมฉบับที่ยกเลิก",
+  registryIncomingTitle: "ทะเบียนรับ",
+  registryIncomingDescription: "หนังสือรับที่ลงทะเบียนไว้",
+
+  create: "สร้างหนังสือใหม่",
+  registerIncoming: "ลงทะเบียนหนังสือรับ",
+  searchPlaceholder: "ค้นหาเลขที่หนังสือ หรือชื่อเรื่อง...",
+  search: "ค้นหา",
+  clearFilter: "ล้างตัวกรอง",
+  filterAll: "ทั้งหมด",
+  resultCount: (total: number) => `พบ ${total.toLocaleString("th-TH")} รายการ`,
+  pageInfo: (from: number, to: number, total: number) =>
+    `แสดง ${from.toLocaleString("th-TH")}–${to.toLocaleString("th-TH")} จาก ${total.toLocaleString("th-TH")} รายการ`,
+  prev: "ก่อนหน้า",
+  next: "ถัดไป",
+
+  // ── คอลัมน์ ─────────────────────────────────────────────────
+  colSubject: "เรื่อง / เลขที่หนังสือ",
+  colType: "ประเภท",
+  colStatus: "สถานะ",
+  colUpdated: "แก้ไขล่าสุด",
+  colReturnNote: "หมายเหตุการตีกลับ",
+  colSender: "ผู้ส่ง",
+  colRecipient: "ผู้รับ",
+  colDate: "วันที่",
+  colSentDate: "วันที่ส่ง",
+  colConfidentiality: "ชั้นความลับ",
+  colOwnerUnit: "หน่วยงานเจ้าของเรื่อง",
+  colWaiting: "รอมาแล้ว",
+  colAction: "จัดการ",
+
+  noDocNo: "ยังไม่ออกเลข",
+  attachmentCount: (count: number) => `${count} ไฟล์`,
+  recipientCount: (count: number) => `ผู้รับ ${count} ราย`,
+  external: "ภายนอก",
+
+  emptyDrafts: "ยังไม่มีร่างหนังสือ — กดปุ่มสร้างหนังสือใหม่เพื่อเริ่ม",
+  emptyInbox: "ยังไม่มีหนังสือส่งถึงคุณ",
+  emptyOutbox: "หน่วยงานนี้ยังไม่มีหนังสือที่ออกเลขแล้ว",
+  emptyQueue: "ไม่มีหนังสือรอออกเลข",
+  emptyRegistry: "ยังไม่มีหนังสือในทะเบียน",
+  emptySearch: "ไม่พบหนังสือที่ตรงกับเงื่อนไข",
+
+  // ── ฟอร์มสร้าง/แก้ไข ────────────────────────────────────────
+  createDescription: "ร่างหนังสือแล้วส่งให้สารบรรณออกเลขทะเบียน",
+  formSection: "ข้อมูลหนังสือ",
+  formOwner: (unitName: string) => `เจ้าของเรื่อง: ${unitName}`,
+  fieldType: "ประเภทหนังสือ",
+  fieldSubject: "ชื่อเรื่อง",
+  fieldSummary: "สาระสำคัญโดยย่อ",
+  fieldExternalRecipient: "หน่วยงานผู้รับ (ภายนอก)",
+  fieldExternalSender: "หน่วยงานผู้ส่ง",
+  fieldDocDate: "วันที่ของหนังสือ",
+  fieldReceivedDate: "วันที่รับหนังสือ",
+  fieldDueDate: "กำหนดตอบกลับ",
+  fieldRefDocNo: "อ้างถึงหนังสือเลขที่",
+  fieldConfidentiality: "ชั้นความลับ",
+  fieldUrgency: "ความเร่งด่วน",
+  sectionLevels: "ชั้นความลับและความเร่งด่วน",
+  sectionRecipients: "ผู้รับหนังสือ (ภายใน)",
+  sectionRecipientsHint: "เลือกไว้ก่อนได้ หรือค่อยเวียนภายหลัง",
+  fieldRecipientUnits: "หน่วยงานผู้รับ",
+  unitSearchPlaceholder: "พิมพ์ชื่อหรือรหัสหน่วยงานเพื่อกรอง...",
+  unitSearchEmpty: "ไม่พบหน่วยงานที่ตรงกับคำค้น",
+  unitSelectedCount: (count: number) => `เลือกไว้ ${count.toLocaleString("th-TH")} หน่วยงาน`,
+  unitSelectedNone: "ยังไม่ได้เลือกหน่วยงานผู้รับ",
+  attachAfterSaveHint:
+    "ไฟล์แนบเพิ่มได้หลังบันทึกร่างแล้ว — ระบบต้องมีเลขอ้างอิงของเอกสารก่อนจึงจะผูกไฟล์ได้",
+  saveDraft: "บันทึกร่าง",
+  registerIncomingDescription:
+    "บันทึกหนังสือที่ได้รับจากหน่วยงานภายนอก แล้วออกเลขรับในขั้นตอนเดียว",
+  incomingNumberHint:
+    "กดลงทะเบียนแล้วระบบจะออกเลขรับให้ทันที — เลขที่ออกแล้วแก้ย้อนหลังไม่ได้ (spec §6.3)",
+  noIncomingType: "ยังไม่มีประเภทหนังสือรับในระบบ",
+  editTitle: "แก้ไขร่างหนังสือ",
+  editDescription: "แก้ไขได้เฉพาะร่างและฉบับที่ถูกตีกลับ — ออกเลขแล้วแก้ไม่ได้",
+  editHint: "บันทึกแล้วระบบจะเก็บไว้ในประวัติการดำเนินการว่ามีการแก้ไข",
+  editTypeHint: "เปลี่ยนได้เฉพาะประเภทที่อยู่ในทิศทางเดียวกันกับฉบับนี้",
+  editNotAllowed: "แก้ไขเอกสารฉบับนี้ไม่ได้",
+  editNotAllowedHint: "แก้ไขได้เฉพาะสถานะร่างและถูกตีกลับเท่านั้น (spec §6.4)",
+  noDocumentType: "ยังไม่มีประเภทหนังสือในระบบ",
+  noDocumentTypeHint: "ผู้ดูแลระบบต้องเพิ่มประเภทหนังสือก่อนจึงจะสร้างหนังสือได้",
+
+  // ── หน้ารายละเอียด ──────────────────────────────────────────
+  detailTimeline: "ประวัติการดำเนินการ",
+  detailAttachments: "ไฟล์แนบ",
+  detailRecipients: "ผู้รับหนังสือ",
+  detailInfo: "รายละเอียด",
+  detailActions: "ดำเนินการ",
+  uploadFile: "แนบไฟล์",
+  uploadHint: (maxMb: number) => `รองรับ PDF · Word · Excel · รูปภาพ ขนาดไม่เกิน ${maxMb} MB`,
+  download: "เปิดไฟล์",
+  removeFile: "ลบไฟล์",
+  noAttachment: "ยังไม่มีไฟล์แนบ",
+  noRecipient: "ยังไม่ได้เวียนถึงใคร",
+  versionLabel: (version: number) => `เวอร์ชัน ${version}`,
+  noteLabel: "หมายเหตุ",
+  noteRequired: "เหตุผลที่ตีกลับ",
+  confirmCancel: "ยกเลิกเอกสารฉบับนี้",
+  cancelWarning:
+    "เลขทะเบียนที่ออกไปแล้วจะถูกจองไว้ ไม่นำกลับมาใช้ซ้ำ และเอกสารจะยังปรากฏในทะเบียนพร้อมหมายเหตุยกเลิก",
+
+  detailTitle: "รายละเอียดหนังสือ",
+  detailForbidden: "เข้าถึงเอกสารฉบับนี้ไม่ได้",
+  detailSummary: "สาระสำคัญโดยย่อ",
+  noSummary: "ไม่ได้กรอกสาระสำคัญไว้",
+  fieldDocNo: "เลขที่หนังสือ",
+  fieldOwnerUnit: "หน่วยงานเจ้าของเรื่อง",
+  fieldCreatedBy: "ผู้จัดทำ",
+  fieldCreatedAt: "สร้างเมื่อ",
+  fieldUpdatedAt: "แก้ไขล่าสุด",
+  timelineEmpty: "ยังไม่มีประวัติการดำเนินการ",
+  timelineStatus: (from: string, to: string) => `${from} → ${to}`,
+  actorSystem: "ระบบ",
+  attachmentMeta: (size: string, uploader: string) => `${size} · ${uploader}`,
+  actionNote: "หมายเหตุ",
+  actionNoteHint: "ข้อความนี้จะถูกบันทึกไว้ในประวัติการดำเนินการ",
+  actionRecipients: "หน่วยงานผู้รับ",
+  actionConfirm: "ยืนยันการดำเนินการ",
+  actionEmpty: "สถานะปัจจุบันไม่มีรายการที่คุณดำเนินการต่อได้",
+  attachmentLocked: "สถานะนี้แนบไฟล์เพิ่มไม่ได้แล้ว",
+
+  // ── ปุ่มของ transition (ตรงกับตาราง state machine) ──────────
+  actionSubmit: "ส่งให้สารบรรณออกเลข",
+  actionIssueNumber: "ออกเลขทะเบียน",
+  actionReturn: "ตีกลับให้แก้ไข",
+  actionCirculate: "เวียนหนังสือ",
+  actionForward: "ส่งต่อหน่วยงาน",
+  actionAcknowledge: "รับทราบ",
+  actionMarkSent: "บันทึกว่าส่งออกแล้ว",
+  actionClose: "ปิดเรื่อง",
+  actionCancel: "ยกเลิกเอกสาร",
+
+  // ── คิวออกเลข ───────────────────────────────────────────────
+  selectAll: "เลือกทั้งหมด",
+  bulkIssue: (count: number) => `ออกเลขที่เลือก (${count})`,
+  bulkIssueAll: "ออกเลขที่เลือก",
+  selectedCount: (count: number) => `เลือกไว้ ${count.toLocaleString("th-TH")} ฉบับ`,
+  selectNone: "ยังไม่ได้เลือกฉบับใด",
+  queueOrderHint: "เรียงตามความเร่งด่วนก่อน แล้วจึงตามลำดับเวลาที่ส่งเข้ามา — ใครส่งก่อนได้เลขก่อน",
+  queueIrreversible: "เลขที่ออกไปแล้วแก้ย้อนหลังไม่ได้ และจะไม่ถูกนำกลับมาใช้ซ้ำแม้ยกเลิกภายหลัง",
 } as const
 
 export const USERS = {
@@ -324,6 +478,44 @@ export const AUDIT = {
   previous: "ก่อนหน้า",
   next: "ถัดไป",
   total: (n: number) => `ทั้งหมด ${n.toLocaleString("th-TH")} รายการ`,
+} as const
+
+export const NUMBERING = {
+  title: "รูปแบบเลขหนังสือ",
+  description: "ตั้งรูปแบบเลขทะเบียนตามประเภทหนังสือ และของทะเบียนรายหน่วยงาน (spec §7.1)",
+
+  inheritTitle: "ลำดับการตกทอดของรูปแบบ",
+  inheritBody:
+    "ทะเบียนของหน่วยงาน → ประเภทหนังสือ → ค่าปริยายของระบบ · เว้นว่างไว้แปลว่าใช้ค่าจากชั้นถัดไป",
+  irreversible:
+    "⚠️ เปลี่ยนแล้วมีผลกับเอกสารที่ออกเลข *หลังจากนี้* เท่านั้น — เลขที่ออกไปแล้วแก้ย้อนหลังไม่ได้ (spec §6.4)",
+
+  yearModeLabel: "ปีที่ใช้รีเซ็ตเลขทะเบียน",
+  yearModeCalendar: "ปีปฏิทิน (1 ม.ค. – 31 ธ.ค.)",
+  yearModeFiscal: "ปีงบประมาณ (1 ต.ค. – 30 ก.ย.)",
+  currentYear: "ปีทะเบียนที่ใช้อยู่",
+  changeAtSettings: "เปลี่ยนได้ที่หน้าตั้งค่าระบบ",
+  defaultPattern: "ค่าปริยายของระบบ",
+
+  tokensTitle: "Token ที่ใช้ได้",
+  typesTitle: "รูปแบบตามประเภทหนังสือ",
+  typesDescription: "ว่างไว้ = ใช้ค่าปริยายของระบบ",
+  sequencesTitle: "ทะเบียนรายหน่วยงานของปีนี้",
+  sequencesDescription: "แถวจะเกิดขึ้นเองเมื่อหน่วยงานนั้นออกเลขฉบับแรกของปี",
+  sequencesEmpty: "ยังไม่มีหน่วยงานใดออกเลขในปีนี้",
+
+  colType: "ประเภทหนังสือ",
+  colUnit: "หน่วยงาน",
+  colDirection: "ทิศทาง",
+  colBook: "เล่มทะเบียน",
+  colLastValue: "เลขล่าสุด",
+  colPattern: "รูปแบบ",
+  colPreview: "ตัวอย่าง",
+
+  usingDefault: "ใช้ค่าที่ตกทอดมา",
+  inheritFromType: "ตามประเภทหนังสือ",
+  invalidPattern: "รูปแบบยังใช้ไม่ได้",
+  inactiveType: "ปิดใช้งานอยู่",
 } as const
 
 export const SETTINGS = {
