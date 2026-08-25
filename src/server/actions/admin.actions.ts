@@ -4,16 +4,18 @@ import { revalidatePath } from "next/cache"
 
 import { PERMISSIONS, PERMISSION_SCOPES, type PermissionScope } from "@/lib/authz"
 import { updateRolePermissionsSchema, updateRoleSchema } from "@/schemas/role.schema"
+import { updateSequencePatternSchema, updateTypePatternSchema } from "@/schemas/numbering.schema"
 import { updateSettingsSchema } from "@/schemas/setting.schema"
 
 import { runChainVerification } from "../services/audit.service"
+import { updateDocumentTypePattern, updateSequencePattern } from "../services/numbering.service"
 import { updateRole, updateRolePermissions } from "../services/role.service"
 import { updateSettings } from "../services/setting.service"
 import { requirePermission } from "../session"
 import { readCheckbox, readOptionalString, readString, toActionError } from "./helpers"
 import { successState, zodErrorState, type ActionState } from "./types"
 
-// Action ของหน้า /admin/roles · /admin/settings · /admin/audit
+// Action ของหน้า /admin/roles · /admin/settings · /admin/numbering · /admin/audit
 
 export async function updateRolePermissionsAction(
   _prev: ActionState,
@@ -123,6 +125,62 @@ export async function updateSettingsAction(
 
   revalidatePath("/admin/settings")
   return successState("บันทึกค่าระบบเรียบร้อยแล้ว")
+}
+
+export async function updateTypePatternAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const session = await requirePermission(PERMISSIONS.SETTING_MANAGE)
+
+  const parsed = updateTypePatternSchema.safeParse({
+    documentTypeId: readString(formData, "documentTypeId"),
+    numberPattern: readOptionalString(formData, "numberPattern"),
+  })
+
+  if (!parsed.success) return zodErrorState(parsed.error)
+
+  try {
+    await updateDocumentTypePattern(session.ctx, parsed.data)
+  } catch (error) {
+    return toActionError(error, {
+      ctx: session.ctx,
+      action: "setting.numbering.type",
+      entityType: "SystemSetting",
+      entityId: parsed.data.documentTypeId,
+    })
+  }
+
+  revalidatePath("/admin/numbering")
+  return successState("บันทึกรูปแบบเลขของประเภทหนังสือแล้ว")
+}
+
+export async function updateSequencePatternAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const session = await requirePermission(PERMISSIONS.SETTING_MANAGE)
+
+  const parsed = updateSequencePatternSchema.safeParse({
+    sequenceId: readString(formData, "sequenceId"),
+    patternOverride: readOptionalString(formData, "patternOverride"),
+  })
+
+  if (!parsed.success) return zodErrorState(parsed.error)
+
+  try {
+    await updateSequencePattern(session.ctx, parsed.data)
+  } catch (error) {
+    return toActionError(error, {
+      ctx: session.ctx,
+      action: "setting.numbering.sequence",
+      entityType: "SystemSetting",
+      entityId: parsed.data.sequenceId,
+    })
+  }
+
+  revalidatePath("/admin/numbering")
+  return successState("บันทึกรูปแบบเลขของทะเบียนหน่วยงานแล้ว")
 }
 
 export interface ChainCheckData {

@@ -130,6 +130,25 @@ export function allowedFromStatuses(
   return TRANSITIONS[direction][transition]?.from ?? []
 }
 
+/**
+ * ออกเลขได้หรือไม่ — **สถานะอย่างเดียวตอบไม่ได้**
+ *
+ * หนังสือรับอยู่ที่ `RECEIVED` ทั้งก่อนและหลังออกเลข (§6.3) ตาราง transition
+ * จึงยอมให้ `NUMBER_ISSUED` ซ้ำได้ไม่รู้จบ · ตัวที่บอกความจริงคือ "มีเลขแล้วหรือยัง"
+ *
+ * ⚠️ ออกเลขทับของเดิม = เลขเดิมหายจากทะเบียนโดยไม่มีเอกสารถือไว้ ซึ่ง §6.4
+ * ระบุว่าเป็นสัญญาณของการทุจริต · เงื่อนไขนี้ต้องอยู่ที่นี่ที่เดียวเหมือน transition อื่น
+ */
+export function canIssueNumber(
+  direction: DocumentDirectionValue,
+  status: DocumentStatusValue,
+  docNo: string | null,
+): boolean {
+  if (docNo !== null) return false
+
+  return canTransition(direction, "NUMBER_ISSUED", status)
+}
+
 /** ทุก transition ที่ทำได้จากสถานะนี้ — UI ใช้ตัดสินว่าจะโชว์ปุ่มอะไร */
 export function availableTransitions(
   direction: DocumentDirectionValue,

@@ -3,6 +3,7 @@ import "server-only"
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES, writeAudit, type AuditAction } from "@/lib/audit"
 import { PERMISSIONS, type Permission } from "@/lib/authz"
 import { prisma } from "@/lib/db"
+import { toAuthzResource } from "@/lib/documents/authz-resource"
 import {
   EDITABLE_STATUSES,
   isEditable,
@@ -156,13 +157,31 @@ export async function updateDocument(ctx: ServiceContext, input: UpdateDocumentI
     throw new ServiceError("เอกสารที่ออกเลขแล้วแก้ไขไม่ได้ (spec §6.4)", "VALIDATION")
   }
 
+  const documentType = await prisma.documentType.findFirst({
+    where: { id: input.documentTypeId, tenantId: ctx.tenantId, isActive: true },
+  })
+
+  if (!documentType) throw new ServiceError("ไม่พบประเภทหนังสือที่เลือก", "NOT_FOUND")
+
+  // ทิศทางกำหนดทั้งวงจรสถานะ (§6.1–6.3) และทะเบียนที่ใช้ออกเลข (§7)
+  // ถ้าปล่อยให้สลับข้ามทิศทาง เอกสารจะมี direction เดิมค้างอยู่กับประเภทใหม่
+  // แล้วปุ่มบนหน้าเว็บกับเส้นทางที่ service ยอมจะไม่ตรงกันทันที
+  if (documentType.direction !== document.direction) {
+    throw new ServiceError(
+      "เปลี่ยนประเภทหนังสือข้ามทิศทางไม่ได้ — ต้องสร้างฉบับใหม่แทน",
+      "VALIDATION",
+    )
+  }
+
   assertClearance(ctx, input.confidentialityLevel)
 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.document.update({
       where: { id: document.id },
       data: {
-        documentTypeId: input.documentTypeId,
+        documentTypeId: documentType.id,
+        // ร่างยังไม่มีเลข การย้ายเล่มทะเบียนตามประเภทใหม่จึงยังปลอดภัย
+        bookCode: documentType.defaultBookCode,
         subject: input.subject,
         summary: input.summary || null,
         docDate: input.docDate ?? null,
@@ -535,26 +554,6 @@ async function loadDocument(ctx: ServiceContext, id: string) {
   return document
 }
 
-type LoadedDocument = Awaited<ReturnType<typeof loadDocument>>
-
-/** แปลงเอกสารเป็นรูปที่ can() ใช้ตัดสิน — ครบทั้ง 6 ด่านของ §4.3 */
-function toAuthzResource(document: LoadedDocument) {
-  return {
-    ownerUnitId: document.ownerUnitId,
-    ownerUnitPath: document.ownerUnit.path,
-    createdById: document.createdById,
-    confidentialityLevel: document.confidentialityLevel,
-    status: document.status,
-    recipientUnitIds: document.recipients
-      .map((recipient) => recipient.orgUnitId)
-      .filter((value): value is string => value !== null),
-    recipientUserIds: document.recipients
-      .map((recipient) => recipient.userId)
-      .filter((value): value is string => value !== null),
-    acl: document.acls,
-  }
-}
-
 /** ชั้นความลับของผู้ใช้ต้องไม่ต่ำกว่าของเอกสาร (spec §8.1) */
 function assertClearance(ctx: ServiceContext, confidentialityLevel: number) {
   if (ctx.clearanceLevel < confidentialityLevel) {
@@ -583,8 +582,45 @@ async function createRecipients(
 ) {
   const now = new Date()
 
+  // กันซ้ำสองชั้น — ซ้ำภายในคำสั่งเดียวกัน และซ้ำกับผู้รับที่เอกสารมีอยู่แล้ว
+  //
+  // ⚠️ ถ้าปล่อยให้เพิ่มแถวซ้ำ (เช่นตั้งผู้รับไว้ตอนร่าง แล้วเวียนถึงหน่วยเดิมอีกครั้ง)
+  // เอกสารจะปิดเรื่องเองไม่ได้ตลอดกาล เพราะการปิดรอให้ผู้รับชั้น TO **ทุกแถว** รับทราบ
+  // แต่แถวที่ซ้ำมาค้างอยู่ที่ PENDING โดยไม่มีใครเห็นว่ามันมีอยู่
+  const unique = new Map<string, RecipientInput>()
+
+  for (const recipient of recipients) {
+    unique.set(recipientKey(recipient), recipient)
+  }
+
+  const existing = await tx.documentRecipient.findMany({
+    where: { documentId },
+    select: { id: true, orgUnitId: true, userId: true },
+  })
+
+  const existingByKey = new Map(existing.map((row) => [recipientKey(row), row.id]))
+  const fresh: RecipientInput[] = []
+
+  for (const [key, recipient] of unique) {
+    const existingId = existingByKey.get(key)
+
+    if (!existingId) {
+      fresh.push(recipient)
+      continue
+    }
+
+    // เวียนถึงหน่วยที่อยู่ในรายชื่ออยู่แล้ว = อัปเดตแถวเดิมให้เป็นรอบล่าสุด
+    // (ชั้นผู้รับเปลี่ยนได้ เช่นจาก "เรียน" เป็น "สำเนาถึง" — คำสั่งล่าสุดชนะ)
+    await tx.documentRecipient.update({
+      where: { id: existingId },
+      data: { kind: recipient.kind, status, sentAt: status === "SENT" ? now : null },
+    })
+  }
+
+  if (fresh.length === 0) return
+
   await tx.documentRecipient.createMany({
-    data: recipients.map((recipient) => ({
+    data: fresh.map((recipient) => ({
       documentId,
       orgUnitId: recipient.orgUnitId ?? null,
       userId: recipient.userId ?? null,
@@ -593,4 +629,9 @@ async function createRecipients(
       sentAt: status === "SENT" ? now : null,
     })),
   })
+}
+
+/** ผู้รับหนึ่งรายเป็นหน่วยงานหรือบุคคลอย่างใดอย่างหนึ่ง — คีย์จึงประกอบจากทั้งสองช่อง */
+function recipientKey(recipient: { orgUnitId?: string | null; userId?: string | null }): string {
+  return `${recipient.orgUnitId ?? ""}|${recipient.userId ?? ""}`
 }

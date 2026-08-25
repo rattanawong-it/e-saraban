@@ -3,7 +3,7 @@ import "server-only"
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES, writeAudit } from "@/lib/audit"
 import { PERMISSIONS } from "@/lib/authz"
 import { prisma } from "@/lib/db"
-import { allowedFromStatuses, nextStatus } from "@/lib/documents/state-machine"
+import { allowedFromStatuses, canIssueNumber, nextStatus } from "@/lib/documents/state-machine"
 import { getSystemSettings } from "@/lib/settings"
 import {
   DEFAULT_NUMBER_PATTERN,
@@ -12,6 +12,7 @@ import {
   validateNumberPattern,
 } from "@/lib/thai/doc-number"
 import type { DocumentDirectionValue, DocumentStatusValue } from "@/schemas/document.schema"
+import type { UpdateSequencePatternInput, UpdateTypePatternInput } from "@/schemas/numbering.schema"
 
 import type { ServiceContext } from "../context"
 import { assertPermission, ServiceError } from "./errors"
@@ -35,6 +36,8 @@ export interface IssuableDocument {
   id: string
   status: DocumentStatusValue
   direction: DocumentDirectionValue
+  /** เลขที่ออกไปแล้ว — ต้องเป็น null เท่านั้นจึงจะออกเลขได้ (§6.4) */
+  docNo: string | null
   bookCode: string
   docDate: Date | null
   ownerUnitId: string
@@ -119,6 +122,19 @@ export async function issueNumberWithin(
       `หน่วยงาน "${document.ownerUnit.code}" ไม่ได้รับอนุญาตให้ออกเลขหนังสือ`,
       "VALIDATION",
     )
+  }
+
+  // ⚠️ ด่านกันออกเลขซ้ำ — หนังสือรับอยู่ที่ RECEIVED ทั้งก่อนและหลังออกเลข
+  // ถ้าเชื่อสถานะอย่างเดียว จะกดออกเลขทับได้เรื่อย ๆ แล้วเลขเดิมหายจากทะเบียน (§6.4)
+  if (!canIssueNumber(document.direction, document.status, document.docNo)) {
+    if (document.docNo) {
+      throw new ServiceError(
+        `เอกสารฉบับนี้มีเลขทะเบียน ${document.docNo} อยู่แล้ว ออกเลขซ้ำไม่ได้`,
+        "VALIDATION",
+      )
+    }
+
+    throw new ServiceError("สถานะของเอกสารไม่อนุญาตให้ออกเลข", "VALIDATION")
   }
 
   // หนังสือรับออกเลขแล้วยังอยู่ที่ RECEIVED · อีกสองทิศทางไปต่อที่ REGISTERED
@@ -228,4 +244,192 @@ export async function issueNumberWithin(
     bookCode: document.bookCode,
     status: toStatus,
   }
+}
+
+// ---------------------------------------------------------------------------
+// ตั้งค่ารูปแบบเลขทะเบียน (/admin/numbering · spec §7.1)
+//
+// ⚠️ การเปลี่ยน pattern มีผลกับเอกสารที่ออกเลข **หลังจากนี้** เท่านั้น
+// ของเดิมเก็บ docNo ที่ render แล้วไว้ในแถวของตัวเอง และแก้ย้อนหลังไม่ได้ (§6.4)
+// ---------------------------------------------------------------------------
+
+export interface NumberingTypeRow {
+  id: string
+  code: string
+  nameTh: string
+  direction: DocumentDirectionValue
+  defaultBookCode: string
+  numberPattern: string | null
+  isActive: boolean
+}
+
+export interface NumberingSequenceRow {
+  id: string
+  orgUnitCode: string
+  orgUnitName: string
+  direction: DocumentDirectionValue
+  bookCode: string
+  year: number
+  lastValue: number
+  patternOverride: string | null
+}
+
+export async function readNumberingConfig(ctx: ServiceContext) {
+  assertPermission(ctx, PERMISSIONS.SETTING_MANAGE)
+
+  const settings = await getSystemSettings(ctx.tenantId)
+  const year = resolveNumberYear(settings.numbering.yearMode)
+
+  const [documentTypes, sequences] = await Promise.all([
+    prisma.documentType.findMany({
+      where: { tenantId: ctx.tenantId },
+      orderBy: [{ sortOrder: "asc" }, { code: "asc" }],
+      select: {
+        id: true,
+        code: true,
+        nameTh: true,
+        direction: true,
+        defaultBookCode: true,
+        numberPattern: true,
+        isActive: true,
+      },
+    }),
+    // เฉพาะปีที่ใช้อยู่ — ทะเบียนของปีเก่าปิดไปแล้ว แก้ pattern ย้อนหลังไม่มีประโยชน์
+    prisma.numberSequence.findMany({
+      where: { tenantId: ctx.tenantId, year },
+      orderBy: [{ orgUnit: { code: "asc" } }, { direction: "asc" }, { bookCode: "asc" }],
+      include: { orgUnit: { select: { code: true, nameTh: true, shortName: true } } },
+    }),
+  ])
+
+  return {
+    yearMode: settings.numbering.yearMode,
+    year,
+    defaultPattern: DEFAULT_NUMBER_PATTERN,
+    documentTypes: documentTypes as NumberingTypeRow[],
+    sequences: sequences.map((sequence): NumberingSequenceRow => ({
+      id: sequence.id,
+      orgUnitCode: sequence.orgUnit.code,
+      orgUnitName: sequence.orgUnit.shortName ?? sequence.orgUnit.nameTh,
+      direction: sequence.direction,
+      bookCode: sequence.bookCode,
+      year: sequence.year,
+      lastValue: sequence.lastValue,
+      patternOverride: sequence.patternOverride,
+    })),
+  }
+}
+
+export type NumberingConfig = Awaited<ReturnType<typeof readNumberingConfig>>
+
+export async function updateDocumentTypePattern(
+  ctx: ServiceContext,
+  input: UpdateTypePatternInput,
+) {
+  assertPermission(ctx, PERMISSIONS.SETTING_MANAGE)
+
+  const documentType = await prisma.documentType.findFirst({
+    where: { id: input.documentTypeId, tenantId: ctx.tenantId },
+  })
+
+  if (!documentType) throw new ServiceError("ไม่พบประเภทหนังสือที่ระบุ", "NOT_FOUND")
+
+  assertPatternValid(input.numberPattern)
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.documentType.update({
+      where: { id: documentType.id },
+      data: { numberPattern: input.numberPattern },
+    })
+
+    await writeAuditForPattern(tx, ctx, {
+      entityId: documentType.id,
+      scope: "documentType",
+      target: documentType.code,
+      before: documentType.numberPattern,
+      after: updated.numberPattern,
+    })
+
+    return updated
+  })
+}
+
+export async function updateSequencePattern(
+  ctx: ServiceContext,
+  input: UpdateSequencePatternInput,
+) {
+  assertPermission(ctx, PERMISSIONS.SETTING_MANAGE)
+
+  const sequence = await prisma.numberSequence.findFirst({
+    where: { id: input.sequenceId, tenantId: ctx.tenantId },
+    include: { orgUnit: { select: { code: true } } },
+  })
+
+  if (!sequence) throw new ServiceError("ไม่พบทะเบียนที่ระบุ", "NOT_FOUND")
+
+  assertPatternValid(input.patternOverride)
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.numberSequence.update({
+      where: { id: sequence.id },
+      data: { patternOverride: input.patternOverride },
+    })
+
+    await writeAuditForPattern(tx, ctx, {
+      entityId: sequence.id,
+      scope: "numberSequence",
+      target: `${sequence.orgUnit.code}/${sequence.direction}/${sequence.bookCode}/${sequence.year}`,
+      before: sequence.patternOverride,
+      after: updated.patternOverride,
+    })
+
+    return updated
+  })
+}
+
+/** ว่าง = ตกทอดค่าจากชั้นบน จึงไม่ต้องตรวจ · มีค่าเมื่อไรต้อง render ได้จริงเสมอ */
+function assertPatternValid(pattern: string | null) {
+  if (!pattern) return
+
+  const issues = validateNumberPattern(pattern)
+
+  if (issues.length > 0) {
+    throw new ServiceError(
+      `รูปแบบเลขทะเบียนไม่ถูกต้อง: ${issues.map((issue) => issue.message).join(" · ")}`,
+      "VALIDATION",
+    )
+  }
+}
+
+function writeAuditForPattern(
+  tx: TransactionClient,
+  ctx: ServiceContext,
+  detail: {
+    entityId: string
+    scope: "documentType" | "numberSequence"
+    target: string
+    before: string | null
+    after: string | null
+  },
+) {
+  return writeAudit(tx, {
+    tenantId: ctx.tenantId,
+    action: AUDIT_ACTIONS.SETTING_UPDATED,
+    entityType: AUDIT_ENTITY_TYPES.SETTING,
+    entityId: detail.entityId,
+    actorUserId: ctx.userId,
+    actorOrgUnitId: ctx.activeOrgUnitId,
+    sessionId: ctx.sessionId,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    // เปลี่ยนรูปแบบเลข = เปลี่ยนหน้าตาของทะเบียนราชการนับจากนี้ไป จึงไม่ใช่เรื่องปกติ
+    severity: "CRITICAL",
+    metadata: {
+      setting: "numberPattern",
+      scope: detail.scope,
+      target: detail.target,
+      before: detail.before,
+      after: detail.after,
+    },
+  })
 }

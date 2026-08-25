@@ -81,3 +81,18 @@ export function toBuddhistYear(gregorianYear: number): number {
 export function toGregorianYear(buddhistYear: number): number {
   return buddhistYear - BUDDHIST_ERA_OFFSET
 }
+
+/**
+ * ค่าสำหรับ `<input type="date">` — ต้องเป็น ค.ศ. รูปแบบ ISO เท่านั้น
+ *
+ * ⚠️ ห้ามใช้ `toISOString().slice(0, 10)` เพราะนั่นคือวันที่ตาม UTC
+ * เอกสารที่บันทึกหลัง 07:00 น. ตามเวลาไทยจะเพี้ยนไปหนึ่งวันทันที
+ */
+export function toDateInputValue(value: DateInput): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: THAI_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(toDate(value))
+}
