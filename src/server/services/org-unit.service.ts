@@ -32,6 +32,7 @@ export interface OrgUnitNode {
   level: number
   sortOrder: number
   isActive: boolean
+  canIssueNumber: boolean
   headUserId: string | null
   headName: string | null
   memberCount: number
@@ -69,6 +70,7 @@ export async function getOrgTree(
       level: unit.level,
       sortOrder: unit.sortOrder,
       isActive: unit.isActive,
+      canIssueNumber: unit.canIssueNumber,
       headUserId: unit.headUserId,
       headName: unit.head
         ? `${unit.head.prefix ?? ""}${unit.head.firstName} ${unit.head.lastName}`.trim()
@@ -155,6 +157,7 @@ export async function createOrgUnit(ctx: ServiceContext, input: CreateOrgUnitInp
         level: parent ? parent.level + 1 : 0,
         sortOrder: input.sortOrder,
         headUserId: input.headUserId || null,
+        canIssueNumber: input.canIssueNumber,
       },
     })
 
@@ -207,6 +210,7 @@ export async function updateOrgUnit(ctx: ServiceContext, input: UpdateOrgUnitInp
         type: input.type,
         sortOrder: input.sortOrder,
         headUserId: input.headUserId || null,
+        canIssueNumber: input.canIssueNumber,
       },
     })
 
@@ -222,8 +226,18 @@ export async function updateOrgUnit(ctx: ServiceContext, input: UpdateOrgUnitInp
       userAgent: ctx.userAgent,
       severity: "NOTICE",
       metadata: {
-        before: { code: before.code, nameTh: before.nameTh, type: before.type },
-        after: { code: updated.code, nameTh: updated.nameTh, type: updated.type },
+        before: {
+          code: before.code,
+          nameTh: before.nameTh,
+          type: before.type,
+          canIssueNumber: before.canIssueNumber,
+        },
+        after: {
+          code: updated.code,
+          nameTh: updated.nameTh,
+          type: updated.type,
+          canIssueNumber: updated.canIssueNumber,
+        },
       },
     })
 

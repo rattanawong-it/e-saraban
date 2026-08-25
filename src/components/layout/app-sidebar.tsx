@@ -52,13 +52,13 @@ export function AppSidebar({
         )}
       >
         <div className="mb-4 flex items-center gap-3 border-b border-white/10 px-5 pb-4.5">
-          <div className="flex h-9 items-center justify-center rounded-xl bg-white px-2">
+          <div className="flex h-11 items-center justify-center rounded-xl bg-white px-2">
             <Image
               src="/brand/krirk-logo.png"
               alt={BRAND.logoAlt}
-              width={90}
-              height={24}
-              className="h-6 w-auto"
+              width={600}
+              height={517}
+              className="h-9 w-auto"
             />
           </div>
           <div className="min-w-0 flex-1">

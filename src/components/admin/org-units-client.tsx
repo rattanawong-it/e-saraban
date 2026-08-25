@@ -7,17 +7,20 @@ import {
   Building2,
   ChevronRight,
   CornerUpRight,
+  Hash,
   Loader2,
   Plus,
   Save,
+  Search,
   Users,
+  X,
 } from "lucide-react"
 
 import { COMMON, ORG_UNITS } from "@/constants"
 import { ORG_UNIT_TYPE_LABELS, type OrgUnitTypeValue } from "@/schemas/org-unit.schema"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Checkbox, Field, Select, TextInput } from "@/components/ui/field"
+import { Checkbox, Field, InputShell, Input, Select, TextInput } from "@/components/ui/field"
 import { Alert, Badge, Card, CardHeader, EmptyState } from "@/components/ui/primitives"
 import {
   createOrgUnitAction,
@@ -47,6 +50,7 @@ export interface OrgUnitNodeView {
   level: number
   sortOrder: number
   isActive: boolean
+  canIssueNumber: boolean
   headName: string | null
   headUserId: string | null
   memberCount: number
@@ -82,6 +86,20 @@ export function OrgUnitsClient({
   const allNodes = useMemo(() => flattenTree(tree), [tree])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [query, setQuery] = useState("")
+
+  // ผังจริงมี 372 หน่วย การกางทั้งหมดทำให้หน้ายาวเป็นหมื่นพิกเซล
+  // ค่าเริ่มต้นจึงกางแค่ระดับบนสุด แล้วให้ผู้ใช้กางเองหรือใช้ช่องค้นหา
+  const [expandAllAt, setExpandAllAt] = useState(0)
+  const [collapseAllAt, setCollapseAllAt] = useState(0)
+
+  const filtered = useMemo(() => filterTree(tree, query), [tree, query])
+  const matchCount = useMemo(() => flattenTree(filtered).length, [filtered])
+  const issuingCount = useMemo(
+    () => allNodes.filter((node) => node.canIssueNumber).length,
+    [allNodes],
+  )
+  const searching = query.trim().length > 0
 
   // หน่วยงานที่เลือกไว้หายไปจากผัง (ถูกกรองออก/เก็บถาวร) → ตกกลับไปที่ตัวแรก
   // คำนวณตอน render แทนการ setState ใน effect เพื่อไม่ให้เกิด render ซ้อน
@@ -92,7 +110,11 @@ export function OrgUnitsClient({
       <Card className="overflow-hidden">
         <CardHeader
           title={ORG_UNITS.treeTitle}
-          description={`${allNodes.length.toLocaleString("th-TH")} หน่วยงาน`}
+          description={
+            searching
+              ? ORG_UNITS.matchCount(matchCount, allNodes.length)
+              : ORG_UNITS.unitCount(allNodes.length, issuingCount)
+          }
           action={
             <div className="flex items-center gap-3">
               <ArchivedToggle checked={showArchived} />
@@ -103,6 +125,36 @@ export function OrgUnitsClient({
             </div>
           }
         />
+
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-3">
+          <InputShell className="min-w-56 flex-1">
+            <Search className="size-4 shrink-0 text-text-subtle" aria-hidden />
+            <Input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={ORG_UNITS.searchPlaceholder}
+              aria-label={ORG_UNITS.searchPlaceholder}
+            />
+            {searching ? (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label={COMMON.cancel}
+                className="flex cursor-pointer text-text-subtle hover:text-text-medium"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            ) : null}
+          </InputShell>
+
+          <Button size="sm" variant="ghost" onClick={() => setExpandAllAt(Date.now())}>
+            {ORG_UNITS.expandAll}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setCollapseAllAt(Date.now())}>
+            {ORG_UNITS.collapseAll}
+          </Button>
+        </div>
 
         {creating ? (
           <div className="border-b border-border bg-surface-sunken p-5">
@@ -115,15 +167,23 @@ export function OrgUnitsClient({
           </div>
         ) : null}
 
-        <div className="p-2.5">
-          {tree.length === 0 ? (
+        <div className="max-h-[70vh] overflow-y-auto p-2.5">
+          {filtered.length === 0 ? (
             <EmptyState
-              title={ORG_UNITS.selectPrompt}
+              title={searching ? ORG_UNITS.searchEmpty : ORG_UNITS.selectPrompt}
               icon={<Building2 className="size-8" aria-hidden />}
             />
           ) : (
-            tree.map((node) => (
-              <TreeRow key={node.id} node={node} selectedId={selectedId} onSelect={setSelectedId} />
+            filtered.map((node) => (
+              <TreeRow
+                key={node.id}
+                node={node}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                searching={searching}
+                expandAllAt={expandAllAt}
+                collapseAllAt={collapseAllAt}
+              />
             ))
           )}
         </div>
@@ -163,18 +223,55 @@ function flattenTree(nodes: OrgUnitNodeView[]): OrgUnitNodeView[] {
   return nodes.flatMap((node) => [node, ...flattenTree(node.children)])
 }
 
+/**
+ * กรองผังด้วยคำค้น — เก็บหน่วยงานแม่ของตัวที่ตรงไว้ด้วย ไม่งั้นผังจะขาดบริบท
+ * ค้นทั้งชื่อและรหัส เพราะเจ้าหน้าที่สารบรรณจำรหัส 6 หลักได้แม่นกว่าชื่อเต็ม
+ */
+function filterTree(nodes: OrgUnitNodeView[], query: string): OrgUnitNodeView[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return nodes
+
+  return nodes.flatMap((node) => {
+    const children = filterTree(node.children, query)
+    const hit =
+      node.nameTh.toLowerCase().includes(needle) || node.code.toLowerCase().includes(needle)
+
+    return hit || children.length > 0 ? [{ ...node, children }] : []
+  })
+}
+
 function TreeRow({
   node,
   selectedId,
   onSelect,
+  searching,
+  expandAllAt,
+  collapseAllAt,
 }: {
   node: OrgUnitNodeView
   selectedId: string | null
   onSelect: (id: string) => void
+  /** กำลังค้นหาอยู่ → กางให้เห็นผลลัพธ์ทุกกิ่งโดยไม่ต้องแตะ state ของแต่ละแถว */
+  searching: boolean
+  /** เวลาที่กดปุ่มกาง/พับทั้งหมด — เปลี่ยนค่าเมื่อไรก็สั่งทุกแถวพร้อมกัน */
+  expandAllAt: number
+  collapseAllAt: number
 }) {
-  const [expanded, setExpanded] = useState(node.level < 2)
+  // ค่าเริ่มต้นกางแค่ระดับบนสุด — ผังจริงมี 372 หน่วย กางหมดแล้วหน้ายาวเกินใช้งาน
+  const [expanded, setExpanded] = useState(node.level < 1)
+  const [respondedTo, setRespondedTo] = useState(0)
+
+  // ปุ่มกาง/พับทั้งหมดเป็นคำสั่งครั้งเดียว ไม่ใช่สถานะถาวร
+  // คำนวณตอน render แทน useEffect เพื่อไม่ให้ชน react-hooks/set-state-in-effect (§6.14)
+  const command = Math.max(expandAllAt, collapseAllAt)
+  if (command > respondedTo) {
+    setRespondedTo(command)
+    setExpanded(expandAllAt >= collapseAllAt)
+  }
+
   const hasChildren = node.children.length > 0
   const selected = node.id === selectedId
+  const open = expanded || searching
 
   return (
     <div>
@@ -188,13 +285,13 @@ function TreeRow({
         {hasChildren ? (
           <button
             type="button"
-            onClick={() => setExpanded((value) => !value)}
-            aria-expanded={expanded}
+            onClick={() => setExpanded((value) => !(value || searching))}
+            aria-expanded={open}
             aria-label={node.nameTh}
             className="flex size-5 shrink-0 cursor-pointer items-center justify-center rounded text-text-subtle hover:bg-border"
           >
             <ChevronRight
-              className={cn("size-4 transition-transform", expanded && "rotate-90")}
+              className={cn("size-4 transition-transform", open && "rotate-90")}
               aria-hidden
             />
           </button>
@@ -218,6 +315,7 @@ function TreeRow({
             </span>
             <span className="tabular block truncate text-[11px] text-text-subtle">
               {node.code} · {ORG_UNIT_TYPE_LABELS[node.type]}
+              {node.canIssueNumber ? null : ` · ${ORG_UNITS.cannotIssue}`}
             </span>
           </span>
 
@@ -232,10 +330,18 @@ function TreeRow({
         </button>
       </div>
 
-      {expanded && hasChildren ? (
+      {open && hasChildren ? (
         <div>
           {node.children.map((child) => (
-            <TreeRow key={child.id} node={child} selectedId={selectedId} onSelect={onSelect} />
+            <TreeRow
+              key={child.id}
+              node={child}
+              selectedId={selectedId}
+              onSelect={onSelect}
+              searching={searching}
+              expandAllAt={expandAllAt}
+              collapseAllAt={collapseAllAt}
+            />
           ))}
         </div>
       ) : null}
@@ -342,6 +448,19 @@ function OrgUnitDetail({
               className="tabular"
             />
           </Field>
+
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-border p-3.5">
+            <Checkbox name="canIssueNumber" value="1" defaultChecked={unit.canIssueNumber} />
+            <span className="min-w-0">
+              <span className="flex items-center gap-1.5 text-[13px] font-semibold text-text-strong">
+                <Hash className="size-3.5 text-text-subtle" aria-hidden />
+                {ORG_UNITS.canIssueNumber}
+              </span>
+              <span className="mt-1 block text-[11px] leading-relaxed text-text-subtle">
+                {ORG_UNITS.canIssueNumberHint}
+              </span>
+            </span>
+          </label>
 
           <div className="grid grid-cols-2 gap-2.5">
             <div className="rounded-xl bg-secondary p-3.5">
@@ -529,6 +648,11 @@ function CreateOrgUnitForm({
           </Select>
         </Field>
       </div>
+
+      <label className="flex cursor-pointer items-center gap-2.5 text-[12.5px] text-text-medium">
+        <Checkbox name="canIssueNumber" value="1" defaultChecked />
+        {ORG_UNITS.canIssueNumber}
+      </label>
 
       <div className="flex gap-2.5">
         <Button type="submit" disabled={pending}>

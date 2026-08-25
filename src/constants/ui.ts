@@ -231,7 +231,19 @@ export const ORG_UNITS = {
     "หน่วยงานที่มีเอกสารผูกอยู่ลบไม่ได้ — ใช้การเก็บถาวรแทนเพื่อรักษาทะเบียนย้อนหลัง (spec §5.1)",
   showArchived: "แสดงหน่วยงานที่เก็บถาวรแล้ว",
   createTitle: "เพิ่มหน่วยงานใหม่",
-  codeHint: "รหัสหนังสือประจำหน่วยงาน เช่น ศธ 0512.1 — ใช้ประกอบเลขทะเบียนใน P2",
+  codeHint: "รหัสงานสารบรรณ 6 หลัก เช่น 510200 — เป็นส่วนหน้าของเลขทะเบียน",
+  canIssueNumber: "ออกเลขหนังสือในนามหน่วยงานนี้ได้",
+  canIssueNumberHint:
+    "หน่วยระดับ “งาน” และหลักสูตรออกเลขไม่ได้ตามกติกาที่ตกลงไว้ (spec D15) — ปิดไว้แล้วรหัสหน่วยงานนี้จะไม่ถูกใช้เป็นเลขทะเบียน",
+  cannotIssue: "ออกเลขไม่ได้",
+  searchPlaceholder: "ค้นหาชื่อหรือรหัสหน่วยงาน...",
+  searchEmpty: "ไม่พบหน่วยงานที่ตรงกับคำค้น",
+  matchCount: (found: number, total: number) =>
+    `พบ ${found.toLocaleString("th-TH")} หน่วยงาน จากทั้งหมด ${total.toLocaleString("th-TH")}`,
+  expandAll: "กางทั้งหมด",
+  collapseAll: "พับทั้งหมด",
+  unitCount: (total: number, issuing: number) =>
+    `${total.toLocaleString("th-TH")} หน่วยงาน · ออกเลขได้ ${issuing.toLocaleString("th-TH")}`,
 } as const
 
 export const USERS = {

@@ -62,6 +62,7 @@ function toView(node: OrgUnitNode): OrgUnitNodeView {
     level: node.level,
     sortOrder: node.sortOrder,
     isActive: node.isActive,
+    canIssueNumber: node.canIssueNumber,
     headName: node.headName,
     headUserId: node.headUserId,
     memberCount: node.memberCount,

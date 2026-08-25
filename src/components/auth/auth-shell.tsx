@@ -33,13 +33,14 @@ export function AuthBrandPanel({
 
       <div className="relative z-10">
         <div className="mb-8 flex items-center gap-3.5 lg:mb-16">
-          <div className="flex h-12 items-center justify-center rounded-2xl bg-white/95 px-3">
+          {/* โลโก้เป็นตราแบบวางซ้อน (600×517) ต้องให้ความสูงพอที่คำว่า UNIVERSITY จะยังอ่านออก */}
+          <div className="flex h-16 items-center justify-center rounded-2xl bg-white/95 px-3">
             <Image
               src="/brand/krirk-logo.png"
               alt={BRAND.logoAlt}
-              width={120}
-              height={32}
-              className="h-8 w-auto"
+              width={600}
+              height={517}
+              className="h-12 w-auto"
               priority
             />
           </div>

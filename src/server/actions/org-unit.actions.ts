@@ -36,6 +36,7 @@ export async function createOrgUnitAction(
     type: readString(formData, "type"),
     headUserId: readOptionalString(formData, "headUserId") ?? null,
     sortOrder: readString(formData, "sortOrder") || 0,
+    canIssueNumber: readCheckbox(formData, "canIssueNumber"),
   })
 
   if (!parsed.success) return zodErrorState(parsed.error)
@@ -69,6 +70,7 @@ export async function updateOrgUnitAction(
     type: readString(formData, "type"),
     headUserId: readOptionalString(formData, "headUserId") ?? null,
     sortOrder: readString(formData, "sortOrder") || 0,
+    canIssueNumber: readCheckbox(formData, "canIssueNumber"),
   })
 
   if (!parsed.success) return zodErrorState(parsed.error)

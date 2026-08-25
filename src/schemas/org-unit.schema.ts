@@ -33,6 +33,8 @@ export const createOrgUnitSchema = z.object({
   type: orgUnitTypeSchema,
   headUserId: z.string().nullable().optional(),
   sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
+  /** ออกเลขหนังสือในนามหน่วยงานนี้ได้ไหม (spec D15) */
+  canIssueNumber: z.boolean().default(true),
 })
 
 export type CreateOrgUnitInput = z.infer<typeof createOrgUnitSchema>
