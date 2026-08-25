@@ -40,7 +40,17 @@ export const AUDIT_ACTIONS = {
   REGISTRATION_REJECTED: "registration.rejected",
 
   // ── เอกสาร ───────────────────────────────────────────────────────
+  DOCUMENT_CREATED: "document.created",
+  DOCUMENT_UPDATED: "document.updated",
+  DOCUMENT_SUBMITTED: "document.submitted",
+  DOCUMENT_RETURNED: "document.returned",
   DOCUMENT_NUMBER_ISSUED: "document.number.issued",
+  DOCUMENT_CIRCULATED: "document.circulated",
+  DOCUMENT_ACKNOWLEDGED: "document.acknowledged",
+  DOCUMENT_MARKED_SENT: "document.sent",
+  DOCUMENT_FORWARDED: "document.forwarded",
+  DOCUMENT_CLOSED: "document.closed",
+  DOCUMENT_CANCELLED: "document.cancelled",
 
   // ── บทบาทและสิทธิ์ ───────────────────────────────────────────────
   ROLE_CREATED: "role.created",
@@ -92,7 +102,17 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "registration.approved": "อนุมัติคำขอสมัครใช้งาน",
   "registration.rejected": "ปฏิเสธคำขอสมัครใช้งาน",
 
+  "document.created": "สร้างเอกสาร",
+  "document.updated": "แก้ไขเอกสาร",
+  "document.submitted": "ส่งให้สารบรรณออกเลข",
+  "document.returned": "ตีกลับให้แก้ไข",
   "document.number.issued": "ออกเลขทะเบียนหนังสือ",
+  "document.circulated": "เวียนหนังสือ",
+  "document.acknowledged": "รับทราบหนังสือ",
+  "document.sent": "บันทึกว่าส่งออกแล้ว",
+  "document.forwarded": "ส่งต่อหนังสือรับ",
+  "document.closed": "ปิดเรื่อง",
+  "document.cancelled": "ยกเลิกเอกสาร",
   "role.created": "สร้างบทบาท",
   "role.updated": "แก้ไขบทบาท",
   "role.permissions.updated": "แก้ไขสิทธิ์ของบทบาท",

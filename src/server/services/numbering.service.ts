@@ -3,6 +3,7 @@ import "server-only"
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES, writeAudit } from "@/lib/audit"
 import { PERMISSIONS } from "@/lib/authz"
 import { prisma } from "@/lib/db"
+import { allowedFromStatuses, nextStatus } from "@/lib/documents/state-machine"
 import { getSystemSettings } from "@/lib/settings"
 import {
   DEFAULT_NUMBER_PATTERN,
@@ -10,6 +11,7 @@ import {
   resolveNumberYear,
   validateNumberPattern,
 } from "@/lib/thai/doc-number"
+import type { DocumentDirectionValue, DocumentStatusValue } from "@/schemas/document.schema"
 
 import type { ServiceContext } from "../context"
 import { assertPermission, ServiceError } from "./errors"
@@ -19,15 +21,47 @@ import { assertPermission, ServiceError } from "./errors"
 // สิ่งที่ต้องกัน: เจ้าหน้าที่สารบรรณสองคนกดออกเลขพร้อมกันแล้วได้เลขเดียวกัน
 // เลขซ้ำหนึ่งครั้งทำลายความน่าเชื่อถือของทะเบียนทั้งระบบ และแก้ย้อนหลังไม่ได้ตาม §6.4
 
-/** สถานะเดียวที่ออกเลขได้ — ด่าน STATE ของ §4.3 */
-const ISSUABLE_STATUSES = ["PENDING_NUMBER"] as const
-
 export interface IssueNumberResult {
   documentId: string
   docNo: string
   seqValue: number
   year: number
   bookCode: string
+  status: DocumentStatusValue
+}
+
+/** เอกสารเท่าที่การออกเลขต้องใช้ — รับได้ทั้งที่โหลดมาและที่เพิ่งสร้างในทรานแซกชันเดียวกัน */
+export interface IssuableDocument {
+  id: string
+  status: DocumentStatusValue
+  direction: DocumentDirectionValue
+  bookCode: string
+  docDate: Date | null
+  ownerUnitId: string
+  createdById: string
+  confidentialityLevel: number
+  ownerUnit: { code: string; shortName: string | null; path: string; canIssueNumber: boolean }
+  documentType: { nameTh: string; numberPattern: string | null }
+}
+
+type TransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+
+/** โหลดเอกสารพร้อมของที่การออกเลขต้องใช้ */
+export async function loadIssuableDocument(
+  ctx: ServiceContext,
+  documentId: string,
+): Promise<IssuableDocument> {
+  const document = await prisma.document.findFirst({
+    where: { id: documentId, tenantId: ctx.tenantId, deletedAt: null },
+    include: {
+      ownerUnit: { select: { code: true, shortName: true, path: true, canIssueNumber: true } },
+      documentType: { select: { nameTh: true, numberPattern: true } },
+    },
+  })
+
+  if (!document) throw new ServiceError("ไม่พบเอกสารที่ระบุ", "NOT_FOUND")
+
+  return document
 }
 
 /**
@@ -41,17 +75,7 @@ export async function issueNumber(
   documentId: string,
   options: { note?: string | null } = {},
 ): Promise<IssueNumberResult> {
-  const document = await prisma.document.findFirst({
-    where: { id: documentId, tenantId: ctx.tenantId, deletedAt: null },
-    include: {
-      ownerUnit: {
-        select: { id: true, code: true, shortName: true, path: true, canIssueNumber: true },
-      },
-      documentType: { select: { nameTh: true, numberPattern: true } },
-    },
-  })
-
-  if (!document) throw new ServiceError("ไม่พบเอกสารที่ระบุ", "NOT_FOUND")
+  const document = await loadIssuableDocument(ctx, documentId)
 
   assertPermission(
     ctx,
@@ -63,9 +87,32 @@ export async function issueNumber(
       confidentialityLevel: document.confidentialityLevel,
       status: document.status,
     },
-    { allowedStatuses: ISSUABLE_STATUSES },
+    // สถานะที่ออกเลขได้มาจากตาราง state machine ที่เดียว (§6.1–6.3)
+    // หนังสือรับออกเลขตอน RECEIVED ส่วนหนังสือภายใน/ส่งออกที่ PENDING_NUMBER
+    { allowedStatuses: allowedFromStatuses(document.direction, "NUMBER_ISSUED") },
   )
 
+  // ตัวนับถูกล็อกจนจบทรานแซกชัน คนที่กดพร้อมกันจึงต้อง "เข้าคิวรอ" เป็นเรื่องปกติ
+  // ค่าปริยายของ Prisma (maxWait 2 วิ) สั้นเกินไปสำหรับคิวออกเลขทีละหลายสิบฉบับ
+  // — พอ connection pool เต็ม จะเด้ง "Unable to start a transaction" ทั้งที่ระบบยังทำงานถูก
+  return prisma.$transaction((tx) => issueNumberWithin(tx, ctx, document, options), {
+    maxWait: 15_000,
+    timeout: 30_000,
+  })
+}
+
+/**
+ * แกนของการออกเลข — เรียกซ้ำได้จากทรานแซกชันอื่น เช่นการลงทะเบียนหนังสือรับ
+ * ที่ต้องสร้างเอกสารและออกเลขรับให้จบในทรานแซกชันเดียว
+ *
+ * ⚠️ ตัวนี้ **ไม่ตรวจสิทธิ์** — ผู้เรียกต้องตรวจมาก่อนแล้ว
+ */
+export async function issueNumberWithin(
+  tx: TransactionClient,
+  ctx: ServiceContext,
+  document: IssuableDocument,
+  options: { note?: string | null } = {},
+): Promise<IssueNumberResult> {
   // หน่วยระดับ "งาน" ออกเลขในนามตัวเองไม่ได้ (D15) — ต้องสลับ context ไปหน่วยงานแม่ก่อน
   if (!document.ownerUnit.canIssueNumber) {
     throw new ServiceError(
@@ -74,107 +121,111 @@ export async function issueNumber(
     )
   }
 
-  const settings = await getSystemSettings(ctx.tenantId)
+  // หนังสือรับออกเลขแล้วยังอยู่ที่ RECEIVED · อีกสองทิศทางไปต่อที่ REGISTERED
+  const toStatus = nextStatus(document.direction, "NUMBER_ISSUED", document.status)
+  if (!toStatus) throw new ServiceError("สถานะของเอกสารไม่อนุญาตให้ออกเลข", "VALIDATION")
+
+  // อ่านผ่าน tx เสมอ — ใช้ connection ใบเดียวกับทรานแซกชันนี้ ไม่ไปแย่ง pool กับคนอื่น
+  const settings = await getSystemSettings(ctx.tenantId, tx)
   const docDate = document.docDate ?? new Date()
   const year = resolveNumberYear(settings.numbering.yearMode, docDate)
 
-  return prisma.$transaction(async (tx) => {
-    // ── เดินเลขแบบ atomic ────────────────────────────────────────────────
-    //
-    // สเปก §7.3 เขียนสูตรไว้เป็น SELECT ... FOR UPDATE → ถ้าไม่มีแถวก็ INSERT → UPDATE
-    // ที่นี่ยุบเหลือคำสั่งเดียวด้วย INSERT ... ON CONFLICT DO UPDATE เพราะ:
-    //   1. ได้ผลเหมือนกันแต่ไม่มีช่วง "หลังเช็คว่าไม่มีแถว ก่อน INSERT" ให้ race
-    //   2. ไม่ต้อง retry แบบที่ Serializable + FOR UPDATE ต้องทำเมื่อชน 40001
-    //   3. แถวถูกล็อกจนจบทรานแซกชันเหมือนกัน คนที่มาทีหลังจะรอแล้วได้เลขถัดไป
-    //
-    // id ปล่อยให้ Postgres สร้างเอง เพราะ @default(uuid(7)) ของ Prisma ทำงานฝั่ง client
-    // ซึ่ง raw SQL ไม่ได้ผ่าน — ตาราง NumberSequence มีไม่กี่แถวต่อปี ลำดับเวลาของ id จึงไม่สำคัญ
-    const rows = await tx.$queryRaw<{ lastValue: number; patternOverride: string | null }[]>`
-      INSERT INTO "number_sequences"
-        ("id", "tenantId", "orgUnitId", "direction", "bookCode", "year", "lastValue", "createdAt", "updatedAt")
-      VALUES
-        (gen_random_uuid()::text, ${ctx.tenantId}, ${document.ownerUnitId},
-         ${document.direction}::"DocumentDirection", ${document.bookCode}, ${year}, 1, now(), now())
-      ON CONFLICT ("tenantId", "orgUnitId", "direction", "bookCode", "year")
-      DO UPDATE SET "lastValue" = "number_sequences"."lastValue" + 1, "updatedAt" = now()
-      RETURNING "lastValue", "patternOverride"
-    `
+  // ── เดินเลขแบบ atomic ────────────────────────────────────────────────
+  //
+  // สเปก §7.3 เขียนสูตรไว้เป็น SELECT ... FOR UPDATE → ถ้าไม่มีแถวก็ INSERT → UPDATE
+  // ที่นี่ยุบเหลือคำสั่งเดียวด้วย INSERT ... ON CONFLICT DO UPDATE เพราะ:
+  //   1. ได้ผลเหมือนกันแต่ไม่มีช่วง "หลังเช็คว่าไม่มีแถว ก่อน INSERT" ให้ race
+  //   2. ไม่ต้อง retry แบบที่ Serializable + FOR UPDATE ต้องทำเมื่อชน 40001
+  //   3. แถวถูกล็อกจนจบทรานแซกชันเหมือนกัน คนที่มาทีหลังจะรอแล้วได้เลขถัดไป
+  //
+  // id ปล่อยให้ Postgres สร้างเอง เพราะ @default(uuid(7)) ของ Prisma ทำงานฝั่ง client
+  // ซึ่ง raw SQL ไม่ได้ผ่าน — ตาราง NumberSequence มีไม่กี่แถวต่อปี ลำดับเวลาของ id จึงไม่สำคัญ
+  const rows = await tx.$queryRaw<{ lastValue: number; patternOverride: string | null }[]>`
+    INSERT INTO "number_sequences"
+      ("id", "tenantId", "orgUnitId", "direction", "bookCode", "year", "lastValue", "createdAt", "updatedAt")
+    VALUES
+      (gen_random_uuid()::text, ${ctx.tenantId}, ${document.ownerUnitId},
+       ${document.direction}::"DocumentDirection", ${document.bookCode}, ${year}, 1, now(), now())
+    ON CONFLICT ("tenantId", "orgUnitId", "direction", "bookCode", "year")
+    DO UPDATE SET "lastValue" = "number_sequences"."lastValue" + 1, "updatedAt" = now()
+    RETURNING "lastValue", "patternOverride"
+  `
 
-    const sequence = rows[0]
-    if (!sequence) throw new ServiceError("เดินเลขทะเบียนไม่สำเร็จ", "CONFLICT")
+  const sequence = rows[0]
+  if (!sequence) throw new ServiceError("เดินเลขทะเบียนไม่สำเร็จ", "CONFLICT")
 
-    // ลำดับของ pattern: ทะเบียนนี้ → ประเภทหนังสือ → ค่าปริยายของระบบ (D16)
-    const pattern =
-      sequence.patternOverride ?? document.documentType.numberPattern ?? DEFAULT_NUMBER_PATTERN
+  // ลำดับของ pattern: ทะเบียนนี้ → ประเภทหนังสือ → ค่าปริยายของระบบ (D16)
+  const pattern =
+    sequence.patternOverride ?? document.documentType.numberPattern ?? DEFAULT_NUMBER_PATTERN
 
-    const issues = validateNumberPattern(pattern)
-    if (issues.length > 0) {
-      // โยนก่อนออกเลข — ทรานแซกชัน rollback ทำให้ตัวนับกลับไปเท่าเดิม ไม่มีเลขหาย
-      throw new ServiceError(
-        `รูปแบบเลขทะเบียนไม่ถูกต้อง: ${issues.map((issue) => issue.message).join(" · ")}`,
-        "VALIDATION",
-      )
-    }
+  const issues = validateNumberPattern(pattern)
+  if (issues.length > 0) {
+    // โยนก่อนออกเลข — ทรานแซกชัน rollback ทำให้ตัวนับกลับไปเท่าเดิม ไม่มีเลขหาย
+    throw new ServiceError(
+      `รูปแบบเลขทะเบียนไม่ถูกต้อง: ${issues.map((issue) => issue.message).join(" · ")}`,
+      "VALIDATION",
+    )
+  }
 
-    const docNo = renderDocNumber(pattern, {
-      unitCode: document.ownerUnit.code,
-      unitShort: document.ownerUnit.shortName,
-      seq: sequence.lastValue,
+  const docNo = renderDocNumber(pattern, {
+    unitCode: document.ownerUnit.code,
+    unitShort: document.ownerUnit.shortName,
+    seq: sequence.lastValue,
+    year,
+    docType: document.documentType.nameTh,
+    bookCode: document.bookCode,
+  })
+
+  // @@unique ของ Document คือด่านสุดท้าย — ถ้า logic ข้างบนพลาด ฐานข้อมูลจะไม่ยอม
+  await tx.document.update({
+    where: { id: document.id },
+    data: {
+      docNo,
+      seqValue: sequence.lastValue,
       year,
-      docType: document.documentType.nameTh,
-      bookCode: document.bookCode,
-    })
+      docDate,
+      status: toStatus,
+    },
+  })
 
-    // @@unique ของ Document คือด่านสุดท้าย — ถ้า logic ข้างบนพลาด ฐานข้อมูลจะไม่ยอม
-    const updated = await tx.document.update({
-      where: { id: document.id },
-      data: {
-        docNo,
-        seqValue: sequence.lastValue,
-        year,
-        docDate,
-        status: "REGISTERED",
-      },
-    })
-
-    await tx.documentAction.create({
-      data: {
-        documentId: document.id,
-        actorUserId: ctx.userId,
-        actorUnitId: ctx.activeOrgUnitId,
-        actionType: "NUMBER_ISSUED",
-        fromStatus: document.status,
-        toStatus: "REGISTERED",
-        note: options.note || null,
-      },
-    })
-
-    await writeAudit(tx, {
-      tenantId: ctx.tenantId,
-      action: AUDIT_ACTIONS.DOCUMENT_NUMBER_ISSUED,
-      entityType: AUDIT_ENTITY_TYPES.DOCUMENT,
-      entityId: document.id,
+  await tx.documentAction.create({
+    data: {
+      documentId: document.id,
       actorUserId: ctx.userId,
-      actorOrgUnitId: ctx.activeOrgUnitId,
-      sessionId: ctx.sessionId,
-      ip: ctx.ip,
-      userAgent: ctx.userAgent,
-      severity: "NOTICE",
-      metadata: {
-        docNo,
-        seqValue: sequence.lastValue,
-        year,
-        bookCode: document.bookCode,
-        pattern,
-      },
-    })
+      actorUnitId: ctx.activeOrgUnitId,
+      actionType: "NUMBER_ISSUED",
+      fromStatus: document.status,
+      toStatus,
+      note: options.note || null,
+    },
+  })
 
-    return {
-      documentId: updated.id,
+  await writeAudit(tx, {
+    tenantId: ctx.tenantId,
+    action: AUDIT_ACTIONS.DOCUMENT_NUMBER_ISSUED,
+    entityType: AUDIT_ENTITY_TYPES.DOCUMENT,
+    entityId: document.id,
+    actorUserId: ctx.userId,
+    actorOrgUnitId: ctx.activeOrgUnitId,
+    sessionId: ctx.sessionId,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    severity: "NOTICE",
+    metadata: {
       docNo,
       seqValue: sequence.lastValue,
       year,
       bookCode: document.bookCode,
-    }
+      pattern,
+    },
   })
+
+  return {
+    documentId: document.id,
+    docNo,
+    seqValue: sequence.lastValue,
+    year,
+    bookCode: document.bookCode,
+    status: toStatus,
+  }
 }

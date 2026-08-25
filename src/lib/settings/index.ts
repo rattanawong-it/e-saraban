@@ -18,8 +18,18 @@ export * from "./definitions"
  * ทุก schema ของแต่ละกลุ่มมี `.default()` ครบทุกฟิลด์ จึงเติมค่าที่ขาด
  * ให้เองเมื่อมีการเพิ่มฟิลด์ใหม่ภายหลัง โดยไม่ต้อง migrate ข้อมูล
  */
-export async function getSystemSettings(tenantId: string): Promise<SystemSettings> {
-  const rows = await prisma.systemSetting.findMany({ where: { tenantId } })
+export async function getSystemSettings(
+  tenantId: string,
+  /**
+   * client ที่ใช้อ่าน — ส่ง `tx` เข้ามาเมื่อเรียกจากในทรานแซกชัน
+   *
+   * ⚠️ ถ้าเรียกด้วย prisma ตัวหลักจากภายในทรานแซกชัน จะขอ connection ใบที่สอง
+   * ทั้งที่ใบแรกยังถูกจองอยู่ → พอมีหลายทรานแซกชันพร้อมกัน connection pool จะตันกันเอง
+   * (เจอจริงตอนทดสอบออกเลข 50 ฉบับพร้อมกัน — ดู progress.md §18)
+   */
+  client: Pick<typeof prisma, "systemSetting"> = prisma,
+): Promise<SystemSettings> {
+  const rows = await client.systemSetting.findMany({ where: { tenantId } })
 
   const raw: Record<string, unknown> = {
     numbering: {},
