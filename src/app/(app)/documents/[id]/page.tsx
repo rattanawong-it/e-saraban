@@ -255,6 +255,7 @@ export default async function DocumentDetailPage({ params }: PageProps<"/documen
             canDelete={canUpload}
             maxSizeMb={settings.file.maxSizeMb}
             lockedReason={canUpload ? undefined : DOCUMENTS.attachmentLocked}
+            viewOnly={document.confidentialityLevel > 0}
           />
 
           <Card className="overflow-hidden">

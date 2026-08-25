@@ -1,13 +1,14 @@
 import "server-only"
 
 import { createHash, randomUUID } from "node:crypto"
-import type { Readable } from "node:stream"
+import { Readable } from "node:stream"
 
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES, writeAudit, writeAuditStandalone } from "@/lib/audit"
 import { PERMISSIONS } from "@/lib/authz"
 import { createDecryptStream, encryptBytes, type EnvelopeMetadata } from "@/lib/crypto"
 import { prisma } from "@/lib/db"
 import { toAuthzResource } from "@/lib/documents/authz-resource"
+import { watermarkPdf } from "@/lib/pdf"
 import { isTerminal } from "@/lib/documents/state-machine"
 import { getSystemSettings } from "@/lib/settings"
 import { detectFileType, isMimeConsistent, storage } from "@/lib/storage"
@@ -184,10 +185,16 @@ export interface AttachmentDownload {
   stream: Readable
   fileName: string
   mimeType: string
+  /** ขนาดของไฟล์ที่ส่งออกไปจริง — PDF ที่แปะลายน้ำแล้วจะใหญ่กว่าต้นฉบับ */
   sizeBytes: number
   /** เอกสารลับต้องเปิดในเบราว์เซอร์เท่านั้น ห้ามให้บันทึกลงเครื่อง (§8.3) */
   inlineOnly: boolean
+  /** แปะลายน้ำชื่อผู้เปิดไว้แล้วหรือยัง — ใช้บอกผู้ใช้และบันทึกลง audit */
+  watermarked: boolean
 }
+
+/** PDF เท่านั้นที่แปะลายน้ำได้ — ชนิดอื่นของเอกสารลับส่งได้แต่ไม่มีลายน้ำ */
+const WATERMARKABLE_MIME = "application/pdf"
 
 /**
  * เตรียมไฟล์ให้ Route Handler `/api/files/[id]` ส่งกลับ (spec §8.3)
@@ -231,7 +238,15 @@ export async function openAttachment(
   const raw = await storage.get(attachment.storageKey)
 
   // ถอดรหัสแบบ stream — ไฟล์ 50MB ห้ามโหลดขึ้น memory ทั้งก้อนเพื่อรอส่ง
-  const stream = attachment.isEncrypted ? createDecryptStream(raw, toEnvelope(attachment)) : raw
+  const decrypted = attachment.isEncrypted ? createDecryptStream(raw, toEnvelope(attachment)) : raw
+
+  // §8.3 — เอกสารลับต้องมีลายน้ำชื่อผู้เปิดทับทุกหน้า
+  const needsWatermark =
+    document.confidentialityLevel > 0 && attachment.mimeType === WATERMARKABLE_MIME
+
+  const prepared = needsWatermark
+    ? await stampWatermark(ctx, decrypted, attachment.fileName)
+    : { stream: decrypted, sizeBytes: attachment.sizeBytes, watermarked: false }
 
   // เขียน audit นอกทรานแซกชัน — การอ่านไฟล์ไม่ควรล็อกอะไรไว้ระหว่างส่ง stream
   await writeAuditStandalone({
@@ -252,15 +267,57 @@ export async function openAttachment(
       fileName: attachment.fileName,
       confidentialityLevel: document.confidentialityLevel,
       isEncrypted: attachment.isEncrypted,
+      watermarked: prepared.watermarked,
     },
   })
 
   return {
-    stream,
+    stream: prepared.stream,
     fileName: attachment.fileName,
     mimeType: attachment.mimeType,
-    sizeBytes: attachment.sizeBytes,
+    sizeBytes: prepared.sizeBytes,
+    // ชั้นความลับทุกระดับเปิดดูได้อย่างเดียว — เข้มกว่าที่ §8.3 กำหนดไว้ให้เฉพาะชั้นสูงสุด
     inlineOnly: document.confidentialityLevel > 0,
+    watermarked: prepared.watermarked,
+  }
+}
+
+/**
+ * แปะลายน้ำก่อนส่งไฟล์ออกไป (spec §8.3)
+ *
+ * ⚠️ ต้องโหลดไฟล์ทั้งก้อนขึ้น memory เพราะ pdf-lib แก้ PDF แบบ stream ไม่ได้
+ * เพดานคือขนาดไฟล์สูงสุดที่ /admin/settings ตั้งไว้ (ปริยาย 50MB)
+ *
+ * ⚠️ ถ้าแปะไม่สำเร็จ **ห้ามส่งไฟล์ต้นฉบับออกไปแทน** เพราะเท่ากับปล่อยเอกสารลับ
+ * ออกไปโดยไม่มีร่องรอยว่าใครเป็นคนเปิด — ปฏิเสธไปเลยดีกว่า
+ */
+async function stampWatermark(ctx: ServiceContext, source: Readable, fileName: string) {
+  // อ่านชื่อผู้เปิดจากฐานข้อมูลเอง ไม่รับมาจากผู้เรียก — ลายน้ำต้องปลอมไม่ได้
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: ctx.userId },
+    select: { prefix: true, firstName: true, lastName: true, username: true },
+  })
+
+  const original = await readAll(source)
+
+  try {
+    const stamped = await watermarkPdf(original, {
+      fullName: `${user.prefix ?? ""}${user.firstName} ${user.lastName}`.trim(),
+      username: user.username,
+      openedAt: new Date(),
+      ip: ctx.ip,
+    })
+
+    return {
+      stream: Readable.from([Buffer.from(stamped)]),
+      sizeBytes: stamped.byteLength,
+      watermarked: true,
+    }
+  } catch {
+    throw new ServiceError(
+      `เปิดไฟล์ "${fileName}" ไม่ได้ เพราะแปะลายน้ำของเอกสารลับไม่สำเร็จ (ไฟล์อาจถูกตั้งรหัสผ่านไว้)`,
+      "VALIDATION",
+    )
   }
 }
 

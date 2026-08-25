@@ -2,6 +2,7 @@ import "dotenv/config"
 
 import { createHash } from "node:crypto"
 
+import { PDFDict, PDFDocument, PDFName } from "pdf-lib"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 import { PERMISSIONS, type GrantedPermissions } from "@/lib/authz"
@@ -326,7 +327,12 @@ describe("กติกาตามสถานะเอกสาร (§6.4)", ()
 })
 
 describe("การเข้ารหัสไฟล์แนบ (§8.2)", () => {
-  /** สร้างเอกสารใหม่หนึ่งฉบับพร้อมไฟล์แนบหนึ่งไฟล์ */
+  /**
+   * สร้างเอกสารใหม่หนึ่งฉบับพร้อมไฟล์แนบหนึ่งไฟล์
+   *
+   * ใช้ PNG ไม่ใช่ PDF เพราะชุดนี้ตรวจว่า "ถอดรหัสแล้วได้ byte เดิมเป๊ะ"
+   * ส่วน PDF ของเอกสารลับจะถูกแปะลายน้ำระหว่างทาง (§8.3) byte จึงไม่เท่าเดิมโดยตั้งใจ
+   */
   async function newDocumentWithFile(confidentialityLevel: number) {
     const document = await createDocument(fixture.ctx, {
       documentTypeId: fixture.documentTypeId,
@@ -438,5 +444,89 @@ describe("การเข้ารหัสไฟล์แนบ (§8.2)", () =>
     })
 
     await expect(openAttachment(fixture.ctx, attachment.id)).rejects.toThrow(/ข้อมูลกุญแจ/)
+  })
+})
+
+describe("ลายน้ำบนเอกสารลับ (§8.3)", () => {
+  /** PDF จริงที่ pdf-lib อ่านออก — PDF_BYTES ข้างบนเป็นแค่ header สั้น ๆ ไม่พอสำหรับที่นี่ */
+  async function realPdf(): Promise<Uint8Array> {
+    const pdf = await PDFDocument.create()
+    // ข้อความละตินล้วน — ฟอนต์มาตรฐานของ pdf-lib เขียนภาษาไทยไม่ได้
+    // (ฟอนต์ไทยที่ฝังเข้าไปคือของลายน้ำเท่านั้น)
+    pdf.addPage([595, 842]).drawText("test document", { x: 50, y: 700, size: 12 })
+    return pdf.save()
+  }
+
+  async function attach(confidentialityLevel: number, bytes: Uint8Array, mimeType: string) {
+    const document = await createDocument(fixture.ctx, {
+      documentTypeId: fixture.documentTypeId,
+      subject: `${PREFIX} ลายน้ำชั้น ${confidentialityLevel}`,
+      confidentialityLevel,
+      urgencyLevel: 0,
+      recipients: [],
+    })
+    createdDocumentIds.push(document.id)
+
+    const attachment = await uploadAttachment(fixture.ctx, {
+      documentId: document.id,
+      fileName: mimeType === "application/pdf" ? "หนังสือลับ.pdf" : "ภาพประกอบ.png",
+      mimeType,
+      bytes,
+    })
+    storageKeys.push(attachment.storageKey)
+
+    return attachment
+  }
+
+  it("⚠️ PDF ของเอกสารลับต้องมีลายน้ำทุกหน้าก่อนถึงมือผู้เปิด", async () => {
+    const source = await realPdf()
+    const attachment = await attach(2, source, "application/pdf")
+
+    const file = await openAttachment(fixture.ctx, attachment.id)
+    const delivered = await readStream(file.stream)
+
+    expect(file.watermarked).toBe(true)
+    expect(file.inlineOnly).toBe(true)
+
+    // ขนาดที่บอกปลายทางต้องเป็นขนาดหลังแปะลายน้ำ ไม่ใช่ของต้นฉบับ
+    // ไม่งั้น Content-Length ไม่ตรงกับ byte ที่ส่งจริง แล้วเบราว์เซอร์จะได้ไฟล์พัง
+    expect(file.sizeBytes).toBe(delivered.byteLength)
+    expect(delivered.byteLength).toBeGreaterThan(source.byteLength)
+
+    const stamped = await PDFDocument.load(delivered)
+    const fonts = stamped.getPage(0).node.Resources()?.lookup(PDFName.of("Font"), PDFDict)
+    const names = (fonts?.values() ?? []).map((ref) =>
+      String(stamped.context.lookup(ref, PDFDict).get(PDFName.of("BaseFont"))),
+    )
+
+    expect(names.some((name) => name.includes("Sarabun"))).toBe(true)
+  })
+
+  it("เอกสารชั้น 0 ไม่แปะลายน้ำ และดาวน์โหลดได้ตามปกติ", async () => {
+    const source = await realPdf()
+    const attachment = await attach(0, source, "application/pdf")
+
+    const file = await openAttachment(fixture.ctx, attachment.id)
+
+    expect(file.watermarked).toBe(false)
+    expect(file.inlineOnly).toBe(false)
+    expect((await readStream(file.stream)).equals(Buffer.from(source))).toBe(true)
+  })
+
+  it("ไฟล์ลับที่ไม่ใช่ PDF ยังเปิดได้ แต่ไม่มีลายน้ำ — ต้องรู้ตัวว่าเป็นข้อจำกัด", async () => {
+    const attachment = await attach(2, PNG_BYTES, "image/png")
+
+    const file = await openAttachment(fixture.ctx, attachment.id)
+
+    expect(file.watermarked).toBe(false)
+    expect(file.inlineOnly).toBe(true)
+    expect((await readStream(file.stream)).equals(Buffer.from(PNG_BYTES))).toBe(true)
+  })
+
+  it("⚠️ PDF ที่แปะลายน้ำไม่สำเร็จต้องไม่ถูกส่งออกไปแบบไม่มีลายน้ำ", async () => {
+    // ไฟล์ที่ผ่านด่าน magic number แต่เนื้อในไม่ใช่ PDF ที่สมบูรณ์
+    const attachment = await attach(2, PDF_BYTES, "application/pdf")
+
+    await expect(openAttachment(fixture.ctx, attachment.id)).rejects.toThrow(/ลายน้ำ/)
   })
 })

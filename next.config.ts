@@ -5,6 +5,13 @@ const nextConfig: NextConfig = {
   // ทำให้ image ปลายทางไม่ต้องมี node_modules ทั้งก้อน (spec §11.1 deploy ด้วย Docker Compose)
   output: "standalone",
 
+  // ⚠️ ตัวไล่หาไฟล์ของ Next เห็น path ของที่เก็บไฟล์แนบใน LocalFsStorage แล้ว
+  // **ก๊อปไฟล์แนบจริงเข้าไปใน .next/standalone ด้วย** → ไฟล์ของผู้ใช้ติดไปกับ Docker image
+  // ตอนรัน volume จะทับทับโฟลเดอร์นี้ก็จริง แต่ไฟล์ยังนอนอยู่ใน layer ของ image ตลอดไป
+  outputFileTracingExcludes: {
+    "*": ["./storage/**"],
+  },
+
   experimental: {
     serverActions: {
       // spec §8.3 จำกัดไฟล์แนบ 50MB · ค่าปริยายของ Server Action คือ 1MB

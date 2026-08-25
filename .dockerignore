@@ -7,6 +7,9 @@ build
 .git
 .gitignore
 
+# ไฟล์แนบของผู้ใช้ — อยู่บน volume ตอนรัน ห้ามติดเข้าไปใน image
+storage
+
 # ความลับ — ห้ามหลุดเข้า image เด็ดขาด
 .env
 .env.*

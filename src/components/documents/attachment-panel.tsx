@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState } from "react"
-import { Download, Loader2, Paperclip, Trash2, Upload } from "lucide-react"
+import { Download, Eye, Loader2, Paperclip, Trash2, Upload } from "lucide-react"
 
 import { DOCUMENTS } from "@/constants"
 import { formatThaiDateTime } from "@/lib/thai"
@@ -33,6 +33,7 @@ export function AttachmentPanel({
   canDelete,
   maxSizeMb,
   lockedReason,
+  viewOnly = false,
 }: {
   documentId: string
   attachments: AttachmentItem[]
@@ -40,6 +41,8 @@ export function AttachmentPanel({
   canDelete: boolean
   maxSizeMb: number
   lockedReason?: string | undefined
+  /** เอกสารชั้นความลับ — เปิดดูได้ แต่ห้ามบันทึกลงเครื่อง (§8.3) */
+  viewOnly?: boolean
 }) {
   const [uploadState, uploadAction, uploading] = useActionState(uploadAttachmentAction, IDLE_STATE)
   const [deleteState, deleteAction, deleting] = useActionState(deleteAttachmentAction, IDLE_STATE)
@@ -57,6 +60,8 @@ export function AttachmentPanel({
         {state.status !== "idle" && state.message ? (
           <Alert tone={state.status === "error" ? "danger" : "success"} title={state.message} />
         ) : null}
+
+        {viewOnly ? <Alert tone="warning" title={DOCUMENTS.viewOnlyHint} /> : null}
 
         {attachments.length === 0 ? (
           <EmptyState title={DOCUMENTS.noAttachment} icon={<Paperclip className="size-6" />} />
@@ -79,11 +84,24 @@ export function AttachmentPanel({
                   </div>
                 </div>
 
-                <Button asChild size="icon-sm" variant="ghost" title={DOCUMENTS.download}>
-                  {/* เปิดแท็บใหม่ — ผู้ใช้กำลังทำงานกับหน้าเอกสารอยู่ ไม่ควรถูกพาออกไป */}
+                <Button
+                  asChild
+                  size="icon-sm"
+                  variant="ghost"
+                  title={viewOnly ? DOCUMENTS.viewOnly : DOCUMENTS.download}
+                >
+                  {/* เปิดแท็บใหม่ — ผู้ใช้กำลังทำงานกับหน้าเอกสารอยู่ ไม่ควรถูกพาออกไป
+                      ⚠️ การซ่อนปุ่มดาวน์โหลดเป็นแค่การบอกทาง ด่านจริงอยู่ที่ Content-Disposition
+                      กับ can() ฝั่งเซิร์ฟเวอร์ — UI ห้ามเป็นด่านสุดท้ายของอะไรทั้งนั้น (§10.2) */}
                   <a href={`/api/files/${file.id}`} target="_blank" rel="noopener noreferrer">
-                    <Download className="size-4" aria-hidden />
-                    <span className="sr-only">{DOCUMENTS.download}</span>
+                    {viewOnly ? (
+                      <Eye className="size-4" aria-hidden />
+                    ) : (
+                      <Download className="size-4" aria-hidden />
+                    )}
+                    <span className="sr-only">
+                      {viewOnly ? DOCUMENTS.viewOnly : DOCUMENTS.download}
+                    </span>
                   </a>
                 </Button>
 

@@ -12,7 +12,8 @@ import { getAppSession } from "@/server/session"
 // เพราะทุกครั้งที่มีคนเปิดไฟล์ต้องผ่าน can() + ตรวจชั้นความลับ + เขียน audit
 // ซึ่ง static file server ทำให้ไม่ได้
 //
-// ยังไม่ทำใน P2 (ตาม D18 · อยู่ใน P3): ถอดรหัส stream · แปะ watermark ทับหน้าเอกสารลับ
+// ครบทั้งเจ็ดข้อของ §8.3 แล้วตั้งแต่ P3: ตรวจ session · can() · ชั้นความลับ · ถอดรหัส stream ·
+// แปะลายน้ำทับทุกหน้าของเอกสารลับ · เขียน audit · ส่งกลับ
 
 export const dynamic = "force-dynamic"
 
@@ -34,6 +35,9 @@ export async function GET(
 
     // ชื่อไฟล์ภาษาไทยต้องส่งเป็น filename* แบบ RFC 5987 ไม่งั้นเบราว์เซอร์อ่านเป็นตัวขยะ
     const encodedName = encodeURIComponent(file.fileName)
+
+    // §8.3 — เอกสารลับส่งแบบ inline เท่านั้น ให้เบราว์เซอร์เปิดดู ไม่ใช่ชวนให้บันทึกลงเครื่อง
+    // (ไม่ใช่การป้องกันเชิงเทคนิคที่สมบูรณ์ · ลายน้ำกับ audit คือมาตรการจริง)
     const disposition = file.inlineOnly
       ? `inline; filename*=UTF-8''${encodedName}`
       : `attachment; filename*=UTF-8''${encodedName}`
