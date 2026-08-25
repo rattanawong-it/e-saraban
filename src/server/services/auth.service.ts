@@ -48,8 +48,14 @@ export async function login(input: LoginInput): Promise<LoginResult> {
     throw new ServiceError("พยายามเข้าสู่ระบบถี่เกินไป กรุณารอสักครู่แล้วลองใหม่", "RATE_LIMIT")
   }
 
+  // ผู้ใช้กรอกได้ทั้งชื่อผู้ใช้และอีเมล — อีเมลเทียบแบบไม่สนตัวพิมพ์
+  const identifier = input.username.trim()
+
   const user = await prisma.user.findFirst({
-    where: { username: input.username, deletedAt: null },
+    where: {
+      deletedAt: null,
+      OR: [{ username: identifier }, { email: identifier.toLowerCase() }],
+    },
     include: {
       orgUnits: {
         where: { orgUnit: { isActive: true } },

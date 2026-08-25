@@ -10,8 +10,20 @@ export const usernameSchema = z
   .max(50, "ชื่อผู้ใช้ยาวเกินไป")
   .regex(/^[a-zA-Z0-9._-]+$/, "ชื่อผู้ใช้ใช้ได้เฉพาะ a-z 0-9 จุด ขีดล่าง และขีดกลาง")
 
+/**
+ * ตัวระบุตัวตนตอนล็อกอิน — รับได้ทั้งชื่อผู้ใช้และอีเมล
+ * ตั้งแต่หน้า /register เลิกถามชื่อผู้ใช้ (D16 · §6.16) ผู้ใช้จำอีเมลของตัวเองแม่นกว่า
+ * จึงต้องยอมให้กรอกอีเมลได้ ไม่งั้นคนที่สมัครใหม่จะเข้าระบบไม่ได้เลย
+ */
+export const loginIdentifierSchema = z
+  .string()
+  .trim()
+  .min(3, "กรุณากรอกชื่อผู้ใช้หรืออีเมล")
+  .max(120, "ชื่อผู้ใช้หรืออีเมลยาวเกินไป")
+  .regex(/^[a-zA-Z0-9._@+-]+$/, "ชื่อผู้ใช้หรืออีเมลมีอักขระที่ใช้ไม่ได้")
+
 export const loginSchema = z.object({
-  username: usernameSchema,
+  username: loginIdentifierSchema,
   password: z.string().min(1, "กรุณากรอกรหัสผ่าน"),
   remember: z.boolean().default(false),
 })
