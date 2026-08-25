@@ -4,6 +4,7 @@ import { DOCUMENT_STATUSES, type DocumentStatusValue } from "@/schemas/document.
 
 import {
   availableTransitions,
+  canIssueNumber,
   allowedFromStatuses,
   canTransition,
   initialStatus,
@@ -142,5 +143,30 @@ describe("กติกาที่ใช้ร่วมกันทุกทิ�
       "FORWARDED",
       "NUMBER_ISSUED",
     ])
+  })
+})
+
+describe("กันออกเลขซ้ำ (spec §6.4)", () => {
+  it("ออกเลขได้เมื่อยังไม่มีเลข", () => {
+    expect(canIssueNumber("INTERNAL", "PENDING_NUMBER", null)).toBe(true)
+    expect(canIssueNumber("OUTGOING", "PENDING_NUMBER", null)).toBe(true)
+    expect(canIssueNumber("INCOMING", "RECEIVED", null)).toBe(true)
+  })
+
+  // เคสที่เจอจากการใช้งานจริง: หนังสือรับอยู่ที่ RECEIVED ทั้งก่อนและหลังออกเลข
+  // ตาราง transition จึงยังยอมให้ NUMBER_ISSUED ซ้ำ — ตัวที่ต้องห้ามคือ "มีเลขแล้ว"
+  it("หนังสือรับที่มีเลขแล้ว ออกเลขซ้ำไม่ได้ แม้สถานะจะยังเป็น RECEIVED", () => {
+    expect(canTransition("INCOMING", "NUMBER_ISSUED", "RECEIVED")).toBe(true)
+    expect(canIssueNumber("INCOMING", "RECEIVED", "รับ 1/2569")).toBe(false)
+  })
+
+  it("เอกสารที่ออกเลขแล้วทุกทิศทางออกเลขซ้ำไม่ได้", () => {
+    expect(canIssueNumber("INTERNAL", "REGISTERED", "510000/0001")).toBe(false)
+    expect(canIssueNumber("OUTGOING", "SENT", "510000/0002")).toBe(false)
+  })
+
+  it("สถานะที่ออกเลขไม่ได้ก็ยังออกไม่ได้แม้ไม่มีเลข", () => {
+    expect(canIssueNumber("INTERNAL", "DRAFT", null)).toBe(false)
+    expect(canIssueNumber("INCOMING", "CLOSED", null)).toBe(false)
   })
 })

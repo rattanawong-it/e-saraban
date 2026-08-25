@@ -184,6 +184,40 @@ describe("บันทึกข้อความภายใน — ร่า�
     ])
   })
 
+  // เจอจากการทดสอบด้วยมือ 25 ส.ค. 2569: ตั้งผู้รับไว้ตอนร่าง แล้วเวียนถึงหน่วยเดิม
+  // ได้ผู้รับสองแถว — แถวที่ค้างอยู่ที่ PENDING ทำให้เอกสารปิดเรื่องเองไม่ได้
+  it("เวียนถึงหน่วยที่ตั้งไว้ตอนร่าง ต้องไม่เกิดผู้รับซ้ำ และยังปิดเรื่องเองได้", async () => {
+    const document = await createDocument(fixture.ctx, {
+      documentTypeId: fixture.memoTypeId,
+      subject: `${TEST_PREFIX} ตั้งผู้รับไว้ตั้งแต่ร่าง`,
+      confidentialityLevel: 0,
+      urgencyLevel: 0,
+      recipients: [{ orgUnitId: fixture.workUnitId, kind: "TO" }],
+    })
+
+    createdDocumentIds.push(document.id)
+
+    await submitDocument(fixture.ctx, document.id)
+    await issueNumber(fixture.ctx, document.id)
+
+    await circulateDocument(fixture.ctx, document.id, [
+      { orgUnitId: fixture.workUnitId, kind: "TO" },
+    ])
+
+    const recipients = await prisma.documentRecipient.findMany({
+      where: { documentId: document.id },
+      select: { orgUnitId: true, status: true },
+    })
+
+    expect(recipients).toHaveLength(1)
+    expect(recipients[0]?.status).toBe("SENT")
+
+    // ผู้รับรายเดียวรับทราบแล้ว เอกสารต้องปิดเรื่องเอง ไม่มีแถวผีค้างให้รออีก
+    const acknowledged = await acknowledgeDocument(fixture.ctx, document.id)
+    expect(acknowledged.allAcknowledged).toBe(true)
+    expect(acknowledged.status).toBe("CLOSED")
+  })
+
   it("ตีกลับแล้วแก้ไขแล้วส่งใหม่ได้", async () => {
     const document = await draft(fixture.memoTypeId, "ฉบับที่ถูกตีกลับ")
 
@@ -253,6 +287,54 @@ describe("หนังสือรับ (spec §6.3 · A1)", () => {
 
     const acknowledged = await acknowledgeDocument(fixture.ctx, registered.document.id)
     expect(acknowledged.status).toBe("CLOSED")
+  })
+
+  // เจอจากการทดสอบด้วยมือ 25 ส.ค. 2569: หนังสือรับอยู่ที่ RECEIVED ทั้งก่อนและหลังออกเลข
+  // ตาราง transition จึงยอมให้กด "ออกเลขทะเบียน" ซ้ำได้ — ผลคือเลขเดิมถูกทับและหายจากทะเบียน
+  it("ออกเลขซ้ำให้หนังสือรับฉบับเดิมไม่ได้ และตัวนับต้องไม่เดิน", async () => {
+    const registered = await registerIncoming(fixture.ctx, {
+      documentTypeId: fixture.incomingTypeId,
+      subject: `${TEST_PREFIX} หนังสือรับที่จะลองออกเลขซ้ำ`,
+      externalSenderName: "กรมบัญชีกลาง",
+      confidentialityLevel: 0,
+      urgencyLevel: 0,
+    })
+
+    createdDocumentIds.push(registered.document.id)
+
+    const sequenceBefore = await prisma.numberSequence.findFirst({
+      where: {
+        tenantId: fixture.tenantId,
+        orgUnitId: fixture.orgUnitId,
+        direction: "INCOMING",
+        bookCode: BOOK_CODE,
+      },
+      select: { lastValue: true },
+    })
+
+    await expect(issueNumber(fixture.ctx, registered.document.id)).rejects.toThrow(
+      /มีเลขทะเบียน .* อยู่แล้ว/,
+    )
+
+    const [after, sequenceAfter] = await Promise.all([
+      prisma.document.findUnique({
+        where: { id: registered.document.id },
+        select: { docNo: true, seqValue: true },
+      }),
+      prisma.numberSequence.findFirst({
+        where: {
+          tenantId: fixture.tenantId,
+          orgUnitId: fixture.orgUnitId,
+          direction: "INCOMING",
+          bookCode: BOOK_CODE,
+        },
+        select: { lastValue: true },
+      }),
+    ])
+
+    // เลขเดิมต้องยังอยู่กับฉบับเดิม และตัวนับต้องไม่ถูกกินทิ้ง
+    expect(after?.docNo).toBe(registered.docNo)
+    expect(sequenceAfter?.lastValue).toBe(sequenceBefore?.lastValue)
   })
 
   it("สร้างหนังสือรับผ่าน createDocument ไม่ได้ — ต้องผ่านหน้าทะเบียนรับ", async () => {
