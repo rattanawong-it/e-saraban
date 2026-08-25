@@ -67,6 +67,11 @@ export function getBuddhistYear(value: DateInput = new Date()): number {
   return Number(format(value, { year: "numeric" }).replace(/\D/g, ""))
 }
 
+/** เดือน 1–12 ตามเวลาไทย — ใช้ตัดสินว่าเข้าปีงบประมาณถัดไปหรือยัง (spec §7.2) */
+export function getThaiMonth(value: DateInput = new Date()): number {
+  return Number(format(value, { month: "numeric" }).replace(/\D/g, ""))
+}
+
 /** ค.ศ. → พ.ศ. (คำนวณตรง ๆ ไม่ผูกกับวันที่) */
 export function toBuddhistYear(gregorianYear: number): number {
   return gregorianYear + BUDDHIST_ERA_OFFSET
