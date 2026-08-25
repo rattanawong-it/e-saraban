@@ -39,6 +39,9 @@ export const AUDIT_ACTIONS = {
   REGISTRATION_APPROVED: "registration.approved",
   REGISTRATION_REJECTED: "registration.rejected",
 
+  // ── เอกสาร ───────────────────────────────────────────────────────
+  DOCUMENT_NUMBER_ISSUED: "document.number.issued",
+
   // ── บทบาทและสิทธิ์ ───────────────────────────────────────────────
   ROLE_CREATED: "role.created",
   ROLE_UPDATED: "role.updated",
@@ -89,6 +92,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "registration.approved": "อนุมัติคำขอสมัครใช้งาน",
   "registration.rejected": "ปฏิเสธคำขอสมัครใช้งาน",
 
+  "document.number.issued": "ออกเลขทะเบียนหนังสือ",
   "role.created": "สร้างบทบาท",
   "role.updated": "แก้ไขบทบาท",
   "role.permissions.updated": "แก้ไขสิทธิ์ของบทบาท",

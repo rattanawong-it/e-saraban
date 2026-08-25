@@ -1123,3 +1123,65 @@ migration `20260825051648_p2_documents` · 7 ตาราง 8 enum
 ถ้าปล่อยตามเครื่อง เอกสารที่ออกหลัง 19:00 น. ของ 30 ก.ย. จะข้ามปีงบไปก่อนเวลาจริง — มี test คุมเคสนี้ไว้
 
 **test 18 เคส** (รวมทั้งโปรเจกต์เป็น **68 เคส**) · lint · format · typecheck · build ผ่านทั้งหมด
+
+---
+
+## 17. P2 — `issueNumber()` + concurrency test ⚠️ (25 ส.ค. 2569)
+
+**นี่คือ acceptance criteria ของ P2 ตาม spec §13/§14** — *"ยิง issueNumber 50 ครั้งพร้อมกัน →
+ต้องได้เลข 1–50 ครบ ไม่ซ้ำ ไม่ข้าม"*
+
+`src/server/services/numbering.service.ts` · ทุกอย่างอยู่ในทรานแซกชันเดียว
+ถ้าขั้นไหนพัง เลขที่เดินไปแล้วถูก rollback ด้วย จึงไม่เกิด "เลขหาย"
+ซึ่งในทะเบียนราชการถือเป็นสัญญาณของการทุจริต (§6.4)
+
+**ลำดับการทำงาน**
+
+1. โหลดเอกสาร → `assertPermission(document.number.issue)` พร้อม `allowedStatuses: ["PENDING_NUMBER"]` (ด่าน STATE ของ §4.3)
+2. ปฏิเสธถ้าหน่วยงานเจ้าของเรื่องมี `canIssueNumber = false` (D15)
+3. คำนวณปีจาก `yearMode` ของ `/admin/settings`
+4. **เดินเลขด้วยคำสั่งเดียว** `INSERT ... ON CONFLICT DO UPDATE ... RETURNING`
+5. เลือก pattern: `patternOverride` ของทะเบียน → `numberPattern` ของประเภท → ค่าปริยาย D16
+6. `validateNumberPattern()` ก่อน render — pattern พังแล้วโยนทิ้งทั้งทรานแซกชัน ตัวนับกลับไปเท่าเดิม
+7. เขียน `docNo` + `seqValue` + `year` + สถานะ `REGISTERED` → `DocumentAction` → `writeAudit`
+
+**ที่ต่างจากสูตรใน spec §7.3 โดยตั้งใจ**
+
+สเปกเขียนไว้เป็น `SELECT ... FOR UPDATE` → ถ้าไม่มีแถวก็ `INSERT` → `UPDATE` ภายใต้ isolation `Serializable`
+ที่นี่ยุบเหลือ **คำสั่งเดียว** `INSERT ... ON CONFLICT DO UPDATE ... RETURNING "lastValue"` เพราะ
+
+| เหตุผล | รายละเอียด |
+|---|---|
+| ไม่มีช่องให้ race | สูตรเดิมมีช่วง "หลังเช็คว่าไม่มีแถว ก่อน INSERT" ที่สองทรานแซกชันแทรกกันได้ ต้องพึ่ง `ON CONFLICT DO NOTHING` แล้ววนกลับไปอ่านใหม่ |
+| ไม่ต้อง retry | `Serializable` + `FOR UPDATE` ที่มีคนแย่งกัน 50 ทาง จะโยน `40001 serialization failure` ต้องเขียน retry loop เอง · ทางนี้ใช้ isolation ปริยาย (Read Committed) แล้วล็อกแถวโดยตรง คนที่มาทีหลังรอแล้วได้เลขถัดไป |
+| ผลลัพธ์เข้มกว่าเดิม | `@@unique` ของ `Document` ยังเป็นด่านสุดท้ายเหมือนเดิม |
+
+**ผลทดสอบ — `pnpm test:integration`** (เรียก service ตัวจริงบน Postgres จริง ไม่ mock อะไรเลย)
+
+| เคส | ผล |
+|---|---|
+| ยิง 50 ครั้งพร้อมกัน | ✅ ได้ `seqValue` 1–50 ครบ ไม่ซ้ำ ไม่ข้าม · `docNo` ไม่ซ้ำ 50 ค่า |
+| รูปแบบเลข | ✅ `510000/0001` … `510000/0050` · ทุกฉบับสถานะ `REGISTERED` และปีตรงกัน |
+| ตัวนับในฐานข้อมูล | ✅ `lastValue = 50` พอดี — ไม่มีเลขถูกกินทิ้ง |
+| timeline | ✅ ทุกฉบับมี `NUMBER_ISSUED` หนึ่งรายการ `PENDING_NUMBER → REGISTERED` |
+| **audit hash chain** | ✅ `verifyAuditChain()` คืน `valid: true` หลังเขียนพร้อมกัน 50 รายการ — ยืนยันว่า advisory lock ต่อ tenant ยังทำงานถูกใต้ concurrency |
+| ออกเลขซ้ำให้ฉบับเดิม | ✅ ถูกปฏิเสธที่ด่าน STATE |
+
+รันซ้ำ 4 รอบผ่านทุกรอบ (ไม่ flaky)
+
+**โครงสร้างเทสต์ที่เพิ่ม**
+
+- `vitest.integration.config.mts` + `pnpm test:integration` — แยกจาก `pnpm test`
+  เพราะชุดนี้ต้องมี Postgres จริงรันอยู่ · เครื่องที่ไม่มี Docker ยังรัน unit test ได้ปกติ
+- `tests/stubs/server-only.ts` — โมดูลเปล่าแทน `server-only` ที่โยน error นอก React Server Component
+  ทำให้เทสต์เรียก **service ตัวจริง** ได้ ไม่ต้องก๊อป logic มาไว้ในเทสต์
+- เทสต์เก็บกวาดข้อมูลที่สร้างเองทั้งหมด ยกเว้น audit log ที่ลบไม่ได้ตามดีไซน์
+
+**คำสั่งตรวจคุณภาพชุดใหม่**
+
+```bash
+pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build
+pnpm test:integration     # ต้อง docker compose up -d + pnpm db:seed ก่อน
+```
+
+ผลล่าสุด: unit **68 เคส** · integration **6 เคส** · build ผ่าน
