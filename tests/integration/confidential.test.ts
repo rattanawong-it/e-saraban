@@ -12,6 +12,12 @@ import {
   submitDocument,
   updateDocument,
 } from "@/server/services/document.service"
+import {
+  grantDocumentAcl,
+  listDocumentAcl,
+  revokeDocumentAcl,
+  searchGrantees,
+} from "@/server/services/acl.service"
 import { issueNumber } from "@/server/services/numbering.service"
 
 // เอกสารชั้นความลับ (spec §4.3 ข้อ 5 · §9.1)
@@ -29,6 +35,8 @@ interface Fixture {
   tenantId: string
   documentTypeId: string
   recipientUserId: string
+  /** ผู้ใช้ที่ชั้นความลับเป็น 0 — ใช้ทดสอบด่าน CLEARANCE */
+  lowClearanceUserId: string
   otherUnitId: string
 }
 
@@ -43,12 +51,16 @@ const AUTHOR_PERMISSIONS = {
   [PERMISSIONS.DOCUMENT_NUMBER_ISSUE]: "ORG",
   [PERMISSIONS.DOCUMENT_CIRCULATE]: "ORG",
   [PERMISSIONS.CONFIDENTIAL_ACCESS]: "ORG",
+  [PERMISSIONS.ATTACHMENT_GRANT]: "ORG",
 } as GrantedPermissions
 
 /** ผู้รับมีสิทธิ์แค่ระดับหน่วยงานตัวเอง — ต้องพึ่ง ACL อย่างเดียวจึงจะเปิดเอกสารได้ */
 const RECIPIENT_PERMISSIONS = {
   [PERMISSIONS.DOCUMENT_READ]: "UNIT",
   [PERMISSIONS.CONFIDENTIAL_ACCESS]: "UNIT",
+  // มีสิทธิ์ให้สิทธิ์ตามบทบาท แต่ ACL ที่ได้รับเป็นแค่ DOWNLOAD
+  // จึงต้องยังให้สิทธิ์ต่อไม่ได้ — เป็นด่านกันการยกระดับตัวเองบนเอกสารลับ
+  [PERMISSIONS.ATTACHMENT_GRANT]: "UNIT",
 } as GrantedPermissions
 
 beforeAll(async () => {
@@ -58,9 +70,10 @@ beforeAll(async () => {
     where: { code: { not: "510000" }, isActive: true },
   })
   const author = await prisma.user.findFirst({ where: { username: "registrar" } })
-  const recipient = await prisma.user.findFirst({ where: { username: "somchai.j" } })
+  const recipient = await prisma.user.findFirst({ where: { username: "dean.eng" } })
+  const lowClearance = await prisma.user.findFirst({ where: { username: "somchai.j" } })
 
-  if (!tenant || !orgUnit || !otherUnit || !author || !recipient) {
+  if (!tenant || !orgUnit || !otherUnit || !author || !recipient || !lowClearance) {
     throw new Error("ยังไม่ได้ seed — รัน pnpm db:seed ก่อน")
   }
 
@@ -106,6 +119,7 @@ beforeAll(async () => {
     tenantId: tenant.id,
     documentTypeId: documentType.id,
     recipientUserId: recipient.id,
+    lowClearanceUserId: lowClearance.id,
     otherUnitId: otherUnit.id,
   }
 })
@@ -279,5 +293,169 @@ describe("ปรับชั้นความลับขึ้นภายห�
         urgencyLevel: 0,
       }),
     ).rejects.toThrow(/แก้รายชื่อผู้รับก่อน/)
+  })
+})
+
+describe("ให้และถอนสิทธิ์เฉพาะรายด้วยมือ (§9.1)", () => {
+  it("ให้สิทธิ์คนนอกวงได้ พร้อมเหตุผลที่บันทึกลง audit", async () => {
+    const document = await newConfidentialDocument(2)
+
+    await grantDocumentAcl(fixture.ctx, {
+      documentId: document.id,
+      userId: fixture.recipientUserId,
+      permission: "VIEW",
+      effect: "ALLOW",
+      reason: "ให้ผู้ตรวจสอบภายในเข้าดูชั่วคราว",
+    })
+
+    const rows = await listDocumentAcl(fixture.ctx, document.id)
+    const granted = rows.find((row) => row.userId === fixture.recipientUserId)
+
+    expect(granted?.permission).toBe("VIEW")
+    expect(granted?.isAutomatic).toBe(false)
+    expect(granted?.reason).toBe("ให้ผู้ตรวจสอบภายในเข้าดูชั่วคราว")
+
+    const audit = await prisma.auditLog.findFirst({
+      where: { action: "document.acl.granted", entityId: document.id },
+      orderBy: { seq: "desc" },
+    })
+
+    expect(audit?.metadata).toMatchObject({ automatic: false, permission: "VIEW" })
+  })
+
+  it("ACL ระดับ VIEW เปิดอ่านได้ แต่ยังให้สิทธิ์ต่อไม่ได้ — กันการยกระดับตัวเอง", async () => {
+    const document = await newConfidentialDocument(2)
+
+    await grantDocumentAcl(fixture.ctx, {
+      documentId: document.id,
+      userId: fixture.recipientUserId,
+      permission: "VIEW",
+      effect: "ALLOW",
+      reason: "ให้ดูอย่างเดียว",
+    })
+
+    await expect(getDocument(fixture.recipientCtx, document.id)).resolves.toBeTruthy()
+
+    // ⚠️ ด่านสำคัญ: คนที่ได้แค่ "ดูได้" ต้องดึงคนอื่นเข้ามาไม่ได้
+    await expect(
+      grantDocumentAcl(fixture.recipientCtx, {
+        documentId: document.id,
+        userId: fixture.lowClearanceUserId,
+        permission: "VIEW",
+        effect: "ALLOW",
+        reason: "พยายามดึงคนอื่นเข้ามา",
+      }),
+    ).rejects.toThrow()
+  })
+
+  it("⚠️ ให้สิทธิ์คนที่ชั้นความลับไม่ถึงไม่ได้ — ให้ไปก็เปิดไม่ได้อยู่ดี", async () => {
+    const document = await newConfidentialDocument(2)
+
+    await expect(
+      grantDocumentAcl(fixture.ctx, {
+        documentId: document.id,
+        userId: fixture.lowClearanceUserId,
+        permission: "VIEW",
+        effect: "ALLOW",
+        reason: "ทดสอบชั้นความลับไม่ถึง",
+      }),
+    ).rejects.toThrow(/ต่ำกว่าชั้นของเอกสาร/)
+  })
+
+  it("ให้สิทธิ์ซ้ำคือแก้ของเดิม ไม่ใช่เพิ่มแถวใหม่", async () => {
+    const document = await newConfidentialDocument(2)
+
+    for (const reason of ["ครั้งแรก", "แก้เหตุผลใหม่"]) {
+      await grantDocumentAcl(fixture.ctx, {
+        documentId: document.id,
+        userId: fixture.recipientUserId,
+        permission: "VIEW",
+        effect: "ALLOW",
+        reason,
+      })
+    }
+
+    const rows = await prisma.documentAcl.findMany({
+      where: { documentId: document.id, principalId: fixture.recipientUserId },
+    })
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.reason).toBe("แก้เหตุผลใหม่")
+  })
+
+  it("วันหมดอายุต้องเป็นวันในอนาคต", async () => {
+    const document = await newConfidentialDocument(2)
+
+    await expect(
+      grantDocumentAcl(fixture.ctx, {
+        documentId: document.id,
+        userId: fixture.recipientUserId,
+        permission: "VIEW",
+        effect: "ALLOW",
+        expiresAt: new Date("2020-01-01"),
+        reason: "ทดสอบวันหมดอายุย้อนหลัง",
+      }),
+    ).rejects.toThrow(/วันในอนาคต/)
+  })
+
+  it("ถอนสิทธิ์แล้วผู้ที่เคยได้ต้องเปิดเอกสารไม่ได้อีก", async () => {
+    const document = await newConfidentialDocument(2)
+
+    await grantDocumentAcl(fixture.ctx, {
+      documentId: document.id,
+      userId: fixture.recipientUserId,
+      permission: "VIEW",
+      effect: "ALLOW",
+      reason: "ให้ชั่วคราวแล้วถอนคืน",
+    })
+
+    const rows = await listDocumentAcl(fixture.ctx, document.id)
+    const target = rows.find((row) => row.userId === fixture.recipientUserId)
+    if (!target) throw new Error("ไม่พบสิทธิ์ที่เพิ่งให้")
+
+    await revokeDocumentAcl(fixture.ctx, document.id, target.id)
+
+    await expect(getDocument(fixture.recipientCtx, document.id)).rejects.toThrow()
+
+    const audit = await prisma.auditLog.findFirst({
+      where: { action: "document.acl.revoked", entityId: document.id },
+    })
+    expect(audit).not.toBeNull()
+  })
+
+  it("⚠️ ถอนสิทธิ์ของเจ้าของเรื่องไม่ได้ — เอกสารจะไม่เหลือผู้ดูแล", async () => {
+    const document = await newConfidentialDocument(2)
+
+    const rows = await listDocumentAcl(fixture.ctx, document.id)
+    const owner = rows.find((row) => row.isOwner)
+    if (!owner) throw new Error("ไม่พบ ACL ของเจ้าของเรื่อง")
+
+    await expect(revokeDocumentAcl(fixture.ctx, document.id, owner.id)).rejects.toThrow(
+      /เจ้าของเรื่อง/,
+    )
+  })
+
+  it("ค้นหาผู้รับสิทธิ์บอกได้ว่าใครชั้นความลับไม่ถึง", async () => {
+    const document = await newConfidentialDocument(2)
+
+    const results = await searchGrantees(fixture.ctx, document.id, "somchai")
+    const low = results.find((row) => row.id === fixture.lowClearanceUserId)
+
+    expect(low?.hasClearance).toBe(false)
+    expect(await searchGrantees(fixture.ctx, document.id, "s")).toEqual([])
+  })
+})
+
+describe("ชั้นความลับของผู้รับ", () => {
+  it("⚠️ เวียนเอกสารลับถึงคนที่ชั้นไม่ถึงไม่ได้ ต้องบอกชื่อคนนั้นออกมาตรง ๆ", async () => {
+    const document = await newConfidentialDocument(2)
+    await submitDocument(fixture.ctx, document.id)
+    await issueNumber(fixture.ctx, document.id)
+
+    await expect(
+      circulateDocument(fixture.ctx, document.id, [
+        { userId: fixture.lowClearanceUserId, kind: "TO" },
+      ]),
+    ).rejects.toThrow(/ชั้นความลับไม่ถึงระดับ 2/)
   })
 })

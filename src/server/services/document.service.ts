@@ -19,6 +19,7 @@ import type {
 } from "@/schemas/document.schema"
 
 import type { ServiceContext } from "../context"
+import { AUTOMATIC_ACL_REASON } from "./acl.service"
 import { encryptDocumentAttachments } from "./attachment.service"
 import { assertPermission, ServiceError } from "./errors"
 import { issueNumberWithin } from "./numbering.service"
@@ -674,6 +675,40 @@ async function grantRecipientAcl(
   }
 }
 
+/**
+ * ผู้รับเอกสารลับต้องมีชั้นความลับถึง (§4.3 ข้อ 5 · ด่าน CLEARANCE)
+ *
+ * ⚠️ ถ้าไม่ตรวจตรงนี้ การเวียนจะสำเร็จ ผู้รับได้ ACL ครบ แต่เปิดเอกสารไม่ได้อยู่ดี
+ * แล้วไม่มีใครรู้ว่าทำไม — ผู้ส่งคิดว่าส่งแล้ว ผู้รับเห็นแต่ข้อความว่าไม่มีสิทธิ์
+ */
+async function assertRecipientsHaveClearance(
+  tx: TransactionClient,
+  confidentialityLevel: number,
+  recipients: RecipientInput[],
+) {
+  const userIds = recipients
+    .map((recipient) => recipient.userId)
+    .filter((userId): userId is string => Boolean(userId))
+
+  if (userIds.length === 0) return
+
+  const tooLow = await tx.user.findMany({
+    where: { id: { in: userIds }, clearanceLevel: { lt: confidentialityLevel } },
+    select: { prefix: true, firstName: true, lastName: true, clearanceLevel: true },
+  })
+
+  if (tooLow.length === 0) return
+
+  const names = tooLow
+    .map((user) => `${user.prefix ?? ""}${user.firstName} ${user.lastName}`.trim())
+    .join(" · ")
+
+  throw new ServiceError(
+    `ผู้รับต่อไปนี้มีชั้นความลับไม่ถึงระดับ ${confidentialityLevel} จึงเปิดเอกสารไม่ได้: ${names}`,
+    "VALIDATION",
+  )
+}
+
 async function grantAcl(
   tx: TransactionClient,
   ctx: ServiceContext,
@@ -704,7 +739,7 @@ async function grantAcl(
       permission,
       effect: "ALLOW",
       grantedById: ctx.userId,
-      reason: "ระบบออกให้อัตโนมัติเมื่อเอกสารเป็นชั้นความลับ",
+      reason: AUTOMATIC_ACL_REASON,
     },
   })
 
@@ -735,6 +770,8 @@ async function createRecipients(
         "VALIDATION",
       )
     }
+
+    await assertRecipientsHaveClearance(tx, document.confidentialityLevel, recipients)
   }
 
   // กันซ้ำสองชั้น — ซ้ำภายในคำสั่งเดียวกัน และซ้ำกับผู้รับที่เอกสารมีอยู่แล้ว

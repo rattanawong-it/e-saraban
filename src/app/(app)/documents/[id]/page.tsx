@@ -20,6 +20,7 @@ import {
   RECIPIENT_KIND_LABELS,
   type RecipientStatusValue,
 } from "@/schemas/document.schema"
+import { AclPanel } from "@/components/documents/acl-panel"
 import { AttachmentPanel } from "@/components/documents/attachment-panel"
 import { DocumentActionPanel } from "@/components/documents/document-action-panel"
 import { DocumentStatusBadge } from "@/components/documents/document-table"
@@ -27,6 +28,7 @@ import { DocumentTimeline } from "@/components/documents/document-timeline"
 import { Button } from "@/components/ui/button"
 import { Alert, Badge, Card, CardHeader, ConfidentialityBadge } from "@/components/ui/primitives"
 import type { ServiceContext } from "@/server/context"
+import { listDocumentAcl } from "@/server/services/acl.service"
 import { getDocumentDetail, type DocumentDetail } from "@/server/services/document-list.service"
 import { isServiceError } from "@/server/services/errors"
 import { listOrgUnitsFlat } from "@/server/services/org-unit.service"
@@ -91,9 +93,10 @@ export default async function DocumentDetailPage({ params }: PageProps<"/documen
   const transitions = allowedTransitions(session.ctx, document)
   const needsRecipients = transitions.includes("CIRCULATED") || transitions.includes("FORWARDED")
 
-  const [orgUnits, settings] = await Promise.all([
+  const [orgUnits, settings, aclRows] = await Promise.all([
     needsRecipients ? listOrgUnitsFlat(session.ctx.tenantId) : Promise.resolve([]),
     getSystemSettings(session.ctx.tenantId),
+    listDocumentAcl(session.ctx, document.id),
   ])
 
   const resource = toAuthzResource(document)
@@ -109,6 +112,10 @@ export default async function DocumentDetailPage({ params }: PageProps<"/documen
     can(session.ctx, PERMISSIONS.DOCUMENT_UPDATE, resource, {
       allowedStatuses: EDITABLE_STATUSES,
     }).allowed
+
+  // ให้สิทธิ์เฉพาะรายได้เมื่อผ่าน can() บนเอกสารฉบับนี้ — เอกสารลับจึงต้องมี ACL ระดับ
+  // MANAGE ของตัวเองก่อน (§4.3 ข้อ 5) service ตรวจซ้ำอยู่แล้ว ตรงนี้แค่ตัดสินว่าจะแสดงแผงไหม
+  const canGrant = can(session.ctx, PERMISSIONS.ATTACHMENT_GRANT, resource).allowed
 
   const lastReturn = document.actions.find((action) => action.actionType === "RETURNED")
 
@@ -286,6 +293,15 @@ export default async function DocumentDetailPage({ params }: PageProps<"/documen
               </ul>
             )}
           </Card>
+
+          {canGrant || aclRows.length > 0 ? (
+            <AclPanel
+              documentId={document.id}
+              rows={aclRows}
+              canGrant={canGrant}
+              confidentialityLevel={document.confidentialityLevel}
+            />
+          ) : null}
         </div>
       </div>
     </>

@@ -404,6 +404,50 @@ export const DOCUMENTS = {
   queueIrreversible: "เลขที่ออกไปแล้วแก้ย้อนหลังไม่ได้ และจะไม่ถูกนำกลับมาใช้ซ้ำแม้ยกเลิกภายหลัง",
 } as const
 
+/** สิทธิ์เฉพาะรายบนเอกสารหนึ่งฉบับ (spec §9.1) */
+export const ACL = {
+  title: "สิทธิ์เฉพาะราย",
+  description: "ผู้ที่ได้รับสิทธิ์เข้าถึงเอกสารฉบับนี้เป็นการเฉพาะ นอกเหนือจากขอบเขตปกติ",
+  empty: "ยังไม่มีการให้สิทธิ์เฉพาะราย",
+  ownerTag: "เจ้าของเรื่อง",
+  automaticTag: "ระบบออกให้",
+  denyPrefix: "ห้าม",
+  grantedBy: (name: string, at: string) => `ให้โดย ${name} · ${at}`,
+  expiresOn: (date: string) => `หมดอายุ ${date}`,
+  reasonLabel: "เหตุผล",
+  reasonHint: "บันทึกลง Audit Log — ผู้ตรวจสอบจะเห็นว่าให้สิทธิ์นี้เพราะอะไร",
+  revoke: "ถอนสิทธิ์",
+  grant: "ให้สิทธิ์",
+  cancel: "ยกเลิก",
+  searchLabel: "ค้นหาผู้ที่จะให้สิทธิ์",
+  searchPlaceholder: "ชื่อ นามสกุล หรือชื่อผู้ใช้",
+  searchButton: "ค้นหา",
+  noOrgUnit: "ไม่มีสังกัดหลัก",
+  clearanceOf: (level: number) => `ชั้นความลับ ${level}`,
+  clearanceTooLow: (level: number) => `ชั้นไม่ถึงเอกสารระดับ ${level}`,
+  granteeSelected: (name: string) => `กำลังให้สิทธิ์แก่ ${name}`,
+  permissionLabel: "ระดับสิทธิ์",
+  effectLabel: "ผลของสิทธิ์",
+  expiresLabel: "วันหมดอายุ",
+  expiresHint: "เว้นว่างไว้ = ไม่มีวันหมดอายุ",
+  permissionOptions: {
+    VIEW: "เปิดอ่านเอกสาร",
+    DOWNLOAD: "เปิดอ่าน + เปิดไฟล์แนบ",
+    EDIT: "แก้ไข + แนบไฟล์",
+    MANAGE: "ดูแลได้ทุกอย่าง รวมถึงให้สิทธิ์ต่อ",
+  },
+  permissionShort: {
+    VIEW: "อ่าน",
+    DOWNLOAD: "อ่าน+ไฟล์",
+    EDIT: "แก้ไข",
+    MANAGE: "ดูแลทั้งหมด",
+  },
+  effectOptions: {
+    ALLOW: "อนุญาต",
+    DENY: "ห้าม (ชนะทุกสิทธิ์ที่มีอยู่)",
+  },
+} as const
+
 export const USERS = {
   title: "ผู้ใช้งาน",
   description: "จัดการบัญชี สังกัดหลายหน่วยงาน บทบาท และชั้นความลับที่เข้าถึงได้",
