@@ -3,6 +3,7 @@ import "server-only"
 import type { Prisma } from "@/generated/prisma/client"
 import { PERMISSIONS } from "@/lib/authz"
 import { prisma } from "@/lib/db"
+import { toAuthzResource } from "@/lib/documents/authz-resource"
 import type { DocumentDirectionValue, DocumentStatusValue } from "@/schemas/document.schema"
 
 import type { ServiceContext } from "../context"
@@ -196,20 +197,7 @@ export async function getDocumentDetail(ctx: ServiceContext, id: string) {
 
   if (!document) throw new ServiceError("ไม่พบเอกสารที่ระบุ", "NOT_FOUND")
 
-  assertPermission(ctx, PERMISSIONS.DOCUMENT_READ, {
-    ownerUnitId: document.ownerUnitId,
-    ownerUnitPath: document.ownerUnit.path,
-    createdById: document.createdById,
-    confidentialityLevel: document.confidentialityLevel,
-    status: document.status,
-    recipientUnitIds: document.recipients
-      .map((recipient) => recipient.orgUnitId)
-      .filter((value): value is string => value !== null),
-    recipientUserIds: document.recipients
-      .map((recipient) => recipient.userId)
-      .filter((value): value is string => value !== null),
-    acl: document.acls,
-  })
+  assertPermission(ctx, PERMISSIONS.DOCUMENT_READ, toAuthzResource(document))
 
   if (ctx.clearanceLevel < document.confidentialityLevel) {
     throw new ServiceError("ชั้นความลับของคุณไม่พอสำหรับเอกสารฉบับนี้", "FORBIDDEN")

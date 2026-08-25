@@ -20,7 +20,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:integration": "vitest run --config vitest.integration.config.mts"
+    "test:integration": "vitest run --config vitest.integration.config.mts",
+    "files:encrypt": "tsx --env-file=.env --conditions=react-server scripts/encrypt-attachments.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.1.0",

@@ -15,8 +15,8 @@ import type { StorageAdapter, StorageKey } from "./types"
 //   - เก็บ **นอก** public/ เสมอ — ถ้าอยู่ใน public/ Next จะเสิร์ฟไฟล์ตรงโดยไม่ผ่าน can()
 //   - key ต้องไม่มี ".." หรือ path separator — กัน path traversal ออกนอกโฟลเดอร์ที่เก็บ
 //
-// ⚠️ P2 เก็บเป็น plaintext ตาม D18 · การเข้ารหัส envelope อยู่ที่ src/lib/crypto/ ใน P3
-//    adapter ตัวนี้จะไม่เปลี่ยนเลยตอนนั้น เพราะมันรับ-ส่ง byte ดิบอยู่แล้ว
+// การเข้ารหัส envelope (§8.2) อยู่ที่ src/lib/crypto/ ไม่ใช่ที่นี่ — adapter รับ-ส่ง byte ดิบ
+// อย่างเดียว จึงไม่รู้ว่าไฟล์ที่เขียนลงไปเข้ารหัสไว้หรือไม่ (ของเอกสารชั้น 0 ยังเป็น plaintext)
 
 /** โฟลเดอร์ที่เก็บไฟล์จริง — ตั้งผ่าน env ได้เพื่อชี้ไป volume ของ Docker */
 const STORAGE_ROOT = process.env.STORAGE_ROOT ?? path.join(process.cwd(), "storage", "attachments")

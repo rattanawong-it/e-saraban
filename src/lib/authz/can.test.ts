@@ -285,6 +285,86 @@ describe("can() — ด่านที่ 4 EXPLICIT ACL", () => {
   })
 })
 
+describe("can() — ACL หยาบสี่ระดับต้องจำกัดว่าให้ทำอะไรได้บ้าง (§9.1)", () => {
+  function aclDoc(permission: AuthzAclEntry["permission"]): AuthzResource {
+    return makeDoc({
+      ownerUnitId: OTHER_FACULTY.id,
+      ownerUnitPath: OTHER_FACULTY.path,
+      acl: [{ principalType: "USER", principalId: "user-1", permission, effect: "ALLOW" }],
+    })
+  }
+
+  const ctx = makeCtx({
+    permissions: grants(
+      [PERMISSIONS.DOCUMENT_READ, "UNIT"],
+      [PERMISSIONS.DOCUMENT_UPDATE, "UNIT"],
+      [PERMISSIONS.ATTACHMENT_DOWNLOAD, "UNIT"],
+      [PERMISSIONS.ATTACHMENT_GRANT, "UNIT"],
+    ),
+  })
+
+  it("⚠️ ACL ระดับ VIEW ให้แค่เปิดอ่าน ห้ามกลายเป็นสิทธิ์แก้ไขหรือดาวน์โหลด", () => {
+    const doc = aclDoc("VIEW")
+
+    expect(can(ctx, PERMISSIONS.DOCUMENT_READ, doc).allowed).toBe(true)
+    expect(can(ctx, PERMISSIONS.DOCUMENT_UPDATE, doc).allowed).toBe(false)
+    expect(can(ctx, PERMISSIONS.ATTACHMENT_DOWNLOAD, doc).allowed).toBe(false)
+  })
+
+  it("ACL ระดับ DOWNLOAD เปิดไฟล์ได้ แต่ยังแก้เอกสารไม่ได้", () => {
+    const doc = aclDoc("DOWNLOAD")
+
+    expect(can(ctx, PERMISSIONS.ATTACHMENT_DOWNLOAD, doc).allowed).toBe(true)
+    expect(can(ctx, PERMISSIONS.DOCUMENT_UPDATE, doc).allowed).toBe(false)
+  })
+
+  it("ACL ระดับ EDIT แก้ได้ แต่ให้สิทธิ์คนอื่นต่อไม่ได้", () => {
+    const doc = aclDoc("EDIT")
+
+    expect(can(ctx, PERMISSIONS.DOCUMENT_UPDATE, doc).allowed).toBe(true)
+    expect(can(ctx, PERMISSIONS.ATTACHMENT_GRANT, doc).allowed).toBe(false)
+  })
+
+  it("ACL ระดับ MANAGE ทำได้ทุกอย่างกับเอกสารฉบับนั้น", () => {
+    const doc = aclDoc("MANAGE")
+
+    expect(can(ctx, PERMISSIONS.DOCUMENT_READ, doc).allowed).toBe(true)
+    expect(can(ctx, PERMISSIONS.DOCUMENT_UPDATE, doc).allowed).toBe(true)
+    expect(can(ctx, PERMISSIONS.ATTACHMENT_GRANT, doc).allowed).toBe(true)
+  })
+
+  it("DENY ไม่ดูชนิดสิทธิ์ — ห้ามแล้วห้ามทั้งฉบับ", () => {
+    const doc = makeDoc({
+      acl: [
+        { principalType: "USER", principalId: "user-1", permission: "MANAGE", effect: "ALLOW" },
+        { principalType: "USER", principalId: "user-1", permission: "VIEW", effect: "DENY" },
+      ],
+    })
+
+    expect(can(ctx, PERMISSIONS.DOCUMENT_UPDATE, doc)).toEqual({
+      allowed: false,
+      reason: "ACL_DENY",
+    })
+  })
+
+  it("เอกสารลับ: ACL รายบุคคลระดับ VIEW เปิดอ่านได้ แต่แก้ไม่ได้", () => {
+    const confidential = makeCtx({
+      clearanceLevel: 2,
+      permissions: grants([PERMISSIONS.DOCUMENT_READ, "ORG"], [PERMISSIONS.DOCUMENT_UPDATE, "ORG"]),
+    })
+    const doc = makeDoc({
+      confidentialityLevel: 2,
+      acl: [{ principalType: "USER", principalId: "user-1", permission: "VIEW", effect: "ALLOW" }],
+    })
+
+    expect(can(confidential, PERMISSIONS.DOCUMENT_READ, doc).allowed).toBe(true)
+    expect(can(confidential, PERMISSIONS.DOCUMENT_UPDATE, doc)).toEqual({
+      allowed: false,
+      reason: "NO_EXPLICIT_ACL",
+    })
+  })
+})
+
 describe("can() — ด่านที่ 5 CLEARANCE", () => {
   const personalAcl: AuthzAclEntry = {
     principalType: "USER",

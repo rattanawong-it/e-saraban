@@ -1,8 +1,9 @@
 import "server-only"
 
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES, writeAudit } from "@/lib/audit"
-import { PERMISSIONS } from "@/lib/authz"
+import { PERMISSIONS, type AuthzAclEntry } from "@/lib/authz"
 import { prisma } from "@/lib/db"
+import { toAuthzResource } from "@/lib/documents/authz-resource"
 import { allowedFromStatuses, canIssueNumber, nextStatus } from "@/lib/documents/state-machine"
 import { getSystemSettings } from "@/lib/settings"
 import {
@@ -45,6 +46,9 @@ export interface IssuableDocument {
   confidentialityLevel: number
   ownerUnit: { code: string; shortName: string | null; path: string; canIssueNumber: boolean }
   documentType: { nameTh: string; numberPattern: string | null }
+  /** ⚠️ ต้องมีทั้งคู่ ไม่งั้น can() ตัดสินจากข้อมูลไม่ครบแล้วปฏิเสธเอกสารลับทุกฉบับ (§4.3) */
+  recipients: readonly { orgUnitId: string | null; userId: string | null }[]
+  acls: readonly AuthzAclEntry[]
 }
 
 type TransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
@@ -59,6 +63,17 @@ export async function loadIssuableDocument(
     include: {
       ownerUnit: { select: { code: true, shortName: true, path: true, canIssueNumber: true } },
       documentType: { select: { nameTh: true, numberPattern: true } },
+      // ⚠️ ต้องดึงมาด้วยเสมอ — ไม่งั้น can() ตัดสินจากข้อมูลไม่ครบ แล้วปฏิเสธเอกสารลับทุกฉบับ
+      recipients: { select: { orgUnitId: true, userId: true } },
+      acls: {
+        select: {
+          principalType: true,
+          principalId: true,
+          permission: true,
+          effect: true,
+          expiresAt: true,
+        },
+      },
     },
   })
 
@@ -83,13 +98,7 @@ export async function issueNumber(
   assertPermission(
     ctx,
     PERMISSIONS.DOCUMENT_NUMBER_ISSUE,
-    {
-      ownerUnitId: document.ownerUnitId,
-      ownerUnitPath: document.ownerUnit.path,
-      createdById: document.createdById,
-      confidentialityLevel: document.confidentialityLevel,
-      status: document.status,
-    },
+    toAuthzResource(document),
     // สถานะที่ออกเลขได้มาจากตาราง state machine ที่เดียว (§6.1–6.3)
     // หนังสือรับออกเลขตอน RECEIVED ส่วนหนังสือภายใน/ส่งออกที่ PENDING_NUMBER
     { allowedStatuses: allowedFromStatuses(document.direction, "NUMBER_ISSUED") },

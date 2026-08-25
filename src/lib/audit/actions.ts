@@ -54,6 +54,9 @@ export const AUDIT_ACTIONS = {
   ATTACHMENT_UPLOADED: "attachment.uploaded",
   ATTACHMENT_DOWNLOADED: "attachment.downloaded",
   ATTACHMENT_DELETED: "attachment.deleted",
+  ATTACHMENT_ENCRYPTED: "attachment.encrypted",
+  DOCUMENT_ACL_GRANTED: "document.acl.granted",
+  DOCUMENT_ACL_REVOKED: "document.acl.revoked",
 
   // ── บทบาทและสิทธิ์ ───────────────────────────────────────────────
   ROLE_CREATED: "role.created",
@@ -119,6 +122,9 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "attachment.uploaded": "แนบไฟล์",
   "attachment.downloaded": "เปิด/ดาวน์โหลดไฟล์แนบ",
   "attachment.deleted": "ลบไฟล์แนบ",
+  "attachment.encrypted": "เข้ารหัสไฟล์แนบ",
+  "document.acl.granted": "ให้สิทธิ์เข้าถึงเอกสารเป็นรายบุคคล",
+  "document.acl.revoked": "ถอนสิทธิ์เข้าถึงเอกสาร",
   "role.created": "สร้างบทบาท",
   "role.updated": "แก้ไขบทบาท",
   "role.permissions.updated": "แก้ไขสิทธิ์ของบทบาท",

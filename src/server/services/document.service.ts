@@ -19,6 +19,7 @@ import type {
 } from "@/schemas/document.schema"
 
 import type { ServiceContext } from "../context"
+import { encryptDocumentAttachments } from "./attachment.service"
 import { assertPermission, ServiceError } from "./errors"
 import { issueNumberWithin } from "./numbering.service"
 
@@ -86,11 +87,14 @@ export async function createDocument(ctx: ServiceContext, input: CreateDocumentI
     throw new ServiceError("หนังสือรับต้องลงทะเบียนผ่านหน้าทะเบียนรับ", "VALIDATION")
   }
 
+  // ⚠️ ไม่ส่ง confidentialityLevel เข้าด่านนี้โดยตั้งใจ — §4.3 ข้อ 5 บังคับว่าเอกสารลับ
+  // ต้องมี ACL ระบุตัวบุคคล แต่เอกสารที่กำลังจะสร้างยังไม่มีตัวตน จึงไม่มีทางมี ACL ได้
+  // ถ้าส่งเข้าไป การสร้างเอกสารชั้นลับจะถูกปฏิเสธ 100% (บั๊กที่ค้างมาจาก P2)
+  // ชั้นความลับยังถูกคุมด้วย assertClearance() บรรทัดถัดไปตามปกติ
   assertPermission(ctx, PERMISSIONS.DOCUMENT_CREATE, {
     ownerUnitId: ownerUnit.id,
     ownerUnitPath: ownerUnit.path,
     createdById: ctx.userId,
-    confidentialityLevel: input.confidentialityLevel,
   })
 
   assertClearance(ctx, input.confidentialityLevel)
@@ -119,8 +123,11 @@ export async function createDocument(ctx: ServiceContext, input: CreateDocumentI
       },
     })
 
+    // §4.3 ข้อ 5 — เอกสารลับต้องมี ACL รายบุคคล ไม่งั้นผู้สร้างเปิดเอกสารตัวเองไม่ได้
+    await grantOwnerAcl(tx, ctx, document)
+
     if (input.recipients.length > 0) {
-      await createRecipients(tx, document.id, input.recipients)
+      await createRecipients(tx, ctx, document, input.recipients)
     }
 
     await tx.documentAction.create({
@@ -175,6 +182,25 @@ export async function updateDocument(ctx: ServiceContext, input: UpdateDocumentI
 
   assertClearance(ctx, input.confidentialityLevel)
 
+  // §4.3 ข้อ 5 — เอกสารลับ inherit สิทธิ์จาก scope ไม่ได้ ผู้รับที่เป็น "ทั้งหน่วยงาน"
+  // จึงกลายเป็นผู้รับที่เปิดเอกสารไม่ได้เลย · บอกให้แก้ผู้รับก่อน ดีกว่าปล่อยให้เงียบ
+  if (input.confidentialityLevel > 0) {
+    const unitRecipients = document.recipients.filter((recipient) => !recipient.userId)
+
+    if (unitRecipients.length > 0) {
+      throw new ServiceError(
+        "เอกสารชั้นความลับต้องระบุผู้รับเป็นรายบุคคล — แก้รายชื่อผู้รับก่อนปรับชั้นความลับ",
+        "VALIDATION",
+      )
+    }
+  }
+
+  // §8.2 — ปรับชั้นความลับขึ้นแล้วไฟล์เดิมต้องไม่ค้างเป็น plaintext บนดิสก์
+  // เข้ารหัส **ก่อน** บันทึกเสมอ · ถ้าพังตรงนี้ เอกสารยังเป็นชั้นเดิมและไฟล์ยังเปิดได้ปกติ
+  if (input.confidentialityLevel > 0) {
+    await encryptDocumentAttachments(document.id, ctx)
+  }
+
   return prisma.$transaction(async (tx) => {
     const updated = await tx.document.update({
       where: { id: document.id },
@@ -194,6 +220,19 @@ export async function updateDocument(ctx: ServiceContext, input: UpdateDocumentI
         parentDocumentId: input.parentDocumentId || null,
       },
     })
+
+    // ปรับชั้นขึ้นแล้วเจ้าของเรื่องกับคนที่ปรับต้องยังเปิดเอกสารได้ · ผู้รับเดิมก็เช่นกัน
+    if (updated.confidentialityLevel > 0) {
+      await grantOwnerAcl(tx, ctx, updated)
+      await grantRecipientAcl(
+        tx,
+        ctx,
+        updated,
+        document.recipients
+          .map((recipient) => recipient.userId)
+          .filter((userId): userId is string => userId !== null),
+      )
+    }
 
     await tx.documentAction.create({
       data: {
@@ -244,11 +283,11 @@ export async function registerIncoming(ctx: ServiceContext, input: RegisterIncom
     throw new ServiceError("ประเภทหนังสือที่เลือกไม่ใช่หนังสือรับ", "VALIDATION")
   }
 
+  // ไม่ส่ง confidentialityLevel ด้วยเหตุผลเดียวกับ createDocument — เอกสารยังไม่เกิด
   const resource = {
     ownerUnitId: ownerUnit.id,
     ownerUnitPath: ownerUnit.path,
     createdById: ctx.userId,
-    confidentialityLevel: input.confidentialityLevel,
   }
 
   // ลงทะเบียนรับ = สร้างเอกสาร + ออกเลขรับ จึงต้องมีสิทธิ์ทั้งสองอย่าง
@@ -280,6 +319,8 @@ export async function registerIncoming(ctx: ServiceContext, input: RegisterIncom
       },
     })
 
+    await grantOwnerAcl(tx, ctx, document)
+
     await tx.documentAction.create({
       data: {
         documentId: document.id,
@@ -301,8 +342,27 @@ export async function registerIncoming(ctx: ServiceContext, input: RegisterIncom
       },
     })
 
+    // อ่าน ACL ที่เพิ่งออกให้เจ้าของเรื่องกลับมาด้วย — ถ้าไม่ส่งเข้าไป ด่านของ can()
+    // จะเห็นเอกสารลับที่ไม่มี ACL แล้วปฏิเสธการออกเลขของคนที่เพิ่งลงทะเบียนเอง
+    const acls = await tx.documentAcl.findMany({
+      where: { documentId: document.id },
+      select: {
+        principalType: true,
+        principalId: true,
+        permission: true,
+        effect: true,
+        expiresAt: true,
+      },
+    })
+
     // ออกเลขรับในทรานแซกชันเดียวกัน — ถ้าออกเลขพัง เอกสารต้องไม่ค้างอยู่แบบไม่มีเลข
-    const issued = await issueNumberWithin(tx, ctx, { ...document, ownerUnit, documentType })
+    const issued = await issueNumberWithin(tx, ctx, {
+      ...document,
+      ownerUnit,
+      documentType,
+      recipients: [],
+      acls,
+    })
 
     return { document, ...issued }
   })
@@ -370,8 +430,8 @@ export async function circulateDocument(
     transition: "CIRCULATED",
     permission: PERMISSIONS.DOCUMENT_CIRCULATE,
     note,
-    extra: async (tx, documentId) => {
-      await createRecipients(tx, documentId, recipients, "SENT")
+    extra: async (tx, document) => {
+      await createRecipients(tx, ctx, document, recipients, "SENT")
     },
     metadata: { recipientCount: recipients.length },
   })
@@ -387,8 +447,8 @@ export async function forwardDocument(
     transition: "FORWARDED",
     permission: PERMISSIONS.DOCUMENT_CIRCULATE,
     note,
-    extra: async (tx, documentId) => {
-      await createRecipients(tx, documentId, recipients, "SENT")
+    extra: async (tx, document) => {
+      await createRecipients(tx, ctx, document, recipients, "SENT")
     },
     metadata: { recipientCount: recipients.length },
   })
@@ -469,13 +529,16 @@ export async function acknowledgeDocument(
 
 type TransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
 
+/** เอกสารพร้อมความสัมพันธ์ที่ `loadDocument()` ดึงมาให้ — ใช้ส่งต่อให้ hook ของ transition */
+type LoadedDocument = Awaited<ReturnType<typeof loadDocument>>
+
 interface TransitionOptions {
   transition: DocumentTransition
   permission: Permission
   note?: string | null
   severity?: "INFO" | "NOTICE" | "WARNING" | "CRITICAL"
   metadata?: Record<string, unknown>
-  extra?: (tx: TransactionClient, documentId: string) => Promise<void>
+  extra?: (tx: TransactionClient, document: LoadedDocument) => Promise<void>
 }
 
 /** ทางเดียวที่เอกสารเปลี่ยนสถานะได้ — ตรวจสิทธิ์ + เขียน timeline + เขียน audit ครบในที่เดียว */
@@ -500,7 +563,7 @@ async function applyTransition(ctx: ServiceContext, id: string, options: Transit
       data: { status: toStatus },
     })
 
-    await options.extra?.(tx, document.id)
+    await options.extra?.(tx, document)
 
     await tx.documentAction.create({
       data: {
@@ -574,13 +637,105 @@ function auditBase(ctx: ServiceContext, documentId: string) {
   }
 }
 
+type ConfidentialDocument = { id: string; confidentialityLevel: number }
+
+/**
+ * ACL ของเจ้าของเรื่อง — เอกสารชั้นความลับเท่านั้น (§4.3 ข้อ 5)
+ *
+ * ถ้าไม่ออกให้ตั้งแต่ตอนสร้าง ผู้สร้างจะเปิดเอกสารของตัวเองไม่ได้ทันทีที่บันทึกเสร็จ
+ * เพราะด่าน CLEARANCE บังคับว่าเอกสารลับต้องมี ACL ระบุตัวบุคคล ห้าม inherit จาก scope
+ *
+ * คนที่ปรับชั้นความลับขึ้นก็ได้ ACL ด้วย — เขาเข้าถึงเอกสารได้อยู่แล้วก่อนปรับ
+ * ถ้าไม่ให้ เขาจะล็อกตัวเองออกจากเอกสารที่เพิ่งแก้ · ทุกใบมีแถวใน audit เสมอ
+ */
+async function grantOwnerAcl(
+  tx: TransactionClient,
+  ctx: ServiceContext,
+  document: ConfidentialDocument & { createdById: string },
+) {
+  if (document.confidentialityLevel === 0) return
+
+  for (const userId of new Set([document.createdById, ctx.userId])) {
+    await grantAcl(tx, ctx, document.id, userId, "MANAGE")
+  }
+}
+
+/** ผู้รับเอกสารลับต้องมี ACL ของตัวเอง — ให้แค่ระดับ "เปิดและดาวน์โหลดได้" */
+async function grantRecipientAcl(
+  tx: TransactionClient,
+  ctx: ServiceContext,
+  document: ConfidentialDocument,
+  userIds: readonly string[],
+) {
+  if (document.confidentialityLevel === 0) return
+
+  for (const userId of new Set(userIds)) {
+    await grantAcl(tx, ctx, document.id, userId, "DOWNLOAD")
+  }
+}
+
+async function grantAcl(
+  tx: TransactionClient,
+  ctx: ServiceContext,
+  documentId: string,
+  userId: string,
+  permission: "MANAGE" | "DOWNLOAD",
+) {
+  const existing = await tx.documentAcl.findUnique({
+    where: {
+      documentId_principalType_principalId_permission: {
+        documentId,
+        principalType: "USER",
+        principalId: userId,
+        permission,
+      },
+    },
+    select: { id: true },
+  })
+
+  // มีอยู่แล้วก็ปล่อยไว้ — ไม่ยืดวันหมดอายุหรือทับเหตุผลที่ผู้ดูแลกรอกไว้เอง
+  if (existing) return
+
+  await tx.documentAcl.create({
+    data: {
+      documentId,
+      principalType: "USER",
+      principalId: userId,
+      permission,
+      effect: "ALLOW",
+      grantedById: ctx.userId,
+      reason: "ระบบออกให้อัตโนมัติเมื่อเอกสารเป็นชั้นความลับ",
+    },
+  })
+
+  await writeAudit(tx, {
+    ...auditBase(ctx, documentId),
+    action: AUDIT_ACTIONS.DOCUMENT_ACL_GRANTED,
+    severity: "NOTICE",
+    metadata: { grantedToUserId: userId, permission, automatic: true },
+  })
+}
+
 async function createRecipients(
   tx: TransactionClient,
-  documentId: string,
+  ctx: ServiceContext,
+  document: ConfidentialDocument,
   recipients: RecipientInput[],
   status: "PENDING" | "SENT" = "PENDING",
 ) {
+  const documentId = document.id
   const now = new Date()
+
+  // §4.3 ข้อ 5 — เอกสารลับ inherit สิทธิ์จาก scope ไม่ได้ เวียนถึง "ทั้งหน่วยงาน"
+  // จึงได้ผู้รับที่เปิดเอกสารไม่ได้สักคน · บังคับให้ระบุตัวบุคคลตั้งแต่ต้นทางแทน
+  if (document.confidentialityLevel > 0) {
+    if (recipients.some((recipient) => !recipient.userId)) {
+      throw new ServiceError(
+        "เอกสารชั้นความลับต้องระบุผู้รับเป็นรายบุคคล เวียนถึงทั้งหน่วยงานไม่ได้",
+        "VALIDATION",
+      )
+    }
+  }
 
   // กันซ้ำสองชั้น — ซ้ำภายในคำสั่งเดียวกัน และซ้ำกับผู้รับที่เอกสารมีอยู่แล้ว
   //
@@ -616,6 +771,17 @@ async function createRecipients(
       data: { kind: recipient.kind, status, sentAt: status === "SENT" ? now : null },
     })
   }
+
+  // ออก ACL ให้ผู้รับทุกรายในคำสั่งนี้ รวมแถวที่อัปเดตซ้ำ — ไม่งั้นคนที่ถูกเวียนถึงรอบสอง
+  // จะไม่มี ACL ถ้ารอบแรกเกิดตอนเอกสารยังเป็นชั้น 0
+  await grantRecipientAcl(
+    tx,
+    ctx,
+    document,
+    [...unique.values()]
+      .map((recipient) => recipient.userId)
+      .filter((userId): userId is string => Boolean(userId)),
+  )
 
   if (fresh.length === 0) return
 

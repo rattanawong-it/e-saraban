@@ -5,7 +5,7 @@
 // UI ซ่อนปุ่มตาม can() ได้ แต่ service layer ต้องเรียก can() ซ้ำเสมอ (spec §10.2)
 
 import type { AuthzContext } from "./context"
-import type { Permission, PermissionScope } from "./permissions"
+import { PERMISSIONS, type Permission, type PermissionScope } from "./permissions"
 
 /**
  * เอกสาร/ทรัพยากรที่กำลังขอเข้าถึง
@@ -92,6 +92,32 @@ export function denyReasonLabel(reason: DenyReason): string {
  * ลำดับด่านตาม spec §4.3 — เรียงตามนี้เท่านั้น เพราะ "deny ชนะเสมอ"
  * ต้องมาก่อนการ rescue ด้วย ACL ALLOW
  */
+/**
+ * ACL หยาบสี่ระดับ (§9.1) ครอบคลุมสิทธิ์ระดับแอปตัวไหนบ้าง
+ *
+ * ถ้าไม่มีตารางนี้ ACL ที่ให้ไว้แค่ "ดูได้" จะกลายเป็นสิทธิ์แก้ไข-ลบ-ให้สิทธิ์ต่อทันที
+ * เพราะด่าน ACL สนใจแค่ว่า "ตรงตัวบุคคลไหม" โดยไม่ดูว่าให้สิทธิ์อะไรไว้
+ */
+const ACL_COVERAGE: Record<AuthzAclEntry["permission"], readonly Permission[] | "ALL"> = {
+  VIEW: [PERMISSIONS.DOCUMENT_READ],
+  DOWNLOAD: [PERMISSIONS.DOCUMENT_READ, PERMISSIONS.ATTACHMENT_DOWNLOAD],
+  EDIT: [
+    PERMISSIONS.DOCUMENT_READ,
+    PERMISSIONS.ATTACHMENT_DOWNLOAD,
+    PERMISSIONS.DOCUMENT_UPDATE,
+    PERMISSIONS.ATTACHMENT_UPLOAD,
+    PERMISSIONS.DOCUMENT_SUBMIT,
+  ],
+  // เจ้าของเรื่องต้องทำได้ทุกอย่างกับเอกสารของตัวเอง รวมถึงให้สิทธิ์คนอื่นต่อ
+  MANAGE: "ALL",
+}
+
+/** ACL แถวนี้ครอบคลุมสิทธิ์ที่กำลังขอหรือไม่ */
+export function aclCovers(entry: AuthzAclEntry, permission: Permission): boolean {
+  const coverage = ACL_COVERAGE[entry.permission]
+  return coverage === "ALL" || coverage.includes(permission)
+}
+
 export function can(
   ctx: AuthzContext,
   permission: Permission,
@@ -120,6 +146,8 @@ export function can(
   const acl = resource.acl ?? []
   const activeAcl = acl.filter((entry) => !entry.expiresAt || entry.expiresAt > now)
 
+  // DENY ไม่ดูว่าเป็นสิทธิ์ชนิดไหน — ห้ามคนหนึ่งจากเอกสารฉบับหนึ่งแล้วต้องห้ามทั้งฉบับ
+  // ถ้าตีความแคบ (DENY VIEW แล้วยัง EDIT ได้) จะกลายเป็นช่องโหว่ทันที
   if (activeAcl.some((entry) => entry.effect === "DENY" && matchesPrincipal(ctx, entry))) {
     return { allowed: false, reason: "ACL_DENY" }
   }
@@ -129,7 +157,8 @@ export function can(
 
   // ── 4b. ACL ALLOW — ช่วยกู้กรณีที่ scope ไม่ผ่าน ────────────────────────
   const hasAclAllow = activeAcl.some(
-    (entry) => entry.effect === "ALLOW" && matchesPrincipal(ctx, entry),
+    (entry) =>
+      entry.effect === "ALLOW" && matchesPrincipal(ctx, entry) && aclCovers(entry, permission),
   )
 
   if (!inScope && !hasAclAllow) {
@@ -149,7 +178,8 @@ export function can(
       (entry) =>
         entry.effect === "ALLOW" &&
         entry.principalType === "USER" &&
-        entry.principalId === ctx.userId,
+        entry.principalId === ctx.userId &&
+        aclCovers(entry, permission),
     )
 
     if (!hasPersonalAcl) {
