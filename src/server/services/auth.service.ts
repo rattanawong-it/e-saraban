@@ -14,6 +14,8 @@ import {
   resetRateLimit,
   revokeAllSessions,
   setActiveOrgUnit,
+  usernameCandidate,
+  usernameFromEmail,
   validatePassword,
   verifyPassword,
 } from "@/lib/auth"
@@ -277,13 +279,52 @@ export async function switchContext(ctx: ServiceContext, orgUnitId: string): Pro
   await setActiveOrgUnit(ctx.sessionId, orgUnitId)
 }
 
+/** ข้อมูลที่หน้า /register เอาไปแสดงบนจอ "ส่งคำขอแล้ว" */
+export interface RegistrationSummary {
+  fullName: string
+  email: string
+  orgUnitName: string
+  /** ชื่อผู้ใช้ที่ระบบสร้างให้ — ต้องบอกผู้สมัคร เพราะ MVP ยังไม่มีอีเมลแจ้ง (D10) */
+  username: string
+}
+
+/** จำนวนครั้งสูงสุดที่ยอมต่อท้ายเลขเพื่อหาชื่อผู้ใช้ที่ยังว่าง */
+const MAX_USERNAME_ATTEMPTS = 50
+
+/**
+ * หาชื่อผู้ใช้ที่ยังว่างจากฐานที่สร้างจากอีเมล — ซ้ำแล้วต่อท้ายด้วยเลขเรียงไป
+ * นับคำขอที่ยัง PENDING ว่า "ถูกจองแล้ว" ด้วย ไม่งั้นสองคำขอจะชนกันตอนอนุมัติ
+ */
+async function reserveUsername(email: string): Promise<string> {
+  const base = usernameFromEmail(email)
+
+  for (let attempt = 0; attempt < MAX_USERNAME_ATTEMPTS; attempt += 1) {
+    const candidate = usernameCandidate(base, attempt)
+
+    const [takenByUser, takenByRequest] = await Promise.all([
+      prisma.user.findUnique({ where: { username: candidate }, select: { id: true } }),
+      prisma.registrationRequest.findFirst({
+        where: { username: candidate, status: "PENDING" },
+        select: { id: true },
+      }),
+    ])
+
+    if (!takenByUser && !takenByRequest) return candidate
+  }
+
+  throw new ServiceError(
+    "ไม่สามารถสร้างชื่อผู้ใช้จากอีเมลนี้ได้ กรุณาติดต่อผู้ดูแลระบบ",
+    "CONFLICT",
+  )
+}
+
 /**
  * คำขอสมัครใช้งาน (หน้า /register)
  *
  * ไม่สร้าง User จนกว่าผู้ดูแลจะอนุมัติ — บัญชีที่ยังไม่ผ่านการตรวจสอบ
  * ต้องไม่มีตัวตนในระบบเลย ไม่ใช่มีอยู่แต่ปิดใช้งาน
  */
-export async function submitRegistration(input: RegisterInput): Promise<void> {
+export async function submitRegistration(input: RegisterInput): Promise<RegistrationSummary> {
   const { ip, userAgent } = await getRequestMeta()
 
   const orgUnit = await prisma.orgUnit.findFirst({
@@ -292,20 +333,29 @@ export async function submitRegistration(input: RegisterInput): Promise<void> {
 
   if (!orgUnit) throw new ServiceError("ไม่พบหน่วยงานที่เลือก", "NOT_FOUND")
 
+  // อีเมลกลายเป็นตัวระบุตัวตนเดียวของหน้านี้ (ไม่มีช่องชื่อผู้ใช้แล้ว)
+  // จึงต้องกันคนเดิมส่งคำขอซ้ำที่ตรงนี้แทน
+  const email = input.email.toLowerCase()
+
+  const [existingUser, existingRequest] = await Promise.all([
+    prisma.user.findFirst({ where: { email, deletedAt: null }, select: { id: true } }),
+    prisma.registrationRequest.findFirst({
+      where: { email, status: "PENDING" },
+      select: { id: true },
+    }),
+  ])
+
+  if (existingUser || existingRequest) {
+    throw new ServiceError(`อีเมล "${email}" ถูกใช้ลงทะเบียนไว้แล้ว`, "CONFLICT")
+  }
+
+  const username = await reserveUsername(email)
+
   const settings = await getSystemSettings(orgUnit.tenantId)
-  const issues = validatePassword(input.password, settings.password, input.username)
+  const issues = validatePassword(input.password, settings.password, username)
 
   if (issues.length > 0) {
     throw new ServiceError(issues.map((issue) => issue.message).join(" · "), "VALIDATION")
-  }
-
-  const takenByUser = await prisma.user.findUnique({ where: { username: input.username } })
-  const takenByRequest = await prisma.registrationRequest.findFirst({
-    where: { username: input.username, status: "PENDING" },
-  })
-
-  if (takenByUser || takenByRequest) {
-    throw new ServiceError(`ชื่อผู้ใช้ "${input.username}" ถูกใช้ไปแล้ว`, "CONFLICT")
   }
 
   const passwordHash = await hashPassword(input.password)
@@ -314,11 +364,10 @@ export async function submitRegistration(input: RegisterInput): Promise<void> {
     const request = await tx.registrationRequest.create({
       data: {
         tenantId: orgUnit.tenantId,
-        prefix: input.prefix || null,
         firstName: input.firstName,
         lastName: input.lastName,
-        email: input.email,
-        username: input.username,
+        email,
+        username,
         passwordHash,
         orgUnitId: orgUnit.id,
         positionTitle: input.positionTitle || null,
@@ -334,9 +383,18 @@ export async function submitRegistration(input: RegisterInput): Promise<void> {
       severity: "NOTICE",
       ip,
       userAgent,
-      metadata: { username: input.username, email: input.email, orgUnitId: orgUnit.id },
+      metadata: { username, email, orgUnitId: orgUnit.id },
     })
   })
+
+  // คืนค่าที่ผ่านการตรวจแล้วจากฝั่ง server เพื่อให้จอ "ส่งคำขอแล้ว"
+  // แสดงชื่อและหน่วยงานได้ถูกต้องแม้ JavaScript ยังโหลดไม่เสร็จ
+  return {
+    fullName: `${input.firstName} ${input.lastName}`,
+    email,
+    orgUnitName: orgUnit.nameTh,
+    username,
+  }
 }
 
 /**

@@ -1,10 +1,9 @@
 import type { Metadata } from "next"
-import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
 
 import { APP_NAME, REGISTER } from "@/constants"
 import { prisma } from "@/lib/db"
-import { AuthBrandPanel, AuthFormPanel, AuthHeading } from "@/components/auth/auth-shell"
+import { DEFAULT_SETTINGS } from "@/lib/settings"
+import { AuthBrandPanel, AuthFormPanel } from "@/components/auth/auth-shell"
 import { RegisterForm, type OrgUnitOption } from "@/components/auth/register-form"
 
 export const metadata: Metadata = {
@@ -30,15 +29,16 @@ export default async function RegisterPage() {
     <>
       <AuthBrandPanel title={REGISTER.heroTitle} subtitle={REGISTER.heroSubtitle} />
       <AuthFormPanel wide>
-        <Link
-          href="/login"
-          className="mb-6 inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary hover:underline"
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          {REGISTER.backToLogin}
-        </Link>
-        <AuthHeading title={REGISTER.title} subtitle={REGISTER.subtitle} />
-        <RegisterForm orgUnits={orgUnits} />
+        {/*
+          ลิงก์ย้อนกลับกับหัวข้ออยู่ในฟอร์ม ไม่ใช่ที่นี่ เพราะตัวอย่างซ่อนทั้งสองอย่าง
+          เมื่อส่งคำขอสำเร็จ — สถานะนั้นอยู่ฝั่ง client เท่านั้น
+        */}
+        {/*
+          หน้านี้ยังไม่รู้ว่าผู้สมัครจะสังกัด tenant ใด จึงใช้ค่าปริยายของนโยบายรหัสผ่าน
+          เป็นตัวบอกความยาวขั้นต่ำบนหน้าจอ — การบังคับจริงเกิดที่ submitRegistration
+          ซึ่งอ่านค่าของ tenant ตามหน่วยงานที่เลือก
+        */}
+        <RegisterForm orgUnits={orgUnits} passwordMinLength={DEFAULT_SETTINGS.password.minLength} />
       </AuthFormPanel>
     </>
   )

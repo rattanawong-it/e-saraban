@@ -18,6 +18,7 @@ import {
   requestPasswordReset,
   submitRegistration,
   switchContext,
+  type RegistrationSummary,
 } from "../services/auth.service"
 import { getAppSession, requireSession } from "../session"
 import { readCheckbox, readOptionalString, readString, toActionError } from "./helpers"
@@ -99,13 +100,14 @@ export async function switchContextAction(
   return successState("สลับหน่วยงานเรียบร้อยแล้ว")
 }
 
-export async function registerAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function registerAction(
+  _prev: ActionState<RegistrationSummary>,
+  formData: FormData,
+): Promise<ActionState<RegistrationSummary>> {
   const parsed = registerSchema.safeParse({
-    prefix: readOptionalString(formData, "prefix"),
     firstName: readString(formData, "firstName"),
     lastName: readString(formData, "lastName"),
     email: readString(formData, "email"),
-    username: readString(formData, "username"),
     orgUnitId: readString(formData, "orgUnitId"),
     positionTitle: readOptionalString(formData, "positionTitle"),
     password: String(formData.get("password") ?? ""),
@@ -116,12 +118,11 @@ export async function registerAction(_prev: ActionState, formData: FormData): Pr
   if (!parsed.success) return zodErrorState(parsed.error)
 
   try {
-    await submitRegistration(parsed.data)
+    const summary = await submitRegistration(parsed.data)
+    return successState("ส่งคำขอเรียบร้อยแล้ว", summary)
   } catch (error) {
-    return toActionError(error)
+    return toActionError<RegistrationSummary>(error)
   }
-
-  return successState("ส่งคำขอเรียบร้อยแล้ว")
 }
 
 export async function forgotPasswordAction(

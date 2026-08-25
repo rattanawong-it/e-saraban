@@ -47,6 +47,19 @@ export function Input({ className, ...props }: React.ComponentProps<"input">) {
   )
 }
 
+/** select เปล่าสำหรับวางใน <InputShell> คู่กับไอคอน — คู่กับ <Input> */
+export function SelectControl({ className, ...props }: React.ComponentProps<"select">) {
+  return (
+    <select
+      className={cn(
+        "min-w-0 flex-1 cursor-pointer appearance-none border-none bg-transparent text-[14.5px] text-text-strong outline-none",
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
 /** input เดี่ยว ๆ ที่มีกรอบในตัว — ใช้เมื่อไม่ต้องการไอคอน */
 export function TextInput({
   className,

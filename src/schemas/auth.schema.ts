@@ -43,11 +43,10 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>
 
 export const registerSchema = z
   .object({
-    prefix: z.string().trim().max(30).optional(),
     firstName: z.string().trim().min(1, "กรุณากรอกชื่อ").max(100),
     lastName: z.string().trim().min(1, "กรุณากรอกนามสกุล").max(100),
+    // ไม่ถามชื่อผู้ใช้แล้ว — auth.service สร้างจากอีเมลนี้ให้ (src/lib/auth/username.ts)
     email: z.string().trim().email("รูปแบบอีเมลไม่ถูกต้อง"),
-    username: usernameSchema,
     orgUnitId: z.string().min(1, "กรุณาเลือกหน่วยงานที่สังกัด"),
     positionTitle: z.string().trim().max(120).optional(),
     password: z.string().min(1, "กรุณากรอกรหัสผ่าน"),
