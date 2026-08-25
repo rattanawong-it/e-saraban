@@ -89,6 +89,9 @@ model Tenant {
   auditLogs            AuditLog[]
   settings             SystemSetting[]
   registrationRequests RegistrationRequest[]
+  documentTypes        DocumentType[]
+  documents            Document[]
+  numberSequences      NumberSequence[]
 
   @@map("tenants")
 }
@@ -137,6 +140,11 @@ model OrgUnit {
   userRoles            UserRole[]
   sessions             Session[]
   registrationRequests RegistrationRequest[]
+  ownedDocuments       Document[]            @relation("DocumentOwnerUnit")
+  createdDocuments     Document[]            @relation("DocumentCreatedByUnit")
+  documentRecipients   DocumentRecipient[]
+  documentActions      DocumentAction[]
+  numberSequences      NumberSequence[]
 
   @@unique([tenantId, code])
   /// spec §9.2 — subtree query ด้วย LIKE 'path%'
@@ -185,6 +193,11 @@ model User {
   resetRequests         PasswordResetRequest[] @relation("ResetRequestUser")
   resolvedResets        PasswordResetRequest[] @relation("ResetRequestResolvedBy")
   reviewedRegistrations RegistrationRequest[]  @relation("RegistrationReviewedBy")
+  createdDocuments      Document[]             @relation("DocumentCreatedBy")
+  documentRecipients    DocumentRecipient[]
+  documentActions       DocumentAction[]
+  uploadedAttachments   Attachment[]           @relation("AttachmentUploadedBy")
+  grantedDocumentAcls   DocumentAcl[]          @relation("DocumentAclGrantedBy")
 
   @@index([tenantId, isActive])
   @@index([tenantId, lastName, firstName])
@@ -435,4 +448,326 @@ model PasswordResetRequest {
   @@index([status, createdAt])
   @@index([userId])
   @@map("password_reset_requests")
+}
+
+// ---------------------------------------------------------------------------
+// ฝั่งเอกสาร — P2 Core Documents (spec §6 · §7 · §9.1)
+//
+// กติกาที่ผูกไว้ในโครงสร้างตั้งแต่ต้น เพราะแก้ทีหลังแล้วทะเบียนย้อนหลังพัง:
+//   1. เลขทะเบียนไม่ซ้ำ — @@unique ของ Document ตาม §7.3 คือด่านสุดท้ายที่ฐานข้อมูลบังคับ
+//   2. ลบเป็น soft delete เสมอ (deletedAt) และ FK ทุกเส้นเป็น Restrict ตาม §9.3
+//   3. เลขที่ยกเลิกไม่ถูกนำกลับมาใช้ซ้ำ — แถวยังอยู่ในทะเบียนพร้อมสถานะ CANCELLED (§6.4)
+// ---------------------------------------------------------------------------
+
+/// ทิศทางของหนังสือ (spec §6)
+enum DocumentDirection {
+  INTERNAL /// บันทึกข้อความภายใน
+  OUTGOING /// หนังสือส่งภายนอก
+  INCOMING /// หนังสือรับ — โมดูลเบาตาม A1
+}
+
+/// สถานะเอกสาร (spec §6.1–6.3)
+enum DocumentStatus {
+  DRAFT /// ร่าง — แก้ไขได้
+  PENDING_NUMBER /// ส่งให้สารบรรณแล้ว รอออกเลข
+  RETURNED /// ถูกตีกลับให้แก้ไข (control แทนขั้นอนุมัติ ตาม A2)
+  REGISTERED /// ออกเลขแล้ว — ห้ามแก้เลข/วันที่/ชื่อเรื่องอีก
+  CIRCULATING /// เวียนถึงผู้รับแล้ว (ภายใน)
+  SENT /// ส่งออกภายนอกแล้ว
+  RECEIVED /// ลงทะเบียนรับแล้ว (หนังสือรับ)
+  FORWARDED /// ส่งต่อให้หน่วยงานที่เกี่ยวข้องแล้ว
+  CLOSED /// ปิดเรื่อง
+  CANCELLED /// ยกเลิก — เลขที่ออกไปแล้วถูกจองไว้ ไม่นำกลับมาใช้ซ้ำ
+}
+
+/// ชั้นของผู้รับในหนังสือเวียน (spec §9.1)
+enum RecipientKind {
+  TO /// เรียน / ถึง
+  CC /// สำเนาถึง
+  FYI /// เพื่อทราบ
+}
+
+/// สถานะการรับรู้ของผู้รับแต่ละราย
+enum RecipientStatus {
+  PENDING /// ยังไม่ได้ส่ง
+  SENT /// ส่งแล้ว
+  READ /// เปิดอ่านแล้ว
+  ACKNOWLEDGED /// ตอบรับแล้ว
+}
+
+/// การกระทำที่บันทึกลง timeline ของเอกสาร (spec §6.4)
+/// คนละชั้นกับ AuditLog — อันนี้ผู้ใช้ทั่วไปเห็น ส่วน audit ไว้ให้ผู้ตรวจสอบ
+enum DocumentActionType {
+  CREATED
+  UPDATED
+  SUBMITTED
+  RETURNED
+  NUMBER_ISSUED
+  CIRCULATED
+  ACKNOWLEDGED
+  MARKED_SENT
+  FORWARDED
+  CLOSED
+  CANCELLED
+  ATTACHMENT_ADDED
+  ATTACHMENT_REMOVED
+}
+
+/// ชนิดของผู้ถือสิทธิ์ใน ACL เฉพาะราย — ต้องตรงกับ AuthzAclEntry ใน src/lib/authz/can.ts
+enum AclPrincipalType {
+  USER
+  ORG_UNIT
+  ROLE
+}
+
+/// สิทธิ์แบบหยาบใน ACL เฉพาะราย (spec §9.1)
+enum AclPermission {
+  VIEW
+  DOWNLOAD
+  EDIT
+  MANAGE
+}
+
+enum AclEffect {
+  ALLOW
+  DENY
+}
+
+/// ประเภทหนังสือ — กำหนด pattern เลขทะเบียนของตัวเองได้ (spec §7.1)
+model DocumentType {
+  id       String @id @default(uuid(7))
+  tenantId String
+
+  code      String
+  nameTh    String
+  direction DocumentDirection
+
+  /// ทะเบียนที่ใช้แยกเล่ม — เอกสารลับใช้ bookCode แยกจากหนังสือปกติ (spec §7.3)
+  defaultBookCode String @default("MAIN")
+
+  /// pattern เฉพาะของประเภทนี้ — ว่างไว้ = ใช้ค่าปริยาย {unitCode}/{seq:4} (D16)
+  numberPattern String?
+
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  documents Document[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, direction, isActive])
+  @@map("document_types")
+}
+
+/// เอกสารหนึ่งฉบับ (spec §9.1)
+model Document {
+  id       String @id @default(uuid(7))
+  tenantId String
+
+  /// เลขที่หนังสือที่ render จาก pattern แล้ว เช่น "510000/0451"
+  /// ว่างจนกว่าจะออกเลข — ร่างยังไม่มีเลข
+  docNo String?
+
+  /// ลำดับดิบจาก NumberSequence · แยกเก็บเพราะ docNo เป็นข้อความที่ผ่าน pattern แล้ว
+  seqValue Int?
+  bookCode String @default("MAIN")
+
+  /// ปีของเลขทะเบียน (พ.ศ.) — ส่วนหนึ่งของคีย์กันเลขซ้ำข้ามปี (§7.2)
+  year Int?
+
+  documentTypeId String
+  direction      DocumentDirection
+  status         DocumentStatus    @default(DRAFT)
+
+  subject String
+  summary String?
+
+  docDate      DateTime? @db.Timestamptz(3)
+  receivedDate DateTime? @db.Timestamptz(3)
+  dueDate      DateTime? @db.Timestamptz(3)
+
+  /// 0 ปกติ · 1 ลับ · 2 ลับมาก · 3 ลับที่สุด (spec §8.1)
+  confidentialityLevel Int @default(0)
+
+  /// 0 ปกติ · 1 ด่วน · 2 ด่วนมาก · 3 ด่วนที่สุด
+  urgencyLevel Int @default(0)
+
+  /// หน่วยงานเจ้าของเรื่อง — เลขทะเบียนเดินตามหน่วยนี้
+  ownerUnitId     String
+  createdById     String
+  createdByUnitId String
+
+  externalSenderName    String?
+  externalRecipientName String?
+  refDocNo              String?
+  parentDocumentId      String?
+
+  /// เสริมการค้นหาเลขที่/คำอังกฤษ — ภาษาไทยพึ่ง pg_trgm เป็นหลัก (spec §9.2)
+  /// Prisma อ่านคอลัมน์ชนิดนี้ไม่ได้ ต้องเขียน/อ่านผ่าน SQL
+  searchVector Unsupported("tsvector")?
+
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  documentType   DocumentType @relation(fields: [documentTypeId], references: [id], onDelete: Restrict)
+  ownerUnit      OrgUnit      @relation("DocumentOwnerUnit", fields: [ownerUnitId], references: [id], onDelete: Restrict)
+  createdByUnit  OrgUnit      @relation("DocumentCreatedByUnit", fields: [createdByUnitId], references: [id], onDelete: Restrict)
+  createdBy      User         @relation("DocumentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  parentDocument Document?    @relation("DocumentThread", fields: [parentDocumentId], references: [id], onDelete: Restrict)
+  childDocuments Document[]   @relation("DocumentThread")
+
+  attachments Attachment[]
+  recipients  DocumentRecipient[]
+  actions     DocumentAction[]
+  acls        DocumentAcl[]
+
+  /// ⚠️ ด่านสุดท้ายของ spec §7.3 — ต่อให้ logic ในแอปพลาด ฐานข้อมูลจะไม่ยอมให้เลขซ้ำ
+  /// ร่างที่ยังไม่ออกเลขมี seqValue = NULL ซึ่ง Postgres ไม่ถือว่าชนกัน
+  @@unique([tenantId, ownerUnitId, direction, bookCode, year, seqValue])
+  @@index([tenantId, ownerUnitId, status, docDate(sort: Desc)])
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, docNo])
+  @@index([documentTypeId])
+  @@index([parentDocumentId])
+  @@map("documents")
+}
+
+/// ตัวนับเลขทะเบียนของแต่ละ (หน่วยงาน × ทิศทาง × เล่ม × ปี) — spec §7.3
+model NumberSequence {
+  id       String @id @default(uuid(7))
+  tenantId String
+
+  orgUnitId String
+  direction DocumentDirection
+  bookCode  String            @default("MAIN")
+  year      Int
+
+  lastValue Int @default(0)
+
+  /// pattern เฉพาะของทะเบียนนี้ — ทับค่าของ DocumentType ได้ (spec §7.1)
+  patternOverride String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  orgUnit OrgUnit @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, orgUnitId, direction, bookCode, year])
+  @@map("number_sequences")
+}
+
+/// ไฟล์แนบ — เก็บผ่าน StorageAdapter เท่านั้น (D8 · spec §8.2)
+model Attachment {
+  id         String @id @default(uuid(7))
+  documentId String
+
+  /// เอกสารที่ออกเลขแล้วแก้ไม่ได้ แต่แนบไฟล์เวอร์ชันใหม่ได้ (spec §6.4)
+  version Int @default(1)
+
+  fileName  String
+  mimeType  String
+  sizeBytes Int
+
+  /// ตรวจไฟล์ซ้ำและยืนยันความครบถ้วนหลังดาวน์โหลด
+  sha256     String
+  storageKey String
+
+  /// ฟิลด์เข้ารหัสใช้เมื่อเอกสารเป็นชั้นความลับ (spec §8.2) — ปกติเป็น null
+  isEncrypted  Boolean @default(false)
+  encAlgo      String?
+  encryptedDek String?
+  iv           String?
+  authTag      String?
+  keyVersion   Int?
+
+  uploadedById String
+  uploadedAt   DateTime  @default(now()) @db.Timestamptz(3)
+  deletedAt    DateTime? @db.Timestamptz(3)
+
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  uploadedBy User     @relation("AttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([documentId, version])
+  @@index([sha256])
+  @@map("attachments")
+}
+
+/// ผู้รับของเอกสารเวียน — เป็นหน่วยงานหรือรายบุคคลอย่างใดอย่างหนึ่ง
+/// (CHECK constraint บังคับไว้ในไฟล์ migration)
+model DocumentRecipient {
+  id         String @id @default(uuid(7))
+  documentId String
+
+  orgUnitId String?
+  userId    String?
+
+  kind   RecipientKind   @default(TO)
+  status RecipientStatus @default(PENDING)
+
+  sentAt         DateTime? @db.Timestamptz(3)
+  readAt         DateTime? @db.Timestamptz(3)
+  acknowledgedAt DateTime? @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  orgUnit  OrgUnit? @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([documentId])
+  @@index([orgUnitId, status])
+  @@index([userId, readAt])
+  @@map("document_recipients")
+}
+
+/// timeline ที่ผู้ใช้เห็นในหน้ารายละเอียดเอกสาร (spec §6.4)
+model DocumentAction {
+  id         String @id @default(uuid(7))
+  documentId String
+
+  actorUserId String?
+  actorUnitId String?
+
+  actionType DocumentActionType
+  fromStatus DocumentStatus?
+  toStatus   DocumentStatus?
+  note       String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  document  Document @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  actorUser User?    @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  actorUnit OrgUnit? @relation(fields: [actorUnitId], references: [id], onDelete: Restrict)
+
+  @@index([documentId, createdAt])
+  @@map("document_actions")
+}
+
+/// ACL เฉพาะราย — ด่านที่ 4 ของ can() (spec §4.3 · §9.1)
+model DocumentAcl {
+  id         String @id @default(uuid(7))
+  documentId String
+
+  principalType AclPrincipalType
+  principalId   String
+  permission    AclPermission
+  effect        AclEffect        @default(ALLOW)
+
+  grantedById String
+  grantedAt   DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt   DateTime? @db.Timestamptz(3)
+  reason      String?
+
+  document  Document @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  grantedBy User     @relation("DocumentAclGrantedBy", fields: [grantedById], references: [id], onDelete: Restrict)
+
+  @@unique([documentId, principalType, principalId, permission])
+  @@index([documentId])
+  @@map("document_acls")
 }
