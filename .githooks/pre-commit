@@ -1,0 +1,58 @@
+#!/bin/sh
+#
+# ด่านก่อน commit ของ e-Saraban
+#
+# ติดตั้งเองอัตโนมัติตอน `pnpm install` (สคริปต์ prepare → scripts/setup-hooks.mjs)
+# ซึ่งชี้ core.hooksPath มาที่โฟลเดอร์นี้ · ไม่ได้ใช้ husky เพราะต้องการแค่ไฟล์เดียว
+# และ dependency ที่ไม่ต้องมีก็คือ dependency ที่ไม่ต้องตามอัปเดต
+#
+# ข้ามชั่วคราวด้วย `git commit --no-verify` ตอนที่รู้ตัวว่ากำลังทำอะไรอยู่
+#
+# ⚠️ ด่านที่ 3 และ 4 ตรวจ "ไฟล์ในเครื่อง" ไม่ใช่ "สิ่งที่ stage ไว้" — ถ้า stage
+#    แค่บางส่วนของไฟล์ ผลที่ได้คือของทั้งไฟล์ · ยอมแลกเพราะทางเลือกคือ stash
+#    ของที่ยังไม่ stage ออกไปก่อน ซึ่งเคยทำงานค้างหายมาแล้วในหลายโปรเจกต์
+
+set -e
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+# ไฟล์โค้ดที่ eslint ดูแล — ตัด Prisma Client ที่ generate มาและไฟล์ที่ Next เขียนเองออก
+CODE_FILES=$(printf '%s\n' "$STAGED" \
+  | grep -E '\.(ts|tsx|mjs|js|jsx)$' \
+  | grep -v '^src/generated/' \
+  | grep -v '^next-env\.d\.ts$' \
+  || true)
+
+echo "── ตรวจก่อน commit ────────────────────────────────────────"
+
+# ── 1. รูปแบบโค้ด ────────────────────────────────────────────
+# --ignore-unknown ให้ข้ามไฟล์ที่ prettier ไม่รู้จัก (.docx ในโฟลเดอร์ docs ฯลฯ)
+# ไปเงียบ ๆ แทนที่จะล้ม · .prettierignore ยังมีผลตามปกติ
+echo "  [1/4] prettier"
+printf '%s\n' "$STAGED" | xargs pnpm exec prettier --check --ignore-unknown
+
+# ── 2. eslint (รวมกติกาห้าม semicolon ของโปรเจกต์) ───────────
+if [ -n "$CODE_FILES" ]; then
+  echo "  [2/4] eslint"
+  printf '%s\n' "$CODE_FILES" | xargs pnpm exec eslint
+else
+  echo "  [2/4] eslint — ไม่มีไฟล์โค้ดใน commit นี้ ข้าม"
+fi
+
+# ── 3. typecheck ทั้งโปรเจกต์ ────────────────────────────────
+# ตรวจทั้งโปรเจกต์เสมอ ไม่ใช่เฉพาะไฟล์ที่แก้ เพราะการแก้ type ในไฟล์หนึ่ง
+# ทำให้อีกไฟล์ที่ไม่ได้แตะพังได้ · 5 วินาที
+echo "  [3/4] typecheck"
+pnpm typecheck
+
+# ── 4. unit test ─────────────────────────────────────────────
+# ชุด unit เท่านั้น (2 วินาที · ไม่ต้องมีฐานข้อมูล)
+# integration กับ e2e ต้องมี Postgres และกินเลขทะเบียน — ปล่อยให้ CI รัน
+echo "  [4/4] unit test"
+pnpm test
+
+echo "── ผ่านครบ ────────────────────────────────────────────────"
