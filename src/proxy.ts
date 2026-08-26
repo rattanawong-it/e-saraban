@@ -26,7 +26,14 @@ export function proxy(request: NextRequest) {
     // style-src คุม <style> ที่ถูกแทรกเข้ามา ส่วน style-src-attr คุม style="" บนอิลิเมนต์
     // แยกกันเพราะ §8.4 เข้มเรื่อง **script** เป็นหลัก และแอปมี style="" อยู่จุดเดียว
     // (ระยะเยื้องของผังหน่วยงานที่คำนวณจากระดับชั้น) ซึ่งใส่ nonce ให้ไม่ได้
-    `style-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-inline'" : ""}`,
+    //
+    // ⚠️ ห้ามเติม 'unsafe-inline' ตรงนี้แม้แต่เฉพาะ dev — **มันไม่ทำงาน** เพราะสเปก CSP
+    // สั่งให้เบราว์เซอร์เมิน 'unsafe-inline' ทิ้งทันทีที่มี nonce อยู่ในลิสต์เดียวกัน
+    // (เคยมีบรรทัด `${isDev ? " 'unsafe-inline'" : ""}` อยู่ตรงนี้ ถอดออกเมื่อ 26 ส.ค. 2569
+    // หลังยืนยันจากของจริงว่าไม่เคยมีผล) · คนละเรื่องกับ 'unsafe-eval' ของ script-src ข้างบน
+    // ที่จำเป็นจริงใน dev · CSP error ที่เห็นในคอนโซลตอน dev มาจากแผงเครื่องมือของ Next เอง
+    // ไม่ใช่ของแอป จึงไม่มีอะไรต้องผ่อนให้ — e2e วิ่งบน production build ด้วยเหตุผลนี้
+    `style-src 'self' 'nonce-${nonce}'`,
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' blob: data:",
     // ฟอนต์ทั้งหมดเป็นไฟล์ในโปรเจกต์เอง ไม่มี CDN ภายนอกให้ต้องอนุญาต

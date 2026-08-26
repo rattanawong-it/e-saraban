@@ -59,3 +59,9 @@ next-env.d.ts
 
 # ชุดสำรองข้อมูล — มีข้อมูลจริงทั้งฐานและไฟล์แนบ ห้ามหลุดเข้า git เด็ดขาด
 backups/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+tests/e2e/.auth/
