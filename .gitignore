@@ -56,3 +56,6 @@ next-env.d.ts
 /.agents/skills/
 /.windsurf/skills/
 /skills-lock.json
+
+# ชุดสำรองข้อมูล — มีข้อมูลจริงทั้งฐานและไฟล์แนบ ห้ามหลุดเข้า git เด็ดขาด
+backups/
