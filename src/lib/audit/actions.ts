@@ -66,6 +66,10 @@ export const AUDIT_ACTIONS = {
   // ── ค่าระบบ ──────────────────────────────────────────────────────
   SETTING_UPDATED: "setting.updated",
 
+  // ── รายงาน ───────────────────────────────────────────────────────
+  /// การดึงทะเบียนออกเป็นไฟล์ — ไฟล์เดินออกนอกระบบแล้วเรียกคืนไม่ได้ ต้องตามได้ว่าใครดึงอะไรไป
+  REPORT_EXPORTED: "report.exported",
+
   // ── การตรวจสอบ ───────────────────────────────────────────────────
   AUDIT_EXPORTED: "audit.exported",
   AUDIT_CHAIN_VERIFIED: "audit.chain.verified",
@@ -131,6 +135,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
 
   "setting.updated": "แก้ไขค่าระบบ",
 
+  "report.exported": "ส่งออกทะเบียนหนังสือ",
   "audit.exported": "ส่งออก audit log",
   "audit.chain.verified": "ตรวจสอบ hash chain",
 
