@@ -40,9 +40,19 @@ export function RegisterFilters({
   /** query string เดียวกับที่หน้าจอกำลังแสดง — ใช้ต่อท้ายลิงก์ดาวน์โหลด */
   exportQuery: string
 }) {
+  // ⚠️ key ผูกกับค่าที่มาจาก URL — เหตุผลเดียวกับ search-filters.tsx
+  //
+  // ทุกช่องเป็น uncontrolled ที่ใช้ `defaultValue` ซึ่งมีผลแค่ตอน mount ครั้งแรก
+  // เวลาเปลี่ยนหน้าแบบ client-side React ใช้ DOM ก้อนเดิมต่อ `<select>` จึงค้างค่าเก่า
+  // — กด "ล้างเงื่อนไข" แล้ว URL ว่างจริงแต่เล่มทะเบียน/ปี/หน่วยงานยังเป็นค่าที่เพิ่งเลือก
+  //
+  // ⚠️ ของหน้านี้อันตรายกว่าหน้าค้นหา เพราะปุ่มดาวน์โหลดพก query จาก URL ไปทั้งชุด
+  // ผู้ใช้จึงเห็นตัวกรองชุดหนึ่งบนจอแต่ได้ไฟล์ของอีกชุดหนึ่ง โดยไม่มีอะไรเตือน
+  const formKey = JSON.stringify(values)
+
   return (
     <Card className="mb-5 p-5">
-      <form method="get" action="/reports/register" className="flex flex-col gap-4">
+      <form key={formKey} method="get" action="/reports/register" className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label={REGISTER_REPORT.book} htmlFor="book" hint={REGISTER_REPORT.bookHint}>
             <Select id="book" name="book" defaultValue={values.book}>

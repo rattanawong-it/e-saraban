@@ -25,7 +25,10 @@ test("ร่างหนังสือ → ส่งให้สารบรร
 
   // บันทึกแล้วต้องเด้งไปหน้ารายละเอียดของฉบับที่เพิ่งสร้าง
   await page.waitForURL(/\/documents\/[0-9a-f-]+$/, { timeout: 30_000 })
-  await expect(page.getByText(subject)).toBeVisible()
+  // ⚠️ ต้องระบุว่าเป็นหัวข้อ ไม่ใช่ getByText เฉย ๆ — Next มี route announcer
+  // (`#__next-route-announcer__`) ที่อ่านชื่อหน้าให้ screen reader หลังเปลี่ยนหน้า
+  // ข้อความจึงซ้ำกันสองที่ชั่วขณะ แล้ว strict mode ของ Playwright จะแดงแบบสุ่ม
+  await expect(page.getByRole("heading", { name: subject })).toBeVisible()
 
   const documentUrl = page.url()
 

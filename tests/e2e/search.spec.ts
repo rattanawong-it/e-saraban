@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { SEARCH } from "@/constants/ui"
+import { REGISTER_REPORT, SEARCH } from "@/constants/ui"
 
 // ตัวกรองของหน้าค้นหาขั้นสูง (spec §10.1)
 //
@@ -51,4 +51,25 @@ test("กดปุ่ม back ของเบราว์เซอร์แล�
 
   await expect(page.getByLabel(SEARCH.keyword)).toHaveValue("อบรม")
   await expect(page.getByLabel(SEARCH.direction)).toHaveValue("INTERNAL")
+})
+
+// ── หน้าทะเบียนหนังสือใช้ฟอร์มคนละตัวแต่เป็นแบบแผนเดียวกัน ────────────────
+//
+// ⚠️ ของหน้านี้อันตรายกว่า เพราะปุ่มดาวน์โหลดพก query จาก URL ไปทั้งชุด
+// ถ้าตัวกรองบนจอไม่ตรงกับ URL ผู้ใช้จะเห็นเงื่อนไขชุดหนึ่งแต่ได้ไฟล์ของอีกชุดหนึ่ง
+
+test("ทะเบียนหนังสือ: กดล้างเงื่อนไขแล้วเล่มทะเบียนต้องกลับเป็นค่าเริ่มต้น", async ({ page }) => {
+  await page.goto("/reports/register")
+
+  await page.getByLabel(REGISTER_REPORT.book).selectOption("incoming")
+  await page.getByRole("button", { name: REGISTER_REPORT.submit }).click()
+  await page.waitForURL(/\/reports\/register\?/)
+
+  await expect(page.getByLabel(REGISTER_REPORT.book)).toHaveValue("incoming")
+
+  await page.getByRole("link", { name: REGISTER_REPORT.reset }).click()
+  await expect(page).toHaveURL(/\/reports\/register$/)
+
+  // เดิมค้างเป็น incoming ทั้งที่ URL ว่างแล้ว
+  await expect(page.getByLabel(REGISTER_REPORT.book)).toHaveValue("outgoing")
 })
