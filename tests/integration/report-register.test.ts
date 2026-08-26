@@ -228,6 +228,22 @@ describe("ทะเบียนหนังสือส่ง", () => {
     expect(ours(incoming.rows)).toEqual([])
   })
 
+  it("⚠️ ไม่เลือกหน่วยงาน = หัวทะเบียนต้องเป็น 'ทุกหน่วยงาน' ไม่ใช่หน่วยงานที่ผู้ใช้ทำงานอยู่", async () => {
+    // หัวกระดาษที่ประกาศชื่อหน่วยงานหนึ่ง ทั้งที่ข้างในเป็นรายการของทุกหน่วยงาน
+    // คือเอกสารราชการที่บอกข้อมูลเท็จ — และไฟล์นั้นเดินออกไปถึงผู้ตรวจสอบ
+    const all = await getRegisterReport(fixture.owner, { book: "outgoing", year: fixture.year })
+
+    expect(all.orgUnitName).toBe("ทุกหน่วยงาน")
+
+    const scoped = await getRegisterReport(fixture.owner, {
+      book: "outgoing",
+      orgUnitId: fixture.orgUnitId,
+      year: fixture.year,
+    })
+
+    expect(scoped.orgUnitName).not.toBe("ทุกหน่วยงาน")
+  })
+
   it("คอลัมน์ครบตามแบบของระเบียบ และช่อง 'จาก' เป็นหน่วยงานเจ้าของเรื่อง", async () => {
     const report = await getRegisterReport(fixture.owner, {
       book: "outgoing",

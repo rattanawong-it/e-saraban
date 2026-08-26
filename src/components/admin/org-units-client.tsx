@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useMemo, useState } from "react"
+import { memo, useActionState, useDeferredValue, useEffect, useMemo, useState } from "react"
 import {
   Archive,
   ArchiveRestore,
@@ -103,18 +103,29 @@ export function OrgUnitsClient({
   const [creating, setCreating] = useState(false)
   const [query, setQuery] = useState("")
 
+  // ⚠️ ผังจริงมี 372 หน่วย และตอนค้นหาทุกกิ่งถูกกางออกหมดเพื่อให้เห็นผลลัพธ์
+  // การกรอง+เรนเดอร์ใหม่ทุกครั้งที่กดแป้นจึงหนักพอจะทำให้ช่องพิมพ์ค้างไปทั้งหน้า
+  // (เจอตอนทดสอบด้วยมือ: พิมพ์รหัส 6 หลักแล้วแท็บไม่ตอบสนองจนต้องเปิดใหม่)
+  //
+  // useDeferredValue ให้ตัวหนังสือขึ้นในช่องทันที ส่วนผังตามมาทีหลังได้
+  const deferredQuery = useDeferredValue(query)
+
   // ผังจริงมี 372 หน่วย การกางทั้งหมดทำให้หน้ายาวเป็นหมื่นพิกเซล
   // ค่าเริ่มต้นจึงกางแค่ระดับบนสุด แล้วให้ผู้ใช้กางเองหรือใช้ช่องค้นหา
   const [expandAllAt, setExpandAllAt] = useState(0)
   const [collapseAllAt, setCollapseAllAt] = useState(0)
 
-  const filtered = useMemo(() => filterTree(tree, query), [tree, query])
+  // ตัวอักษรเดียวแทบไม่กรองอะไรออกเลย — ได้ผังทั้งใบที่กางหมดซึ่งเป็นกรณีที่หนักที่สุด
+  // และไม่ช่วยผู้ใช้หาอะไรเจอด้วย · เริ่มกรองจริงเมื่อพิมพ์ตั้งแต่สองตัวขึ้นไป
+  const effectiveQuery = deferredQuery.trim().length >= 2 ? deferredQuery : ""
+
+  const filtered = useMemo(() => filterTree(tree, effectiveQuery), [tree, effectiveQuery])
   const matchCount = useMemo(() => flattenTree(filtered).length, [filtered])
   const issuingCount = useMemo(
     () => allNodes.filter((node) => node.canIssueNumber).length,
     [allNodes],
   )
-  const searching = query.trim().length > 0
+  const searching = effectiveQuery.length > 0
 
   // หน่วยงานที่เลือกไว้หายไปจากผัง (ถูกกรองออก/เก็บถาวร) → ตกกลับไปที่ตัวแรก
   // คำนวณตอน render แทนการ setState ใน effect เพื่อไม่ให้เกิด render ซ้อน
@@ -146,12 +157,15 @@ export function OrgUnitsClient({
             <Search className="size-4 shrink-0 text-text-subtle" aria-hidden />
             <Input
               type="search"
+              // ซ่อนปุ่มกากบาทของเบราว์เซอร์ — ช่องนี้มีปุ่มล้างของตัวเองอยู่แล้ว
+              // ปล่อยไว้จะเห็นกากบาทสองอันติดกัน
+              className="[&::-webkit-search-cancel-button]:hidden"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={ORG_UNITS.searchPlaceholder}
               aria-label={ORG_UNITS.searchPlaceholder}
             />
-            {searching ? (
+            {query.length > 0 ? (
               <button
                 type="button"
                 onClick={() => setQuery("")}
@@ -260,7 +274,7 @@ function filterTree(nodes: OrgUnitNodeView[], query: string): OrgUnitNodeView[] 
   })
 }
 
-function TreeRow({
+const TreeRow = memo(function TreeRow({
   node,
   selectedId,
   onSelect,
@@ -367,7 +381,7 @@ function TreeRow({
       ) : null}
     </div>
   )
-}
+})
 
 function OrgUnitDetail({
   unit,
@@ -568,10 +582,16 @@ function ConfidentialRegistrarCard({
 
   return (
     <Card className="overflow-hidden">
+      {/* ไม่ใส่ action เป็นไอคอนเดี่ยว — CardHeader เป็น flex-wrap พอคำอธิบายยาว
+          ไอคอนจะตกลงมาบรรทัดล่างแล้วดูเหมือนหลุดมาลอยอยู่เฉย ๆ */}
       <CardHeader
-        title={ORG_UNITS.registrarTitle}
+        title={
+          <span className="flex items-center gap-2">
+            <ShieldCheck className="size-4 shrink-0 text-text-subtle" aria-hidden />
+            {ORG_UNITS.registrarTitle}
+          </span>
+        }
         description={ORG_UNITS.registrarDescription}
-        action={<ShieldCheck className="size-4 text-text-subtle" aria-hidden />}
       />
 
       <form action={formAction} className="flex flex-col gap-3 p-5" key={unit.id}>

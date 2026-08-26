@@ -243,12 +243,19 @@ function joinOrDash(names: string[]): string {
   return names.length > 0 ? names.join(" · ") : "-"
 }
 
+/**
+ * ชื่อหน่วยงานที่จะขึ้นหัวทะเบียน
+ *
+ * ⚠️ ต้องมาจาก **ตัวกรองที่ผู้ใช้เลือกเท่านั้น** ห้าม fallback ไปหน่วยงานที่ผู้ใช้ทำงานอยู่
+ * เพราะข้อมูลไม่ได้ถูกกรองด้วยหน่วยนั้น · หัวกระดาษจะประกาศว่าเป็นทะเบียนของหน่วยงานหนึ่ง
+ * ทั้งที่ข้างในเป็นรายการของทุกหน่วยงาน แล้วไฟล์นั้นก็เดินออกไปถึงผู้ตรวจสอบ
+ * (เจอตอนทดสอบด้วยมือ — เทสต์ไม่จับ เพราะทุกเคสส่ง orgUnitId มาเสมอ)
+ */
 async function resolveOrgUnitName(ctx: ServiceContext, orgUnitId?: string): Promise<string> {
-  const id = orgUnitId ?? ctx.activeOrgUnitId
-  if (!id) return "ทุกหน่วยงาน"
+  if (!orgUnitId) return "ทุกหน่วยงาน"
 
   const unit = await prisma.orgUnit.findFirst({
-    where: { id, tenantId: ctx.tenantId },
+    where: { id: orgUnitId, tenantId: ctx.tenantId },
     select: { nameTh: true },
   })
 
