@@ -146,6 +146,8 @@ model OrgUnit {
   documentActions      DocumentAction[]
   numberSequences      NumberSequence[]
 
+  confidentialRegistrars ConfidentialRegistrar[]
+
   @@unique([tenantId, code])
   /// spec §9.2 — subtree query ด้วย LIKE 'path%'
   @@index([path])
@@ -198,6 +200,9 @@ model User {
   documentActions       DocumentAction[]
   uploadedAttachments   Attachment[]           @relation("AttachmentUploadedBy")
   grantedDocumentAcls   DocumentAcl[]          @relation("DocumentAclGrantedBy")
+
+  confidentialRegistrarOf        ConfidentialRegistrar[] @relation("ConfidentialRegistrarUser")
+  assignedConfidentialRegistrars ConfidentialRegistrar[] @relation("ConfidentialRegistrarAssignedBy")
 
   @@index([tenantId, isActive])
   @@index([tenantId, lastName, firstName])
@@ -526,6 +531,10 @@ enum AclPermission {
   DOWNLOAD
   EDIT
   MANAGE
+
+  /// นายทะเบียนหนังสือลับ — ออกเลขและเห็นแถวในทะเบียนได้ แต่เปิดไฟล์แนบไม่ได้
+  /// ระบบออกให้เองตอนส่งเอกสารลับเข้าคิวออกเลข · ให้ด้วยมือจากหน้าเอกสารไม่ได้
+  REGISTER
 }
 
 enum AclEffect {
@@ -634,6 +643,13 @@ model Document {
   @@index([tenantId, docNo])
   @@index([documentTypeId])
   @@index([parentDocumentId])
+  /// ⚠️ สาม index ข้างล่างนี้คือหัวใจของการค้นภาษาไทย (§9.2) สร้างมาตั้งแต่ migration ของ P2
+  /// ต้องประกาศไว้ที่นี่ด้วย ไม่งั้น `migrate dev` จะเห็นว่าเป็นส่วนเกินที่ไม่มีในแบบ
+  /// แล้วใส่ DROP INDEX มาให้ในทุก migration ถัดจากนี้ — ลบไปแล้วการค้นจะยังทำงานถูก
+  /// แต่กลายเป็น seq scan ทั้งตาราง ซึ่งเทสต์บนฐานเล็กจับไม่ได้เลย
+  @@index([subject(ops: raw("gin_trgm_ops"))], map: "documents_subject_trgm_idx", type: Gin)
+  @@index([docNo(ops: raw("gin_trgm_ops"))], map: "documents_docNo_trgm_idx", type: Gin)
+  @@index([searchVector], map: "documents_searchVector_idx", type: Gin)
   @@map("documents")
 }
 
@@ -770,4 +786,29 @@ model DocumentAcl {
   @@unique([documentId, principalType, principalId, permission])
   @@index([documentId])
   @@map("document_acls")
+}
+
+/// นายทะเบียนหนังสือลับของหน่วยงานหนึ่ง (ระเบียบว่าด้วยการรักษาความลับของทางราชการ 2544)
+///
+/// ทำไมต้องมีตารางนี้: §4.3 ข้อ 5 บังคับว่าเอกสารชั้นความลับต้องมี ACL **ระบุตัวบุคคล**
+/// เจ้าหน้าที่สารบรรณจึงออกเลขให้เอกสารลับไม่ได้เลยถ้าไม่มีใครออก ACL ให้เขาก่อน
+/// การให้ ACL แบบกลุ่ม (ROLE/ORG_UNIT) ใช้แทนไม่ได้เพราะด่านนั้นดูเฉพาะ ACL ที่ระบุตัวคน
+///
+/// ตั้งได้หลายคนต่อหน่วยงาน — ของจริงต้องมีผู้ช่วยนายทะเบียนไว้ตอนคนหลักลาพักร้อน
+/// ไม่งั้นเอกสารลับทั้งหน่วยงานค้างคิวจนกว่าเขาจะกลับมา
+model ConfidentialRegistrar {
+  id        String @id @default(uuid(7))
+  orgUnitId String
+  userId    String
+
+  assignedById String
+  assignedAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  orgUnit    OrgUnit @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
+  user       User    @relation("ConfidentialRegistrarUser", fields: [userId], references: [id], onDelete: Restrict)
+  assignedBy User    @relation("ConfidentialRegistrarAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  @@unique([orgUnitId, userId])
+  @@index([orgUnitId])
+  @@map("confidential_registrars")
 }

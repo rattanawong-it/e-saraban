@@ -54,6 +54,10 @@ export interface GranteeCandidate {
 /** เหตุผลที่ระบบเขียนกำกับตอนออก ACL ให้เอง — document.service ใช้ค่าเดียวกันนี้ */
 export const AUTOMATIC_ACL_REASON = "ระบบออกให้อัตโนมัติเมื่อเอกสารเป็นชั้นความลับ"
 
+/** ACL ของนายทะเบียนหนังสือลับ — แยกข้อความไว้เพื่อให้ผู้ดูแลอ่านแล้วรู้ว่ามาจากตำแหน่ง ไม่ใช่คนกดให้ */
+export const REGISTRAR_ACL_REASON =
+  "ระบบออกให้อัตโนมัติแก่นายทะเบียนหนังสือลับของหน่วยงานเจ้าของเรื่อง"
+
 export async function listDocumentAcl(
   ctx: ServiceContext,
   documentId: string,
@@ -93,7 +97,7 @@ export async function listDocumentAcl(
       grantedAt: row.grantedAt,
       grantedByName: fullName(row.grantedBy),
       expiresAt: row.expiresAt,
-      isAutomatic: row.reason === AUTOMATIC_ACL_REASON,
+      isAutomatic: row.reason === AUTOMATIC_ACL_REASON || row.reason === REGISTRAR_ACL_REASON,
       isOwner: row.principalId === document.createdById,
     }
   })
@@ -250,6 +254,16 @@ export async function revokeDocumentAcl(ctx: ServiceContext, documentId: string,
   if (acl.principalId === document.createdById && acl.effect === "ALLOW") {
     throw new ServiceError(
       "ถอนสิทธิ์ของเจ้าของเรื่องไม่ได้ — เอกสารจะไม่เหลือผู้ดูแล",
+      "VALIDATION",
+    )
+  }
+
+  // ⚠️ สิทธิ์ของนายทะเบียนหนังสือลับมาจาก "ตำแหน่ง" ไม่ใช่การให้ด้วยมือ ถอนตรงนี้ได้เมื่อไร
+  // เอกสารจะค้างคิวโดยไม่มีใครออกเลขให้ และคนถอนจะไม่รู้ตัวว่าทำให้ทะเบียนหยุดเดิน
+  // ถ้าจะเปลี่ยนตัวนายทะเบียนต้องไปแก้ที่หน่วยงาน ซึ่งมีร่องรอยใน audit ของตัวเอง
+  if (acl.permission === "REGISTER") {
+    throw new ServiceError(
+      "ถอนสิทธิ์ของนายทะเบียนหนังสือลับที่นี่ไม่ได้ — ต้องแก้รายชื่อนายทะเบียนที่หน้าจัดการหน่วยงาน",
       "VALIDATION",
     )
   }

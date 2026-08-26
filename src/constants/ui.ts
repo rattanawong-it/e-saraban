@@ -249,6 +249,21 @@ export const ORG_UNITS = {
   canIssueNumberHint:
     "หน่วยระดับ “งาน” และหลักสูตรออกเลขไม่ได้ตามกติกาที่ตกลงไว้ (spec D15) — ปิดไว้แล้วรหัสหน่วยงานนี้จะไม่ถูกใช้เป็นเลขทะเบียน",
   cannotIssue: "ออกเลขไม่ได้",
+
+  registrarTitle: "นายทะเบียนหนังสือลับ",
+  registrarDescription:
+    "ผู้ที่ออกเลขทะเบียนให้เอกสารชั้นความลับของหน่วยงานนี้ได้ · เห็นชื่อเรื่องในทะเบียน แต่เปิดไฟล์แนบไม่ได้",
+  registrarEmpty: "ยังไม่ได้ตั้งนายทะเบียน",
+  registrarEmptyWarning:
+    "หน่วยงานนี้ยังส่งเอกสารชั้นความลับเข้าคิวออกเลขไม่ได้ — ระบบจะปฏิเสธตั้งแต่ตอนกดส่ง จนกว่าจะตั้งนายทะเบียนอย่างน้อยหนึ่งคน",
+  registrarAdd: "เพิ่มนายทะเบียน",
+  registrarAddPlaceholder: "เลือกผู้ใช้...",
+  registrarRemove: "ถอนออกจากตำแหน่ง",
+  registrarClearanceHint: (level: number) => `ชั้นความลับ ${level}`,
+  registrarClearanceWarning: "ชั้นความลับ 0 เป็นนายทะเบียนหนังสือลับไม่ได้",
+  registrarOnlyIssuingUnit:
+    "หน่วยงานนี้ออกเลขหนังสือไม่ได้ จึงไม่ต้องมีนายทะเบียนหนังสือลับ — เอกสารของหน่วยนี้ออกเลขในนามหน่วยงานแม่",
+  registrarAssignedBy: (name: string, at: string) => `ตั้งโดย ${name} · ${at}`,
   searchPlaceholder: "ค้นหาชื่อหรือรหัสหน่วยงาน...",
   searchEmpty: "ไม่พบหน่วยงานที่ตรงกับคำค้น",
   matchCount: (found: number, total: number) =>
@@ -454,7 +469,10 @@ export const ACL = {
     DOWNLOAD: "อ่าน+ไฟล์",
     EDIT: "แก้ไข",
     MANAGE: "ดูแลทั้งหมด",
+    REGISTER: "นายทะเบียนลับ",
   },
+  /** REGISTER ไม่อยู่ในตัวเลือกของฟอร์มให้สิทธิ์ — ระบบออกให้จากตำแหน่งเท่านั้น */
+  registrarTag: "นายทะเบียนหนังสือลับ",
   effectOptions: {
     ALLOW: "อนุญาต",
     DENY: "ห้าม (ชนะทุกสิทธิ์ที่มีอยู่)",

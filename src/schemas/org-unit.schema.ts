@@ -54,3 +54,11 @@ export const archiveOrgUnitSchema = z.object({
   id: z.string().min(1),
   isActive: z.boolean(),
 })
+
+/** ตั้งนายทะเบียนหนังสือลับของหน่วยงาน — ส่งมาเป็นชุดเต็ม ไม่ใช่เพิ่ม/ลบทีละคน */
+export const setConfidentialRegistrarsSchema = z.object({
+  orgUnitId: z.string().min(1),
+  userIds: z.array(z.string().min(1)),
+})
+
+export type SetConfidentialRegistrarsInput = z.infer<typeof setConfidentialRegistrarsSchema>

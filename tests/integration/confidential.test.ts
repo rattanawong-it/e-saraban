@@ -72,10 +72,19 @@ beforeAll(async () => {
   const author = await prisma.user.findFirst({ where: { username: "registrar" } })
   const recipient = await prisma.user.findFirst({ where: { username: "dean.eng" } })
   const lowClearance = await prisma.user.findFirst({ where: { username: "somchai.j" } })
+  const registrar = await prisma.user.findFirst({ where: { username: "rattana.wong" } })
 
-  if (!tenant || !orgUnit || !otherUnit || !author || !recipient || !lowClearance) {
+  if (!tenant || !orgUnit || !otherUnit || !author || !recipient || !lowClearance || !registrar) {
     throw new Error("ยังไม่ได้ seed — รัน pnpm db:seed ก่อน")
   }
+
+  // ตั้งแต่ P4 เอกสารลับส่งเข้าคิวออกเลขไม่ได้ถ้าหน่วยงานยังไม่มีนายทะเบียนหนังสือลับ
+  // (ดู confidential-registrar.test.ts) — ชุดนี้จึงต้องตั้งไว้ก่อน ไม่งั้นติดตั้งแต่ด่านแรก
+  await prisma.confidentialRegistrar.upsert({
+    where: { orgUnitId_userId: { orgUnitId: orgUnit.id, userId: registrar.id } },
+    update: {},
+    create: { orgUnitId: orgUnit.id, userId: registrar.id, assignedById: author.id },
+  })
 
   const documentType = await prisma.documentType.upsert({
     where: { tenantId_code: { tenantId: tenant.id, code: "TEST_CONF_MEMO" } },
@@ -127,6 +136,9 @@ beforeAll(async () => {
 afterAll(async () => {
   if (!fixture) return
 
+  await prisma.confidentialRegistrar.deleteMany({
+    where: { orgUnit: { code: "510000" }, user: { username: "rattana.wong" } },
+  })
   await prisma.documentAcl.deleteMany({ where: { documentId: { in: createdDocumentIds } } })
   await prisma.documentRecipient.deleteMany({ where: { documentId: { in: createdDocumentIds } } })
   await prisma.documentAction.deleteMany({ where: { documentId: { in: createdDocumentIds } } })

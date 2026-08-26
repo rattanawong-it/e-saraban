@@ -43,7 +43,7 @@ export interface AuthzAclEntry {
   principalType: "USER" | "ORG_UNIT" | "ROLE"
   principalId: string
   /** สิทธิ์ที่ ACL นี้ให้ — ใช้ชุดหยาบตาม spec §9.1 */
-  permission: "VIEW" | "DOWNLOAD" | "EDIT" | "MANAGE"
+  permission: "VIEW" | "DOWNLOAD" | "EDIT" | "MANAGE" | "REGISTER"
   effect: "ALLOW" | "DENY"
   expiresAt?: Date | null
 }
@@ -110,6 +110,11 @@ const ACL_COVERAGE: Record<AuthzAclEntry["permission"], readonly Permission[] | 
   ],
   // เจ้าของเรื่องต้องทำได้ทุกอย่างกับเอกสารของตัวเอง รวมถึงให้สิทธิ์คนอื่นต่อ
   MANAGE: "ALL",
+
+  // นายทะเบียนหนังสือลับ — งานของเขาคือ "ลงทะเบียนแล้วส่งต่อ" ไม่ใช่ "อ่านเรื่อง"
+  // จึงจงใจไม่ให้ ATTACHMENT_DOWNLOAD · เห็นแถวในทะเบียนกับออกเลขได้เท่านั้น
+  // ถ้าวันหนึ่งเขาต้องอ่านเนื้อในจริง เจ้าของเรื่องให้สิทธิ์เพิ่มเป็นราย ๆ ได้อยู่แล้ว (§9.1)
+  REGISTER: [PERMISSIONS.DOCUMENT_READ, PERMISSIONS.DOCUMENT_NUMBER_ISSUE],
 }
 
 /** ACL แถวนี้ครอบคลุมสิทธิ์ที่กำลังขอหรือไม่ */

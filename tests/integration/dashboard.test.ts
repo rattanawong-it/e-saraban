@@ -80,10 +80,21 @@ beforeAll(async () => {
   const registrar = await prisma.user.findFirst({ where: { username: "registrar" } })
   const outsider = await prisma.user.findFirst({ where: { username: "somchai.j" } })
   const colleague = await prisma.user.findFirst({ where: { username: "dean.eng" } })
+  const confidentialRegistrar = await prisma.user.findFirst({
+    where: { username: "rattana.wong" },
+  })
 
-  if (!orgUnit || !otherUnit || !registrar || !outsider || !colleague) {
+  if (!orgUnit || !otherUnit || !registrar || !outsider || !colleague || !confidentialRegistrar) {
     throw new Error("ข้อมูล seed ไม่ครบ")
   }
+
+  // เอกสารลับส่งเข้าคิวไม่ได้ถ้าหน่วยงานไม่มีนายทะเบียนหนังสือลับ (ดู confidential-registrar.test.ts)
+  // ตั้งเป็นคนที่ไม่ใช่ colleague โดยตั้งใจ — ไม่งั้นเขาจะ "เห็น" เอกสารลับได้ตามสิทธิ์จริง
+  await prisma.confidentialRegistrar.upsert({
+    where: { orgUnitId_userId: { orgUnitId: orgUnit.id, userId: confidentialRegistrar.id } },
+    update: {},
+    create: { orgUnitId: orgUnit.id, userId: confidentialRegistrar.id, assignedById: registrar.id },
+  })
 
   const documentType = await prisma.documentType.upsert({
     where: { tenantId_code: { tenantId: tenant.id, code: "TEST_DASH_MEMO" } },
@@ -143,6 +154,9 @@ beforeAll(async () => {
 afterAll(async () => {
   if (!fixture) return
 
+  await prisma.confidentialRegistrar.deleteMany({
+    where: { orgUnit: { code: "510000" }, user: { username: "rattana.wong" } },
+  })
   await prisma.documentAcl.deleteMany({ where: { documentId: { in: createdDocumentIds } } })
   await prisma.documentRecipient.deleteMany({ where: { documentId: { in: createdDocumentIds } } })
   await prisma.documentAction.deleteMany({ where: { documentId: { in: createdDocumentIds } } })

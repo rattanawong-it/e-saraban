@@ -482,3 +482,42 @@ describe("can() — ลำดับของด่านต้องถูกต
     expect(result).toMatchObject({ reason: "NO_PERMISSION" })
   })
 })
+
+describe("can() — ACL ชนิด REGISTER ของนายทะเบียนหนังสือลับ", () => {
+  const registrarAcl = {
+    principalType: "USER" as const,
+    principalId: "user-1",
+    permission: "REGISTER" as const,
+    effect: "ALLOW" as const,
+  }
+
+  const ctx = makeCtx({
+    clearanceLevel: 3,
+    permissions: grants(
+      [PERMISSIONS.DOCUMENT_READ, "ORG"],
+      [PERMISSIONS.DOCUMENT_NUMBER_ISSUE, "ORG"],
+      [PERMISSIONS.ATTACHMENT_DOWNLOAD, "ORG"],
+      [PERMISSIONS.DOCUMENT_UPDATE, "ORG"],
+      [PERMISSIONS.ATTACHMENT_GRANT, "ORG"],
+    ),
+  })
+
+  const doc = makeDoc({ confidentialityLevel: 2, acl: [registrarAcl] })
+
+  it("ออกเลขทะเบียนให้เอกสารลับได้ — เหตุผลเดียวที่ตำแหน่งนี้มีอยู่", () => {
+    expect(can(ctx, PERMISSIONS.DOCUMENT_NUMBER_ISSUE, doc).allowed).toBe(true)
+  })
+
+  it("เห็นแถวในทะเบียนได้ ไม่งั้นก็ไม่มีทางกดออกเลข", () => {
+    expect(can(ctx, PERMISSIONS.DOCUMENT_READ, doc).allowed).toBe(true)
+  })
+
+  it("⚠️ เปิดไฟล์แนบไม่ได้ — นายทะเบียนลงทะเบียนซองที่ปิดผนึก ไม่ได้อ่านเนื้อใน", () => {
+    expect(can(ctx, PERMISSIONS.ATTACHMENT_DOWNLOAD, doc).allowed).toBe(false)
+  })
+
+  it("แก้เอกสารไม่ได้ และให้สิทธิ์คนอื่นต่อไม่ได้", () => {
+    expect(can(ctx, PERMISSIONS.DOCUMENT_UPDATE, doc).allowed).toBe(false)
+    expect(can(ctx, PERMISSIONS.ATTACHMENT_GRANT, doc).allowed).toBe(false)
+  })
+})

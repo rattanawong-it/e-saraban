@@ -19,8 +19,9 @@ import type {
 } from "@/schemas/document.schema"
 
 import type { ServiceContext } from "../context"
-import { AUTOMATIC_ACL_REASON } from "./acl.service"
+import { AUTOMATIC_ACL_REASON, REGISTRAR_ACL_REASON } from "./acl.service"
 import { encryptDocumentAttachments } from "./attachment.service"
+import { eligibleRegistrars, fullName as registrarName } from "./confidential-registrar.service"
 import { assertPermission, ServiceError } from "./errors"
 import { issueNumberWithin } from "./numbering.service"
 
@@ -378,6 +379,10 @@ export async function submitDocument(ctx: ServiceContext, id: string, note?: str
     transition: "SUBMITTED",
     permission: PERMISSIONS.DOCUMENT_SUBMIT,
     note,
+    // เอกสารลับเข้าคิวออกเลข = ต้องมีนายทะเบียนหนังสือลับรับไม้ต่อ ไม่งั้นค้างคิวถาวร
+    extra: async (tx, document) => {
+      await grantRegistrarAcl(tx, ctx, document)
+    },
   })
 }
 
@@ -676,6 +681,51 @@ async function grantRecipientAcl(
 }
 
 /**
+ * ACL ของนายทะเบียนหนังสือลับ — ออกให้ตอนเอกสารลับเข้าคิวออกเลข
+ *
+ * ⚠️ ก่อนหน้านี้ไม่มีใครออก ACL ให้เจ้าหน้าที่สารบรรณเลย เอกสารชั้นความลับจึง **ออกเลขไม่ได้
+ * สักฉบับตั้งแต่ P3** โดยไม่มีใครเจอ เพราะเทสต์เดิมออกเลขด้วยเอกสารชั้น 0 ทั้งหมด
+ *
+ * ปฏิเสธตั้งแต่ตอนส่งถ้าหน่วยงานยังไม่ได้ตั้งนายทะเบียน — ดีกว่าปล่อยให้เอกสารไปนอนใน
+ * คิวที่ไม่มีใครกดได้ แล้วผู้ส่งเข้าใจว่าส่งเรียบร้อยแล้ว (บทเรียนเดียวกับ §21.2)
+ */
+async function grantRegistrarAcl(
+  tx: TransactionClient,
+  ctx: ServiceContext,
+  document: ConfidentialDocument & { ownerUnitId: string; ownerUnit: { nameTh: string } },
+) {
+  if (document.confidentialityLevel === 0) return
+
+  const { all, eligible } = await eligibleRegistrars(
+    tx,
+    document.ownerUnitId,
+    document.confidentialityLevel,
+  )
+
+  if (all.length === 0) {
+    throw new ServiceError(
+      `หน่วยงาน "${document.ownerUnit.nameTh}" ยังไม่ได้ตั้งนายทะเบียนหนังสือลับ จึงไม่มีใครออกเลขให้เอกสารชั้นความลับได้ — กรุณาติดต่อผู้ดูแลระบบให้ตั้งก่อน`,
+      "VALIDATION",
+    )
+  }
+
+  if (eligible.length === 0) {
+    const names = all
+      .map((user) => `${registrarName(user)} (ชั้น ${user.clearanceLevel})`)
+      .join(" · ")
+
+    throw new ServiceError(
+      `นายทะเบียนหนังสือลับของหน่วยงานนี้มีชั้นความลับไม่ถึงระดับ ${document.confidentialityLevel} จึงออกเลขให้ไม่ได้: ${names}`,
+      "VALIDATION",
+    )
+  }
+
+  for (const user of eligible) {
+    await grantAcl(tx, ctx, document.id, user.id, "REGISTER", REGISTRAR_ACL_REASON)
+  }
+}
+
+/**
  * ผู้รับเอกสารลับต้องมีชั้นความลับถึง (§4.3 ข้อ 5 · ด่าน CLEARANCE)
  *
  * ⚠️ ถ้าไม่ตรวจตรงนี้ การเวียนจะสำเร็จ ผู้รับได้ ACL ครบ แต่เปิดเอกสารไม่ได้อยู่ดี
@@ -714,7 +764,8 @@ async function grantAcl(
   ctx: ServiceContext,
   documentId: string,
   userId: string,
-  permission: "MANAGE" | "DOWNLOAD",
+  permission: "MANAGE" | "DOWNLOAD" | "REGISTER",
+  reason: string = AUTOMATIC_ACL_REASON,
 ) {
   const existing = await tx.documentAcl.findUnique({
     where: {
@@ -739,7 +790,7 @@ async function grantAcl(
       permission,
       effect: "ALLOW",
       grantedById: ctx.userId,
-      reason: AUTOMATIC_ACL_REASON,
+      reason,
     },
   })
 

@@ -7,9 +7,11 @@ import {
   archiveOrgUnitSchema,
   createOrgUnitSchema,
   moveOrgUnitSchema,
+  setConfidentialRegistrarsSchema,
   updateOrgUnitSchema,
 } from "@/schemas/org-unit.schema"
 
+import { setConfidentialRegistrars } from "../services/confidential-registrar.service"
 import {
   createOrgUnit,
   moveOrgUnit,
@@ -146,5 +148,44 @@ export async function setOrgUnitActiveAction(
   revalidatePath(ADMIN_ORG_UNITS)
   return successState(
     parsed.data.isActive ? "นำหน่วยงานกลับมาใช้งานแล้ว" : "เก็บถาวรหน่วยงานเรียบร้อยแล้ว",
+  )
+}
+
+/**
+ * ตั้งนายทะเบียนหนังสือลับของหน่วยงาน
+ *
+ * ไม่มีนายทะเบียน = เอกสารชั้นความลับของหน่วยงานนี้ส่งเข้าคิวออกเลขไม่ได้เลย
+ * (ดู confidential-registrar.service.ts) จึงเป็นการตั้งค่าที่มีผลกับงานจริงทันที
+ */
+export async function setConfidentialRegistrarsAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const session = await requirePermission(PERMISSIONS.ORGUNIT_MANAGE)
+
+  const parsed = setConfidentialRegistrarsSchema.safeParse({
+    orgUnitId: readString(formData, "orgUnitId"),
+    // ช่องว่างที่ส่งมาจากฟอร์มตอนไม่เลือกใครเลยต้องกลายเป็น "ถอนทุกคน" ไม่ใช่ id เปล่า
+    userIds: formData.getAll("userIds").map(String).filter(Boolean),
+  })
+
+  if (!parsed.success) return zodErrorState(parsed.error)
+
+  try {
+    await setConfidentialRegistrars(session.ctx, parsed.data.orgUnitId, parsed.data.userIds)
+  } catch (error) {
+    return toActionError(error, {
+      ctx: session.ctx,
+      action: "orgunit.update",
+      entityType: "OrgUnit",
+    })
+  }
+
+  revalidatePath(ADMIN_ORG_UNITS)
+
+  return successState(
+    parsed.data.userIds.length === 0
+      ? "ถอนนายทะเบียนหนังสือลับออกทั้งหมดแล้ว — เอกสารชั้นความลับของหน่วยงานนี้จะส่งเข้าคิวออกเลขไม่ได้"
+      : `บันทึกนายทะเบียนหนังสือลับ ${parsed.data.userIds.length} คนเรียบร้อยแล้ว`,
   )
 }

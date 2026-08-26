@@ -12,6 +12,7 @@ import {
   Plus,
   Save,
   Search,
+  ShieldCheck,
   Users,
   X,
 } from "lucide-react"
@@ -25,6 +26,7 @@ import { Alert, Badge, Card, CardHeader, EmptyState } from "@/components/ui/prim
 import {
   createOrgUnitAction,
   moveOrgUnitAction,
+  setConfidentialRegistrarsAction,
   setOrgUnitActiveAction,
   updateOrgUnitAction,
 } from "@/server/actions/org-unit.actions"
@@ -65,9 +67,19 @@ export interface OrgUnitFlat {
   path: string
 }
 
+export interface RegistrarView {
+  userId: string
+  fullName: string
+  clearanceLevel: number
+  assignedByName: string
+  assignedAt: string
+}
+
 export interface UserOption {
   id: string
   fullName: string
+  /** ต่ำกว่า 1 = เป็นนายทะเบียนหนังสือลับไม่ได้ · แสดงให้เห็นตั้งแต่ตอนเลือก ไม่ใช่ตอนกดบันทึก */
+  clearanceLevel: number
 }
 
 const TYPE_OPTIONS = Object.entries(ORG_UNIT_TYPE_LABELS) as [OrgUnitTypeValue, string][]
@@ -76,11 +88,14 @@ export function OrgUnitsClient({
   tree,
   flat,
   users,
+  registrars,
   showArchived,
 }: {
   tree: OrgUnitNodeView[]
   flat: OrgUnitFlat[]
   users: UserOption[]
+  /** นายทะเบียนหนังสือลับต่อหน่วยงาน — คีย์คือ id ของหน่วยงาน */
+  registrars: Record<string, RegistrarView[]>
   showArchived: boolean
 }) {
   const allNodes = useMemo(() => flattenTree(tree), [tree])
@@ -190,7 +205,12 @@ export function OrgUnitsClient({
       </Card>
 
       {selected ? (
-        <OrgUnitDetail unit={selected} flat={flat} users={users} />
+        <OrgUnitDetail
+          unit={selected}
+          flat={flat}
+          users={users}
+          registrars={registrars[selected.id] ?? []}
+        />
       ) : (
         <Card>
           <EmptyState
@@ -353,10 +373,12 @@ function OrgUnitDetail({
   unit,
   flat,
   users,
+  registrars,
 }: {
   unit: OrgUnitNodeView
   flat: OrgUnitFlat[]
   users: UserOption[]
+  registrars: RegistrarView[]
 }) {
   const [state, formAction, pending] = useActionState(updateOrgUnitAction, IDLE_STATE)
 
@@ -484,9 +506,157 @@ function OrgUnitDetail({
         </form>
       </Card>
 
+      <ConfidentialRegistrarCard key={unit.id} unit={unit} users={users} registrars={registrars} />
       <MoveCard unit={unit} flat={flat} />
       <ArchiveCard unit={unit} />
     </div>
+  )
+}
+
+/**
+ * นายทะเบียนหนังสือลับของหน่วยงาน (ระเบียบว่าด้วยการรักษาความลับของทางราชการ 2544)
+ *
+ * ⚠️ ไม่ใช่การตั้งค่าเพื่อความสวยงาม — หน่วยงานที่ไม่มีนายทะเบียนจะส่งเอกสารชั้นความลับ
+ * เข้าคิวออกเลข **ไม่ได้เลย** การ์ดนี้จึงต้องบอกผลของการไม่ตั้งให้ชัดตั้งแต่ยังไม่ทันกด
+ */
+function ConfidentialRegistrarCard({
+  unit,
+  users,
+  registrars,
+}: {
+  unit: OrgUnitNodeView
+  users: UserOption[]
+  registrars: RegistrarView[]
+}) {
+  const [state, formAction, pending] = useActionState(setConfidentialRegistrarsAction, IDLE_STATE)
+  // ผู้เรียกส่ง key={unit.id} มาให้ — สลับหน่วยงานแล้วคอมโพเนนต์ถูกสร้างใหม่ทั้งตัว
+  // รายชื่อจึงกลับไปเริ่มจากของจริงบนฐานเสมอ ไม่ต้องมี effect คอยล้าง state ตามหลัง
+  const [selected, setSelected] = useState<RegistrarView[]>(registrars)
+  const [toAdd, setToAdd] = useState("")
+
+  // หน่วยงานที่ออกเลขไม่ได้ก็ไม่มีทะเบียนของตัวเอง (D15) — เอกสารไปออกเลขที่หน่วยงานแม่
+  if (!unit.canIssueNumber) {
+    return (
+      <Card className="overflow-hidden">
+        <CardHeader title={ORG_UNITS.registrarTitle} />
+        <p className="px-5 pb-5 text-[11px] leading-relaxed text-text-subtle">
+          {ORG_UNITS.registrarOnlyIssuingUnit}
+        </p>
+      </Card>
+    )
+  }
+
+  const chosenIds = new Set(selected.map((row) => row.userId))
+  const candidates = users.filter((user) => !chosenIds.has(user.id))
+
+  function add() {
+    const user = users.find((item) => item.id === toAdd)
+    if (!user) return
+
+    setSelected((rows) => [
+      ...rows,
+      {
+        userId: user.id,
+        fullName: user.fullName,
+        clearanceLevel: user.clearanceLevel,
+        assignedByName: "",
+        assignedAt: "",
+      },
+    ])
+    setToAdd("")
+  }
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader
+        title={ORG_UNITS.registrarTitle}
+        description={ORG_UNITS.registrarDescription}
+        action={<ShieldCheck className="size-4 text-text-subtle" aria-hidden />}
+      />
+
+      <form action={formAction} className="flex flex-col gap-3 p-5" key={unit.id}>
+        <input type="hidden" name="orgUnitId" value={unit.id} />
+        {selected.map((row) => (
+          <input key={row.userId} type="hidden" name="userIds" value={row.userId} />
+        ))}
+
+        {state.status === "error" ? <Alert tone="danger" title={state.message} /> : null}
+        {state.status === "success" ? <Alert tone="success" title={state.message} /> : null}
+
+        {selected.length === 0 ? (
+          <Alert tone="warning" title={ORG_UNITS.registrarEmpty}>
+            {ORG_UNITS.registrarEmptyWarning}
+          </Alert>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {selected.map((row) => (
+              <li
+                key={row.userId}
+                className="flex items-center justify-between gap-2 rounded-xl border border-border p-3"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] font-semibold text-text-strong">
+                    {row.fullName}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-text-subtle">
+                    {row.clearanceLevel < 1
+                      ? ORG_UNITS.registrarClearanceWarning
+                      : ORG_UNITS.registrarClearanceHint(row.clearanceLevel)}
+                    {row.assignedByName
+                      ? ` · ${ORG_UNITS.registrarAssignedBy(row.assignedByName, row.assignedAt)}`
+                      : ""}
+                  </span>
+                </span>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  title={ORG_UNITS.registrarRemove}
+                  onClick={() =>
+                    setSelected((rows) => rows.filter((item) => item.userId !== row.userId))
+                  }
+                >
+                  <X className="size-4" aria-hidden />
+                  <span className="sr-only">{ORG_UNITS.registrarRemove}</span>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="flex gap-2">
+          <Select
+            aria-label={ORG_UNITS.registrarAdd}
+            value={toAdd}
+            onChange={(event) => setToAdd(event.target.value)}
+            className="flex-1"
+          >
+            <option value="">{ORG_UNITS.registrarAddPlaceholder}</option>
+            {candidates.map((user) => (
+              <option key={user.id} value={user.id} disabled={user.clearanceLevel < 1}>
+                {user.fullName}
+                {user.clearanceLevel < 1 ? ` — ${ORG_UNITS.registrarClearanceWarning}` : ""}
+              </option>
+            ))}
+          </Select>
+
+          <Button type="button" variant="outline" onClick={add} disabled={!toAdd}>
+            <Plus className="size-4" aria-hidden />
+            {ORG_UNITS.registrarAdd}
+          </Button>
+        </div>
+
+        <Button type="submit" disabled={pending} block>
+          {pending ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Save className="size-4" aria-hidden />
+          )}
+          {COMMON.saveChanges}
+        </Button>
+      </form>
+    </Card>
   )
 }
 
