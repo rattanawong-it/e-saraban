@@ -12,7 +12,7 @@ import { prisma } from "@/lib/db"
 // ทำไมไม่ใช้บัญชีของผู้พัฒนา: รหัสผ่านของคนจริงไม่ควรอยู่ในโค้ดที่ commit ขึ้น git
 // และเทสต์ที่พึ่งบัญชีของใครคนหนึ่งจะพังทันทีที่เขาเปลี่ยนรหัสหรือถูกปรับสิทธิ์
 
-import { E2E_PASSWORD, E2E_PREFIX, E2E_USERNAME } from "./constants"
+import { E2E_NOTIFICATION, E2E_PASSWORD, E2E_PREFIX, E2E_USERNAME } from "./constants"
 
 // ตรงกับ ARGON2_OPTIONS ของ prisma/seed.ts — ถ้าไม่ตรง แฮชที่ได้จะตรวจไม่ผ่านตอนล็อกอิน
 const ARGON2_OPTIONS = { algorithm: 2, memoryCost: 19_456, timeCost: 2, parallelism: 1 } as const
@@ -85,6 +85,70 @@ export async function ensureE2EUser() {
 }
 
 /**
+ * เตรียมแจ้งเตือนให้เคสกระดิ่งมีของจริงให้ดู
+ *
+ * ต้องมีเอกสารจริงรองรับ เพราะ `listNotifications()` กรองผ่านด่านการมองเห็นเอกสาร —
+ * แถวที่ชี้ไปยังเอกสารที่ไม่มีอยู่จะถูกตัดทิ้ง ซึ่งเป็นพฤติกรรมที่เคสหนึ่งจงใจทดสอบ
+ *
+ * ⚠️ เขียนตรงเข้าตารางแทนที่จะเดินผ่าน service เพราะทุก transition ตัด "ผู้ลงมือ"
+ * ออกจากรายชื่อผู้รับเสมอ · e2e ล็อกอินเป็นคนเดียวตลอด ถ้าให้มันกดเอง
+ * มันจะไม่มีวันได้รับแจ้งเตือนของตัวเองเลยสักรอบ
+ */
+export async function ensureE2ENotifications() {
+  const user = await prisma.user.findUnique({ where: { username: E2E_USERNAME } })
+  if (!user) throw new Error("ยังไม่ได้สร้างบัญชี e2e")
+
+  const orgUnit = await prisma.orgUnit.findFirst({
+    where: { tenantId: user.tenantId, code: "510000" },
+  })
+  const documentType = await prisma.documentType.findFirst({
+    where: { tenantId: user.tenantId, direction: "INTERNAL", isActive: true },
+  })
+
+  if (!orgUnit || !documentType) throw new Error("ข้อมูล seed ไม่ครบ")
+
+  const document = await prisma.document.create({
+    data: {
+      tenantId: user.tenantId,
+      documentTypeId: documentType.id,
+      direction: "INTERNAL",
+      status: "DRAFT",
+      bookCode: documentType.defaultBookCode,
+      subject: `${E2E_PREFIX} เอกสารรองรับการแจ้งเตือน`,
+      confidentialityLevel: 0,
+      urgencyLevel: 0,
+      ownerUnitId: orgUnit.id,
+      createdById: user.id,
+      createdByUnitId: orgUnit.id,
+    },
+  })
+
+  await prisma.notification.createMany({
+    data: [
+      {
+        userId: user.id,
+        type: "document.circulated",
+        title: E2E_NOTIFICATION.visible,
+        body: "เอกสารที่ยังเปิดได้ จึงต้องแสดงบนกระดิ่ง",
+        refType: "DOCUMENT",
+        refId: document.id,
+      },
+      {
+        // ⚠️ ชี้ไปยังเอกสารที่ไม่มีอยู่จริง — ด่านการมองเห็นต้องกรองทิ้ง
+        userId: user.id,
+        type: "document.closed",
+        title: E2E_NOTIFICATION.orphan,
+        body: "เอกสารถูกลบไปแล้ว จึงต้องไม่โผล่บนกระดิ่ง",
+        refType: "DOCUMENT",
+        refId: "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      },
+    ],
+  })
+
+  return document.id
+}
+
+/**
  * ลบเอกสารที่ e2e สร้างไว้
  *
  * ⚠️ ไม่ลบตัวผู้ใช้ เพราะ audit log อ้างถึง `actorUserId` แบบ onDelete: Restrict
@@ -96,9 +160,17 @@ export async function cleanupE2EDocuments() {
     select: { id: true },
   })
 
-  if (documents.length === 0) return 0
-
   const ids = documents.map((row) => row.id)
+
+  // การแจ้งเตือนอ้างเอกสารด้วย refId ที่ไม่มี FK — ลบเอกสารเฉย ๆ จะเหลือแถวกำพร้าค้างฐาน
+  //
+  // ⚠️ อยู่**ก่อน** ด่าน "ไม่มีเอกสารก็จบ" โดยตั้งใจ — แถวที่ fixture ตั้งใจให้กำพร้า
+  // ไม่มีเอกสารรองรับอยู่แล้ว ถ้าวางไว้หลังด่านนั้นมันจะค้างฐานตลอดไป
+  await prisma.notification.deleteMany({
+    where: { OR: [{ refId: { in: ids } }, { title: { startsWith: E2E_PREFIX } }] },
+  })
+
+  if (documents.length === 0) return 0
 
   await prisma.documentAcl.deleteMany({ where: { documentId: { in: ids } } })
   await prisma.documentRecipient.deleteMany({ where: { documentId: { in: ids } } })
@@ -119,7 +191,8 @@ if (command) {
   const run = async () => {
     if (command === "ensure") {
       const user = await ensureE2EUser()
-      console.log(`[e2e] พร้อมใช้บัญชี ${user.username}`)
+      await ensureE2ENotifications()
+      console.log(`[e2e] พร้อมใช้บัญชี ${user.username} พร้อมแจ้งเตือนตัวอย่าง`)
     } else if (command === "cleanup") {
       const removed = await cleanupE2EDocuments()
       console.log(`[e2e] ลบเอกสารที่เทสต์สร้างไว้ ${removed} ฉบับ`)

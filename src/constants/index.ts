@@ -6,4 +6,5 @@
 
 export * from "./app"
 export * from "./document"
+export * from "./notification"
 export * from "./ui"

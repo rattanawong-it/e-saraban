@@ -22,6 +22,8 @@ export function AppShell({
   activeOrgUnitId,
   activeAffiliation,
   theme,
+  unreadCount,
+  unreadCap,
   children,
 }: {
   allowedPermissions: Permission[]
@@ -30,6 +32,9 @@ export function AppShell({
   activeOrgUnitId: string | null
   activeAffiliation: UserAffiliation | null
   theme: Theme
+  /** จำนวนแจ้งเตือนที่ยังไม่อ่าน — อ่านฝั่ง server ใน layout ไม่ใช่ polling ฝั่ง client */
+  unreadCount: number
+  unreadCap: number
   children: React.ReactNode
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -49,6 +54,8 @@ export function AppShell({
           activeOrgUnitId={activeOrgUnitId}
           activeAffiliation={activeAffiliation}
           theme={theme}
+          unreadCount={unreadCount}
+          unreadCap={unreadCap}
           onOpenMenu={() => setMenuOpen(true)}
         />
         <main className="flex-1 px-4 py-6 lg:px-8 lg:py-7">{children}</main>

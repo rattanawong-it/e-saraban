@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test"
 
+import { NOTIFICATION_UI } from "@/constants/notification"
 import { AUDIT, DASHBOARD, DOCUMENTS, REGISTER_REPORT, SEARCH } from "@/constants/ui"
 
 // หน้าหลักทุกหน้าต้องเปิดได้จริงโดยไม่มี error ในคอนโซล
@@ -20,6 +21,7 @@ const PAGES = [
   { path: "/registry/incoming", heading: DOCUMENTS.registryIncomingTitle },
   { path: "/search", heading: SEARCH.title },
   { path: "/reports/register", heading: REGISTER_REPORT.title },
+  { path: "/notifications", heading: NOTIFICATION_UI.pageTitle },
   { path: "/admin/audit", heading: AUDIT.title },
 ]
 

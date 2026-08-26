@@ -108,6 +108,8 @@ afterAll(async () => {
 
   // audit log ลบไม่ได้ตามดีไซน์ (append-only) — ที่เหลือเก็บกวาดให้หมด
   await prisma.documentAction.deleteMany({ where: { documentId: { in: fixture.documentIds } } })
+  // การแจ้งเตือนอ้างเอกสารด้วย refId ที่ไม่มี FK — ลบเอกสารเฉย ๆ จะเหลือแถวกำพร้าค้างฐาน
+  await prisma.notification.deleteMany({ where: { refId: { in: fixture.documentIds } } })
   await prisma.document.deleteMany({ where: { id: { in: fixture.documentIds } } })
   await prisma.numberSequence.deleteMany({
     where: { tenantId: fixture.tenantId, orgUnitId: fixture.orgUnitId, bookCode: TEST_BOOK_CODE },

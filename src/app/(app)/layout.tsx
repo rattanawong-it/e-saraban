@@ -1,6 +1,7 @@
 import { canOrFalse, PERMISSIONS, type Permission } from "@/lib/authz"
 import { getThemeFromCookie } from "@/lib/theme"
 import { AppShell } from "@/components/layout/app-shell"
+import { countUnreadNotifications, UNREAD_CAP } from "@/server/services/notification.service"
 import { requireSession } from "@/server/session"
 
 // เลย์เอาต์ของทุกหน้าที่ต้องล็อกอิน (spec §11.2 — route group `(app)`)
@@ -19,6 +20,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     canOrFalse(session.ctx, permission as Permission),
   )
 
+  // อ่านฝั่ง server ทุกครั้งที่โหลดหน้า — ทุกหน้าเป็น dynamic อยู่แล้วเพราะอ่านเซสชัน
+  // จึงไม่เสียอะไรเพิ่ม และไม่ต้องมี polling ฝั่ง client (D10)
+  const unreadCount = await countUnreadNotifications(session.ctx)
+
   return (
     <AppShell
       allowedPermissions={allowedPermissions}
@@ -27,6 +32,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       activeOrgUnitId={session.ctx.activeOrgUnitId}
       activeAffiliation={session.activeAffiliation}
       theme={theme}
+      unreadCount={unreadCount}
+      unreadCap={UNREAD_CAP}
     >
       {children}
     </AppShell>

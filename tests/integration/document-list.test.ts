@@ -183,6 +183,8 @@ afterAll(async () => {
 
   await prisma.documentRecipient.deleteMany({ where: { documentId: { in: createdDocumentIds } } })
   await prisma.documentAction.deleteMany({ where: { documentId: { in: createdDocumentIds } } })
+  // การแจ้งเตือนอ้างเอกสารด้วย refId ที่ไม่มี FK — ลบเอกสารเฉย ๆ จะเหลือแถวกำพร้าค้างฐาน
+  await prisma.notification.deleteMany({ where: { refId: { in: createdDocumentIds } } })
   await prisma.document.deleteMany({ where: { id: { in: createdDocumentIds } } })
   await prisma.numberSequence.deleteMany({
     where: { tenantId: fixture.tenantId, bookCode: BOOK_CODE },

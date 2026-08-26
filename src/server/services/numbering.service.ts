@@ -5,6 +5,7 @@ import { PERMISSIONS, type AuthzAclEntry } from "@/lib/authz"
 import { prisma } from "@/lib/db"
 import { toAuthzResource } from "@/lib/documents/authz-resource"
 import { allowedFromStatuses, canIssueNumber, nextStatus } from "@/lib/documents/state-machine"
+import { NOTIFICATION_TYPES } from "@/lib/notification"
 import { getSystemSettings } from "@/lib/settings"
 import {
   DEFAULT_NUMBER_PATTERN,
@@ -17,6 +18,7 @@ import type { UpdateSequencePatternInput, UpdateTypePatternInput } from "@/schem
 
 import type { ServiceContext } from "../context"
 import { assertPermission, ServiceError } from "./errors"
+import { notifyOwner } from "./notification.service"
 
 // การออกเลขทะเบียน — spec §7.3 (จุดที่สเปกทำเครื่องหมาย Critical)
 //
@@ -39,6 +41,8 @@ export interface IssuableDocument {
   direction: DocumentDirectionValue
   /** เลขที่ออกไปแล้ว — ต้องเป็น null เท่านั้นจึงจะออกเลขได้ (§6.4) */
   docNo: string | null
+  /** ใช้ประกอบข้อความแจ้งเตือน — ตัวตัดสินว่าจะเปิดเผยหรือไม่อยู่ที่ notification.service.ts */
+  subject: string
   bookCode: string
   docDate: Date | null
   ownerUnitId: string
@@ -107,10 +111,30 @@ export async function issueNumber(
   // ตัวนับถูกล็อกจนจบทรานแซกชัน คนที่กดพร้อมกันจึงต้อง "เข้าคิวรอ" เป็นเรื่องปกติ
   // ค่าปริยายของ Prisma (maxWait 2 วิ) สั้นเกินไปสำหรับคิวออกเลขทีละหลายสิบฉบับ
   // — พอ connection pool เต็ม จะเด้ง "Unable to start a transaction" ทั้งที่ระบบยังทำงานถูก
-  return prisma.$transaction((tx) => issueNumberWithin(tx, ctx, document, options), {
+  const issued = await prisma.$transaction((tx) => issueNumberWithin(tx, ctx, document, options), {
     maxWait: 15_000,
     timeout: 30_000,
   })
+
+  // ⚠️ **นอก** ทรานแซกชันเสมอ — เลขที่ออกไปแล้วถอนคืนไม่ได้ตาม §6.4
+  // ปล่อยให้การแจ้งเตือนที่ล้มลากการออกเลขให้ rollback คือความเสียหายที่แก้ไม่ได้
+  //
+  // ⚠️ ต้องส่ง docNo ที่เพิ่งได้เข้าไป ไม่ใช่ค่าจาก `document` ที่โหลดมาก่อนหน้า
+  // ซึ่งยังเป็น null อยู่ตอนนั้น
+  await notifyOwner(
+    ctx,
+    {
+      id: document.id,
+      subject: document.subject,
+      confidentialityLevel: document.confidentialityLevel,
+      ownerUnitId: document.ownerUnitId,
+      createdById: document.createdById,
+      docNo: issued.docNo,
+    },
+    NOTIFICATION_TYPES.documentNumberIssued,
+  )
+
+  return issued
 }
 
 /**

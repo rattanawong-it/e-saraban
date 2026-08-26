@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react"
 import Link from "next/link"
-import { Bell, KeyRound, LogOut, Menu, Moon, Search, Sun } from "lucide-react"
+import { KeyRound, LogOut, Menu, Moon, Search, Sun } from "lucide-react"
 
 import { HEADER } from "@/constants"
 import type { Theme } from "@/lib/theme"
@@ -11,6 +11,7 @@ import { setThemeAction } from "@/server/actions/ui.actions"
 import type { CurrentUser, UserAffiliation } from "@/server/context"
 
 import { ContextSwitcher } from "./context-switcher"
+import { NotificationBell } from "./notification-bell"
 
 // แถบบนของแอป — ตาม project-ui/Dashboard.dc.html
 // สูง 68px · Context Switcher อยู่ซ้ายสุดเสมอตาม spec §10.2
@@ -21,6 +22,8 @@ export function AppHeader({
   activeOrgUnitId,
   activeAffiliation,
   theme,
+  unreadCount,
+  unreadCap,
   onOpenMenu,
 }: {
   user: CurrentUser
@@ -28,6 +31,8 @@ export function AppHeader({
   activeOrgUnitId: string | null
   activeAffiliation: UserAffiliation | null
   theme: Theme
+  unreadCount: number
+  unreadCap: number
   onOpenMenu: () => void
 }) {
   const [profileOpen, setProfileOpen] = useState(false)
@@ -84,15 +89,7 @@ export function AppHeader({
         )}
       </button>
 
-      {/* กระดิ่งแจ้งเตือนเป็นของ P5 (D10) — แสดงตำแหน่งไว้ แต่ยังไม่มีรายการ */}
-      <button
-        type="button"
-        aria-label={HEADER.notifications}
-        disabled
-        className="flex size-9.5 items-center justify-center rounded-lg bg-muted text-text-subtle"
-      >
-        <Bell className="size-[18px]" aria-hidden />
-      </button>
+      <NotificationBell unreadCount={unreadCount} cap={unreadCap} />
 
       <div ref={profileRef} className="relative shrink-0">
         <button

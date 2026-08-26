@@ -190,6 +190,7 @@ model User {
   grantedRoles          UserRole[]             @relation("UserRoleGrantedBy")
   sessions              Session[]
   auditLogs             AuditLog[]
+  notifications         Notification[]
   headOfUnits           OrgUnit[]              @relation("OrgUnitHead")
   updatedSettings       SystemSetting[]
   resetRequests         PasswordResetRequest[] @relation("ResetRequestUser")
@@ -370,6 +371,42 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([tenantId, action])
   @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Notification (spec §9.1 · D10) — แจ้งเตือน in-app
+//
+// ⚠️ `title` กับ `body` เก็บข้อความที่ **ประกอบไว้แล้ว** ไม่ใช่ template ที่รอเติมค่า
+// เพราะแถวนี้ต้องอ่านได้โดยไม่ต้องย้อนไปโหลดเอกสาร — และเอกสารอาจถูกปรับชั้นความลับ
+// ขึ้นทีหลัง · **ห้ามใส่ชื่อเรื่องของเอกสารชั้น 1-3 ลงมา** (บทเรียน §22.2 — ชื่อเรื่อง
+// ของหนังสือลับคือตัวความลับเอง) ตัวประกอบข้อความอยู่ที่ src/lib/notification/
+//
+// `type` เป็น String ไม่ใช่ enum ตามแบบเดียวกับ AuditLog.action — เพิ่มชนิดใหม่
+// ภายหลังจะได้ไม่ต้องมี migration · ฝั่ง TS คุมด้วย NOTIFICATION_TYPES
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id     String @id @default(uuid(7))
+  userId String
+
+  /// ชนิดการแจ้งเตือน เช่น "document.circulated" (ดู src/lib/notification/types.ts)
+  type  String
+  title String
+  body  String
+
+  /// อ้างถึงอะไร — วันนี้มีแค่ "DOCUMENT" แต่เผื่อผูกกับอย่างอื่นได้โดยไม่ต้องแก้ตาราง
+  refType String?
+  refId   String?
+
+  readAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  /// กระดิ่งถามคำถามเดียวเสมอ — "ของฉันที่ยังไม่อ่าน เรียงใหม่ไปเก่า"
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@index([refType, refId])
+  @@map("notifications")
 }
 
 // ---------------------------------------------------------------------------

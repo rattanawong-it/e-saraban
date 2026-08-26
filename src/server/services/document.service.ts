@@ -10,6 +10,7 @@ import {
   nextStatus,
   type DocumentTransition,
 } from "@/lib/documents/state-machine"
+import { NOTIFICATION_TYPES } from "@/lib/notification"
 import type {
   CreateDocumentInput,
   DocumentStatusValue,
@@ -23,6 +24,7 @@ import { AUTOMATIC_ACL_REASON, REGISTRAR_ACL_REASON } from "./acl.service"
 import { encryptDocumentAttachments } from "./attachment.service"
 import { eligibleRegistrars, fullName as registrarName } from "./confidential-registrar.service"
 import { assertPermission, ServiceError } from "./errors"
+import { notifyCirculated, notifyOwner, notifySubmitted } from "./notification.service"
 import { issueNumberWithin } from "./numbering.service"
 
 // วงจรชีวิตเอกสาร ฝั่ง service (spec §6)
@@ -439,6 +441,7 @@ export async function circulateDocument(
     extra: async (tx, document) => {
       await createRecipients(tx, ctx, document, recipients, "SENT")
     },
+    notifyRecipients: recipients,
     metadata: { recipientCount: recipients.length },
   })
 }
@@ -456,6 +459,7 @@ export async function forwardDocument(
     extra: async (tx, document) => {
       await createRecipients(tx, ctx, document, recipients, "SENT")
     },
+    notifyRecipients: recipients,
     metadata: { recipientCount: recipients.length },
   })
 }
@@ -485,7 +489,7 @@ export async function acknowledgeDocument(
     throw new ServiceError("เอกสารฉบับนี้ไม่ได้เวียนถึงคุณ", "FORBIDDEN")
   }
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const now = new Date()
 
     await tx.documentRecipient.updateMany({
@@ -527,6 +531,14 @@ export async function acknowledgeDocument(
 
     return { status: toStatus ?? document.status, allAcknowledged }
   })
+
+  // ผู้รับชั้น TO ครบทุกคนแล้ว = ระบบปิดเรื่องให้เอง · เจ้าของเรื่องไม่ได้เป็นคนกด
+  // จึงเป็นกรณีที่เขาต้องได้รับแจ้ง (ถ้าเขาเป็นคนกดเอง ตัวกรองผู้ลงมือจะตัดออกให้)
+  if (result.allAcknowledged && result.status === "CLOSED") {
+    await notifyOwner(ctx, document, NOTIFICATION_TYPES.documentClosed)
+  }
+
+  return result
 }
 
 // ---------------------------------------------------------------------------
@@ -545,6 +557,14 @@ interface TransitionOptions {
   severity?: "INFO" | "NOTICE" | "WARNING" | "CRITICAL"
   metadata?: Record<string, unknown>
   extra?: (tx: TransactionClient, document: LoadedDocument) => Promise<void>
+
+  /**
+   * ผู้รับที่คำสั่งนี้ระบุ — ใช้ประกอบการแจ้งเตือน**หลัง** commit (CIRCULATED/FORWARDED)
+   *
+   * ต้องส่งมาจากผู้เรียก ไม่ใช่ไปอ่านจากตารางผู้รับทีหลัง เพราะเอกสารฉบับหนึ่งสะสม
+   * ผู้รับจากหลายรอบ การอ่านทั้งตารางจะแจ้งซ้ำคนที่ถูกเวียนถึงตั้งแต่รอบก่อน
+   */
+  notifyRecipients?: RecipientInput[]
 }
 
 /** ทางเดียวที่เอกสารเปลี่ยนสถานะได้ — ตรวจสิทธิ์ + เขียน timeline + เขียน audit ครบในที่เดียว */
@@ -563,8 +583,8 @@ async function applyTransition(ctx: ServiceContext, id: string, options: Transit
     )
   }
 
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.document.update({
+  const updated = await prisma.$transaction(async (tx) => {
+    const changed = await tx.document.update({
       where: { id: document.id },
       data: { status: toStatus },
     })
@@ -595,8 +615,44 @@ async function applyTransition(ctx: ServiceContext, id: string, options: Transit
       },
     })
 
-    return updated
+    return changed
   })
+
+  // ⚠️ **นอก** ทรานแซกชันเสมอ — ถ้าย้ายเข้าไปข้างใน การแจ้งเตือนที่ล้มจะลากการออกเลข
+  // และการเวียนหนังสือที่สำเร็จไปแล้วให้ rollback ตาม (§6.4 เลขที่ออกไปแล้วถอนคืนไม่ได้)
+  await notifyTransition(ctx, document, options)
+
+  return updated
+}
+
+/** ใครควรรู้เรื่องอะไร — ตัวตัดสินจริงอยู่ที่ notification.service.ts */
+async function notifyTransition(
+  ctx: ServiceContext,
+  document: LoadedDocument,
+  options: TransitionOptions,
+) {
+  switch (options.transition) {
+    case "SUBMITTED":
+      await notifySubmitted(ctx, document)
+      break
+
+    case "CIRCULATED":
+    case "FORWARDED":
+      await notifyCirculated(ctx, document, options.notifyRecipients ?? [])
+      break
+
+    case "RETURNED":
+      await notifyOwner(ctx, document, NOTIFICATION_TYPES.documentReturned, options.note)
+      break
+
+    case "CLOSED":
+      await notifyOwner(ctx, document, NOTIFICATION_TYPES.documentClosed)
+      break
+
+    // ที่เหลือไม่แจ้ง — ผู้รับไม่ต้องลงมือทำอะไรต่อ (ดูเหตุผลที่ notification.service.ts)
+    default:
+      break
+  }
 }
 
 async function loadDocument(ctx: ServiceContext, id: string) {
