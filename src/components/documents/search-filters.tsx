@@ -47,9 +47,19 @@ export function SearchFilters({
   documentTypes: SearchOption[]
   orgUnits: SearchOption[]
 }) {
+  // ⚠️ key ผูกกับค่าที่มาจาก URL — บังคับให้ React ประกอบฟอร์มใหม่ทุกครั้งที่ query เปลี่ยน
+  //
+  // ทุกช่องในฟอร์มเป็น uncontrolled ที่ใช้ `defaultValue` ซึ่ง **มีผลแค่ตอน mount ครั้งแรก**
+  // เวลาเปลี่ยนหน้าแบบ client-side (กด "ล้างเงื่อนไข" · กด back · กดลิงก์ที่มี query อื่น)
+  // React ใช้ DOM ก้อนเดิมต่อ ค่าใน `<select>` จึงค้างของเก่าไว้ทั้งที่ URL เปลี่ยนไปแล้ว
+  // — อาการคือกดล้างเงื่อนไขแล้วช่องข้อความว่าง แต่ตัวเลือกทุกตัวยังเป็นค่าเดิม
+  //
+  // ถ้าวันหลังเปลี่ยนช่องไหนไปเป็น controlled input ให้ลบ key นี้ทิ้งพร้อมกัน
+  const formKey = JSON.stringify(values)
+
   return (
     <Card className="mb-5 p-5">
-      <form method="get" action="/search" className="flex flex-col gap-4">
+      <form key={formKey} method="get" action="/search" className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field
             label={SEARCH.keyword}
