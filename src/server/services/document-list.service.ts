@@ -7,6 +7,7 @@ import { toAuthzResource } from "@/lib/documents/authz-resource"
 import type { DocumentDirectionValue, DocumentStatusValue } from "@/schemas/document.schema"
 
 import type { ServiceContext } from "../context"
+import { confidentialWhere, documentVisibilityWhere } from "./document-visibility"
 import { assertPermission, ServiceError } from "./errors"
 
 // รายการเอกสารสำหรับหน้า Drafts / Inbox / Outbox / คิวออกเลข (spec §10.1)
@@ -146,7 +147,9 @@ export async function countPendingNumber(ctx: ServiceContext): Promise<number> {
       tenantId: ctx.tenantId,
       deletedAt: null,
       status: "PENDING_NUMBER",
-      ...(await visibilityWhere(ctx, "queue")),
+      // ต่อด้วย AND ไม่ใช่ spread — ด่านสิทธิ์คืน AND/OR ซ้อนกันหลายชั้น การ spread
+      // ทำให้คีย์ชนกันเงียบ ๆ ได้ทันทีที่มีใครเพิ่มเงื่อนไขข้างบนในอนาคต
+      AND: [await visibilityWhere(ctx, "queue")],
     },
   })
 }
@@ -253,42 +256,19 @@ function scopeWhere(ctx: ServiceContext, scope: DocumentListScope): Prisma.Docum
 /**
  * ขอบเขตที่ผู้ใช้เห็นได้ตาม scope ของสิทธิ์ `document.read` (spec §4.3)
  *
- * กล่องรับกับร่างของฉันไม่ต้องกรองซ้ำ เพราะนิยามของกล่องแคบกว่าอยู่แล้ว
+ * ตัวจริงอยู่ที่ `document-visibility.ts` ที่เดียว — ที่นี่แค่ข้ามด่าน**หน่วยงาน**ให้กล่องที่
+ * นิยามแคบกว่าอยู่แล้ว (ร่างของฉัน = ที่ตัวเองสร้าง · กล่องรับ = ที่เวียนมาถึงตัวเอง)
+ *
+ * ⚠️ แต่ด่าน**ชั้นความลับ**ข้ามไม่ได้สักกล่อง — ตัวอย่างที่พลาดง่ายคือเอกสารที่เราสร้างเอง
+ * แล้วถูกคนอื่นปรับชั้นขึ้นและถอนสิทธิ์เราออก ฉบับนั้นต้องหายจาก "ร่างของฉัน" ด้วย
  */
 async function visibilityWhere(
   ctx: ServiceContext,
   scope: DocumentListScope,
 ): Promise<Prisma.DocumentWhereInput> {
-  if (scope === "drafts" || scope === "inbox") return {}
+  if (scope === "drafts" || scope === "inbox") return confidentialWhere(ctx)
 
-  const granted = ctx.permissions[PERMISSIONS.DOCUMENT_READ]
-
-  if (granted === "ORG") return {}
-
-  if (granted === "SUBTREE" && ctx.activeOrgUnitPath) {
-    const subtree = await prisma.orgUnit.findMany({
-      where: { tenantId: ctx.tenantId, path: { startsWith: ctx.activeOrgUnitPath } },
-      select: { id: true },
-    })
-
-    return { ownerUnitId: { in: subtree.map((unit) => unit.id) } }
-  }
-
-  if (granted === "UNIT" && ctx.activeOrgUnitId) {
-    return { ownerUnitId: ctx.activeOrgUnitId }
-  }
-
-  // OWN — เห็นเฉพาะที่ตัวเองสร้าง หรือที่เวียนมาถึงตัวเอง
-  return {
-    OR: [
-      { createdById: ctx.userId },
-      {
-        recipients: {
-          some: { OR: [{ userId: ctx.userId }, { orgUnitId: { in: [...ctx.orgUnitIds] } }] },
-        },
-      },
-    ],
-  }
+  return documentVisibilityWhere(ctx)
 }
 
 /**

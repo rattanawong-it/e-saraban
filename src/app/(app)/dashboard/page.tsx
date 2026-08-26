@@ -2,7 +2,11 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import {
   Building2,
+  FileClock,
+  FilePen,
+  Inbox,
   KeyRound,
+  RotateCcw,
   ShieldAlert,
   ShieldCheck,
   UserCheck,
@@ -10,20 +14,32 @@ import {
   Users,
 } from "lucide-react"
 
-import { APP_NAME, COMMON, DASHBOARD, ROLE_LABELS } from "@/constants"
+import {
+  APP_NAME,
+  COMMON,
+  CONFIDENTIALITY_LEVELS,
+  DASHBOARD,
+  ROLE_LABELS,
+  URGENCY_LEVELS,
+} from "@/constants"
 import { AUDIT_ACTION_LABELS, type AuditAction } from "@/lib/audit"
 import { formatThaiDate, formatThaiDateTime } from "@/lib/thai"
 import type { RoleCode } from "@/lib/authz"
 import {
-  Alert,
   Badge,
   Card,
   CardHeader,
+  ConfidentialityBadge,
   EmptyState,
   PageHeader,
   StatCard,
 } from "@/components/ui/primitives"
-import { getDashboardStats, getRecentActivity } from "@/server/services/dashboard.service"
+import {
+  getAwaitingAcknowledgement,
+  getDashboardStats,
+  getDocumentStats,
+  getRecentActivity,
+} from "@/server/services/dashboard.service"
 import { requireSession } from "@/server/session"
 
 export const metadata: Metadata = {
@@ -32,8 +48,10 @@ export const metadata: Metadata = {
 
 export default async function DashboardPage() {
   const session = await requireSession()
-  const [stats, activity] = await Promise.all([
+  const [stats, documents, awaitingAck, activity] = await Promise.all([
     getDashboardStats(session.ctx),
+    getDocumentStats(session.ctx),
+    getAwaitingAcknowledgement(session.ctx),
     getRecentActivity(session.ctx),
   ])
 
@@ -45,6 +63,51 @@ export default async function DashboardPage() {
         title={DASHBOARD.title}
         description={`${session.activeAffiliation?.orgUnitName ?? ""} · ${today}`}
       />
+
+      {/* งานหนังสือขึ้นก่อน — คนเปิดหน้านี้มาดูว่า "วันนี้ต้องทำอะไร" ไม่ได้มาดูจำนวนผู้ใช้ */}
+      <h2 className="mb-3 text-[13px] font-bold text-text-strong">{DASHBOARD.documentSection}</h2>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label={DASHBOARD.statPendingNumber}
+          value={documents.pendingNumber.toLocaleString("th-TH")}
+          tone={documents.pendingNumber > 0 ? "warning" : "neutral"}
+          icon={<FileClock className="size-[18px]" aria-hidden />}
+        />
+        <StatCard
+          label={DASHBOARD.statAwaitingAck}
+          value={documents.awaitingMyAck.toLocaleString("th-TH")}
+          tone={documents.awaitingMyAck > 0 ? "brand" : "neutral"}
+          icon={<Inbox className="size-[18px]" aria-hidden />}
+        />
+        <StatCard
+          label={DASHBOARD.statMyDrafts}
+          value={documents.myDrafts.toLocaleString("th-TH")}
+          tone="neutral"
+          icon={<FilePen className="size-[18px]" aria-hidden />}
+        />
+        <StatCard
+          label={DASHBOARD.statMyReturned}
+          value={documents.myReturned.toLocaleString("th-TH")}
+          tone={documents.myReturned > 0 ? "danger" : "neutral"}
+          icon={<RotateCcw className="size-[18px]" aria-hidden />}
+        />
+      </div>
+
+      <Card className="mt-4 p-5">
+        <div className="mb-3 text-[12.5px] font-semibold text-text-subtle">
+          {DASHBOARD.monthSection}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <MonthCount label={DASHBOARD.monthInternal} value={documents.thisMonth.internal} />
+          <MonthCount label={DASHBOARD.monthOutgoing} value={documents.thisMonth.outgoing} />
+          <MonthCount label={DASHBOARD.monthIncoming} value={documents.thisMonth.incoming} />
+        </div>
+      </Card>
+
+      <h2 className="mt-7 mb-3 text-[13px] font-bold text-text-strong">
+        {DASHBOARD.identitySection}
+      </h2>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -110,9 +173,58 @@ export default async function DashboardPage() {
         </div>
       ) : null}
 
-      <Alert tone="info" className="mt-5" title={DASHBOARD.phaseNoticeTitle}>
-        {DASHBOARD.phaseNoticeBody}
-      </Alert>
+      {awaitingAck.length > 0 ? (
+        <Card className="mt-5 overflow-hidden">
+          <CardHeader
+            title={DASHBOARD.awaitingAckTitle}
+            action={
+              <Link
+                href="/inbox"
+                className="text-[12.5px] font-semibold text-primary hover:underline"
+              >
+                {COMMON.showAll} →
+              </Link>
+            }
+          />
+
+          <ul>
+            {awaitingAck.map((row) => (
+              <li key={row.recipientId} className="border-b border-row-border last:border-b-0">
+                <Link
+                  href={`/documents/${row.id}`}
+                  className="flex items-start justify-between gap-4 px-5 py-3.5 hover:bg-surface-sunken"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-[13.5px] font-semibold text-text-strong">
+                      {row.subject}
+                    </div>
+                    <div className="tabular mt-0.5 text-[11.5px] text-text-subtle">
+                      {row.docNo ?? DASHBOARD.noDocNoYet}
+                      {row.dueDate
+                        ? ` · ${DASHBOARD.awaitingAckDue(formatThaiDate(row.dueDate, "short"))}`
+                        : ""}
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {row.confidentialityLevel > 0 ? (
+                      <ConfidentialityBadge
+                        level={row.confidentialityLevel}
+                        label={CONFIDENTIALITY_LEVELS[row.confidentialityLevel]?.label ?? ""}
+                      />
+                    ) : null}
+                    {row.urgencyLevel > 0 ? (
+                      <Badge tone={row.urgencyLevel >= 2 ? "danger" : "warning"}>
+                        {URGENCY_LEVELS[row.urgencyLevel]?.label}
+                      </Badge>
+                    ) : null}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1.6fr_1fr]">
         <Card className="overflow-hidden">
@@ -199,5 +311,17 @@ export default async function DashboardPage() {
         </Card>
       </div>
     </>
+  )
+}
+
+/** ตัวเลขหนึ่งช่องในการ์ด "หนังสือเดือนนี้" — เล็กกว่า StatCard เพราะเป็นข้อมูลอ้างอิง ไม่ใช่งานค้าง */
+function MonthCount({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl border border-border px-4 py-3">
+      <div className="text-[11.5px] text-text-subtle">{label}</div>
+      <div className="tabular mt-1 text-[22px] font-bold text-text-strong">
+        {value.toLocaleString("th-TH")}
+      </div>
+    </div>
   )
 }

@@ -198,10 +198,23 @@ export const DASHBOARD = {
   recentActivity: "กิจกรรมล่าสุด",
   recentActivityEmpty: "ยังไม่มีกิจกรรมในระบบ",
   myAffiliations: "สังกัดและบทบาทของฉัน",
-  phaseNoticeTitle: "โมดูลเอกสารพร้อมใช้งานแล้ว (P2)",
-  phaseNoticeBody:
-    "สร้างหนังสือ ส่งออกเลขทะเบียน เวียนหนังสือ และลงทะเบียนหนังสือรับ ใช้งานได้แล้วจากเมนูด้านซ้าย · หน้านี้ยังแสดงสถิติฝั่งผู้ใช้และหน่วยงาน ส่วนสถิติหนังสือ (คิวออกเลข · ค้างรับทราบ) จะเพิ่มในเฟสถัดไป",
   primaryBadge: "สังกัดหลัก",
+
+  // ── สถิติฝั่งเอกสาร (P4) ──────────────────────────────────────────
+  documentSection: "งานหนังสือ",
+  identitySection: "ผู้ใช้และหน่วยงาน",
+  statPendingNumber: "รอออกเลขทะเบียน",
+  statAwaitingAck: "รอฉันรับทราบ",
+  statMyDrafts: "ร่างของฉัน",
+  statMyReturned: "ถูกตีกลับให้แก้",
+  monthSection: "หนังสือที่ออกเลขเดือนนี้",
+  monthInternal: "บันทึกข้อความภายใน",
+  monthOutgoing: "หนังสือส่งภายนอก",
+  monthIncoming: "หนังสือรับ",
+  awaitingAckTitle: "รอฉันรับทราบ",
+  awaitingAckEmpty: "ไม่มีหนังสือค้างรับทราบ",
+  awaitingAckDue: (date: string) => `กำหนดภายใน ${date}`,
+  noDocNoYet: "ยังไม่มีเลข",
 } as const
 
 export const ORG_UNITS = {
@@ -446,6 +459,45 @@ export const ACL = {
     ALLOW: "อนุญาต",
     DENY: "ห้าม (ชนะทุกสิทธิ์ที่มีอยู่)",
   },
+} as const
+
+/** หน้าค้นหาขั้นสูง (spec §10.1) */
+export const SEARCH = {
+  title: "ค้นหาขั้นสูง",
+  description: "ค้นทั้งชื่อเรื่อง เลขที่หนังสือ สาระสำคัญ และหนังสือที่อ้างถึง",
+  keyword: "คำค้น",
+  keywordPlaceholder: "ชื่อเรื่อง · เลขที่หนังสือ · หน่วยงานภายนอก",
+  keywordHint: "ค้นคำกลางประโยคได้ ไม่ต้องพิมพ์ให้ตรงตั้งแต่ต้นคำ",
+  direction: "ทิศทาง",
+  status: "สถานะ",
+  documentType: "ประเภทหนังสือ",
+  ownerUnit: "หน่วยงานเจ้าของเรื่อง",
+  ownerUnitHint: "รวมหน่วยงานลูกในสายงานเดียวกันให้อัตโนมัติ",
+  confidentiality: "ชั้นความลับ",
+  urgency: "ความเร่งด่วน",
+  dateField: "ช่วงวันที่ของ",
+  dateFieldOptions: {
+    docDate: "วันที่ของหนังสือ",
+    receivedDate: "วันที่รับ",
+    createdAt: "วันที่บันทึกเข้าระบบ",
+  },
+  from: "ตั้งแต่",
+  to: "ถึง",
+  hasAttachment: "เฉพาะที่มีไฟล์แนบ",
+  sort: "เรียงตาม",
+  sortOptions: {
+    latest: "ใหม่ไปเก่า",
+    oldest: "เก่าไปใหม่",
+    docNo: "เลขที่หนังสือ",
+  },
+  anyOption: "ทั้งหมด",
+  submit: "ค้นหา",
+  reset: "ล้างเงื่อนไข",
+  resultCount: (total: number) => `พบ ${total.toLocaleString("th-TH")} ฉบับ`,
+  /** ยังไม่ได้ใส่เงื่อนไข — ต่างจาก "ค้นแล้วไม่เจอ" */
+  idle: "ใส่คำค้นหรือเลือกตัวกรองอย่างน้อยหนึ่งอย่าง แล้วกดค้นหา",
+  notFound: "ไม่พบเอกสารที่ตรงกับเงื่อนไข",
+  scopeNote: "ผลการค้นหาจำกัดอยู่ในขอบเขตที่สิทธิ์ของคุณมองเห็นได้เท่านั้น",
 } as const
 
 export const USERS = {
