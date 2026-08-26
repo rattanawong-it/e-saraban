@@ -124,7 +124,7 @@ D2 ไม่รวมหนังสือรับ แต่ D12 ขอรา�
 | F06 | [x] | เลขทะเบียนอัตโนมัติ แยกตามหน่วยงาน/ประเภท/ปี พร้อม pattern ตั้งค่าได้ | P2 |
 | F07 | [~] | ไฟล์แนบหลายไฟล์/หลายเวอร์ชัน + PDF preview + watermark | P2/P3 |
 | F08 | [x] | ชั้นความลับ 4 ระดับ + encryption at rest + ห้ามดาวน์โหลดสำหรับเอกสารลับ | P3 |
-| F09 | [ ] | ค้นหาขั้นสูง + Dashboard สถิติ + Export ทะเบียน (Excel/PDF) | P4 |
+| F09 | [x] | ค้นหาขั้นสูง + Dashboard สถิติ + Export ทะเบียน (Excel/PDF) | P4 |
 | F10 | [x] | Audit log ครบทุก action + หน้าตรวจสอบสำหรับผู้ดูแล | P1 |
 | F11 | [ ] | แจ้งเตือน In-app (กระดิ่ง + Inbox) | P5 |
 | F12 | [x] | Responsive Web (Desktop-first, ใช้งานบนมือถือได้) | P1+ |
@@ -764,7 +764,7 @@ docs/
 | **P1 — Identity & Org** | [x] | Auth (login/logout/เปลี่ยนรหัส/lockout) · Session table · OrgUnit CRUD + tree UI + materialized path · User CRUD + multi-affiliation · Role/Permission + `can()` · Context Switcher · Audit เบื้องต้น | **2–3 สัปดาห์** | Admin สร้างโครงสร้าง 3 ระดับ + ผู้ใช้ 2 สังกัด แล้วสลับ context ได้ · unit test ของ `can()` ครอบทุก scope |
 | **P2 — Core Documents** | [x] | DocumentType · สร้าง/แก้/ส่งร่าง · NumberSequence + ออกเลข (พร้อม concurrency test) · Attachment upload + PDF preview · Inbox/Outbox/Drafts · state machine + DocumentAction timeline · คิวออกเลข + bulk issue · ตีกลับแก้ไข | **3–4 สัปดาห์** | ทำ flow บันทึกข้อความและหนังสือส่งได้ครบตั้งแต่ร่างถึงปิดเรื่อง · **test เลขซ้ำผ่าน** |
 | **P3 — Security & Confidential** | [x] | ชั้นความลับ 4 ระดับ + clearance · envelope encryption · secure file route + watermark + view-only · DocumentAcl (grant/revoke) · Audit hash chain + `/admin/audit` · security headers + CSP + rate limit | **2 สัปดาห์** | เอกสารลับที่สุดเปิดดูได้แต่ดาวน์โหลดไม่ได้ · ไฟล์บนดิสก์เปิดตรงไม่ได้ · audit ครบทุก access |
-| **P4 — Search & Reports** | [ ] | ค้นหาขั้นสูง (pg_trgm) · Dashboard สถิติ · ทะเบียนหนังสือ + Export Excel/PDF ตามรูปแบบราชการ | **2 สัปดาห์** | ค้นภาษาไทยเจอ · export เปิดใน Excel ได้ฟอนต์ไม่เพี้ยน |
+| **P4 — Search & Reports** | [x] | ค้นหาขั้นสูง (pg_trgm) · Dashboard สถิติ · ทะเบียนหนังสือ + Export Excel/PDF ตามรูปแบบราชการ | **2 สัปดาห์** | ค้นภาษาไทยเจอ · export เปิดใน Excel ได้ฟอนต์ไม่เพี้ยน |
 | **P5 — Incoming & Hardening** | [ ] | โมดูลลงทะเบียนหนังสือรับ (A1) · Notification in-app · Responsive polish · Playwright e2e · Backup script · คู่มือผู้ใช้ + UAT | **2–3 สัปดาห์** | UAT ผ่านกับผู้ใช้จริง ≥ 5 คนจาก 3 หน่วยงาน |
 
 **รวมประมาณ 12–15 สัปดาห์** สำหรับ MVP ที่ใช้งานจริงได้
