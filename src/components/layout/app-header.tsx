@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState, useTransition } from "react"
 import Link from "next/link"
-import { KeyRound, LogOut, Menu, Moon, Search, Sun } from "lucide-react"
+import { BookOpen, KeyRound, LogOut, Menu, Moon, Search, Sun } from "lucide-react"
 
-import { HEADER } from "@/constants"
+import { HEADER, HELP_NAV_LABEL } from "@/constants"
 import type { Theme } from "@/lib/theme"
 import { logoutAction } from "@/server/actions/auth.actions"
 import { setThemeAction } from "@/server/actions/ui.actions"
@@ -118,6 +118,18 @@ export function AppHeader({
                   .join(" · ")}
               </div>
             </div>
+
+            <div className="h-px bg-row-border" />
+            {/* คู่มืออยู่ในเมนูโปรไฟล์ ไม่ใช่เมนูข้าง — เป็นของที่เปิดนาน ๆ ครั้ง
+                ถ้าไปเบียดเมนูข้างจะทำให้เมนูงานประจำหายากขึ้นทุกวันเพื่อแลกกับวันที่ไม่ค่อยมี */}
+            <Link
+              href="/help"
+              role="menuitem"
+              className="flex items-center gap-2.5 px-4.5 py-3 text-[13.5px] font-semibold text-text-medium transition-colors hover:bg-muted"
+            >
+              <BookOpen className="size-4" aria-hidden />
+              {HELP_NAV_LABEL}
+            </Link>
 
             <div className="h-px bg-row-border" />
             <Link

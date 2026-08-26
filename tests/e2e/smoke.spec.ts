@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test"
 
+import { HELP } from "@/constants/help"
 import { NOTIFICATION_UI } from "@/constants/notification"
 import { AUDIT, DASHBOARD, DOCUMENTS, REGISTER_REPORT, SEARCH } from "@/constants/ui"
 
@@ -22,6 +23,7 @@ const PAGES = [
   { path: "/search", heading: SEARCH.title },
   { path: "/reports/register", heading: REGISTER_REPORT.title },
   { path: "/notifications", heading: NOTIFICATION_UI.pageTitle },
+  { path: "/help", heading: HELP.title },
   { path: "/admin/audit", heading: AUDIT.title },
 ]
 
