@@ -76,6 +76,10 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
         }
       />
 
+      <Alert tone="info" className="mb-4">
+        {AUDIT.appendOnlyNotice}
+      </Alert>
+
       <div className="mb-4 flex flex-wrap gap-2">
         {FILTER_CHIPS.map((item) => (
           <Link
@@ -92,10 +96,6 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
           </Link>
         ))}
       </div>
-
-      <Alert tone="info" className="mb-4">
-        {AUDIT.appendOnlyNotice}
-      </Alert>
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">

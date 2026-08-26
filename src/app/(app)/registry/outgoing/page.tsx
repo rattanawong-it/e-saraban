@@ -51,6 +51,10 @@ export default async function IssueQueuePage({ searchParams }: PageProps<"/regis
         }
       />
 
+      <Alert tone="info" className="mb-4">
+        {DOCUMENTS.queueOrderHint}
+      </Alert>
+
       <DocumentToolbar
         basePath="/registry/outgoing"
         q={q}
@@ -58,10 +62,6 @@ export default async function IssueQueuePage({ searchParams }: PageProps<"/regis
         activeChip={direction}
         chipParam="direction"
       />
-
-      <Alert tone="info" className="mb-4">
-        {DOCUMENTS.queueOrderHint}
-      </Alert>
 
       <IssueQueueForm
         rows={result.rows}

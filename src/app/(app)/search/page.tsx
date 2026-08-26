@@ -83,6 +83,10 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
     <>
       <PageHeader title={SEARCH.title} description={SEARCH.description} />
 
+      <Alert tone="info" className="mb-5">
+        {SEARCH.scopeNote}
+      </Alert>
+
       <SearchFilters
         values={values}
         documentTypes={options.documentTypes.map((type) => ({
@@ -100,10 +104,6 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
         <Alert tone="info" title={SEARCH.idle} />
       ) : (
         <>
-          <Alert tone="info" className="mb-4">
-            {SEARCH.scopeNote}
-          </Alert>
-
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="tabular text-[13px] font-semibold text-text-strong">
               {SEARCH.resultCount(result.total)}

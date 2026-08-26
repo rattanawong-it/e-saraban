@@ -76,6 +76,10 @@ export default async function RegisterReportPage({ searchParams }: PageProps<"/r
     <>
       <PageHeader title={REGISTER_REPORT.title} description={REGISTER_REPORT.description} />
 
+      <Alert tone="info" className="mb-5">
+        {REGISTER_REPORT.scopeNote}
+      </Alert>
+
       <RegisterFilters
         values={values}
         exportQuery={exportQuery}
@@ -89,10 +93,6 @@ export default async function RegisterReportPage({ searchParams }: PageProps<"/r
           label: `${type.nameTh} · ${DIRECTION_LABELS[type.direction as DocumentDirectionValue]}`,
         }))}
       />
-
-      <Alert tone="info" className="mb-4">
-        {REGISTER_REPORT.scopeNote}
-      </Alert>
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="tabular text-[13px] font-semibold text-text-strong">
