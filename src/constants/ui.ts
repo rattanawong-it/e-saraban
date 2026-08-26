@@ -46,7 +46,7 @@ export const NAV = {
   dashboard: "ภาพรวม",
   inbox: "กล่องรับเอกสาร",
   outbox: "กล่องส่งเอกสาร",
-  drafts: "ร่างของฉัน",
+  drafts: "ร่างเอกสาร",
 
   registry: "ทะเบียนหนังสือ",
   registryIncoming: "ทะเบียนรับ",
@@ -61,7 +61,7 @@ export const NAV = {
   roles: "บทบาทและสิทธิ์",
   systemSettings: "ตั้งค่าระบบ",
   numbering: "รูปแบบเลขหนังสือ",
-  generalSettings: "ค่าตั้งทั่วไป",
+  generalSettings: "ตั้งค่าทั่วไป",
   audit: "ตรวจสอบ Audit",
 } as const
 
@@ -205,7 +205,7 @@ export const DASHBOARD = {
   identitySection: "ผู้ใช้และหน่วยงาน",
   statPendingNumber: "รอออกเลขทะเบียน",
   statAwaitingAck: "รอฉันรับทราบ",
-  statMyDrafts: "ร่างของฉัน",
+  statMyDrafts: "ร่างเอกสาร",
   statMyReturned: "ถูกตีกลับให้แก้",
   monthSection: "หนังสือที่ออกเลขเดือนนี้",
   monthInternal: "บันทึกข้อความภายใน",
@@ -276,7 +276,7 @@ export const ORG_UNITS = {
 
 export const DOCUMENTS = {
   // ── หน้ารายการ ──────────────────────────────────────────────
-  draftsTitle: "ร่างของฉัน",
+  draftsTitle: "ร่างเอกสาร",
   draftsDescription: "หนังสือที่คุณร่างไว้และที่ถูกตีกลับให้แก้ไข",
   inboxTitle: "กล่องรับเอกสาร",
   inboxDescription: "หนังสือที่ส่งถึงคุณหรือหน่วยงานของคุณ",
