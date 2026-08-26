@@ -100,9 +100,11 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
         }))}
       />
 
-      {result.empty ? (
-        <Alert tone="info" title={SEARCH.idle} />
-      ) : (
+      {/* ยังไม่ได้ใส่เงื่อนไข = ไม่แสดงอะไรใต้การ์ดตัวกรอง
+          เดิมมีกล่อง info บอกให้ใส่เงื่อนไขก่อน แต่หน้านี้จะมีกล่อง info สองใบขนาบ
+          การ์ดตัวกรองอยู่บนล่าง ซึ่งอ่านแล้วสับสนว่าอันไหนคือคำเตือนจริง
+          — ถอดใบล่างออกตามที่ผู้ดูแลสั่ง (26 ส.ค. 2569) */}
+      {result.empty ? null : (
         <>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="tabular text-[13px] font-semibold text-text-strong">
