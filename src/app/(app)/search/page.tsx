@@ -100,11 +100,14 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
         <Alert tone="info" title={SEARCH.idle} />
       ) : (
         <>
+          <Alert tone="info" className="mb-4">
+            {SEARCH.scopeNote}
+          </Alert>
+
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="tabular text-[13px] font-semibold text-text-strong">
               {SEARCH.resultCount(result.total)}
             </p>
-            <p className="text-[11.5px] text-text-subtle">{SEARCH.scopeNote}</p>
           </div>
 
           <DocumentTable rows={result.rows} variant="registry" emptyMessage={SEARCH.notFound} />

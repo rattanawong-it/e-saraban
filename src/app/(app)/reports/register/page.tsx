@@ -4,7 +4,7 @@ import { APP_NAME, REGISTER_REPORT } from "@/constants"
 import { PERMISSIONS } from "@/lib/authz"
 import { RegisterFilters } from "@/components/documents/register-filters"
 import { RegisterTable } from "@/components/documents/register-table"
-import { PageHeader } from "@/components/ui/primitives"
+import { Alert, PageHeader } from "@/components/ui/primitives"
 import { DIRECTION_LABELS, type DocumentDirectionValue } from "@/schemas/document.schema"
 import { getSearchOptions } from "@/server/services/search.service"
 import { getRegisterReport, type RegisterBook } from "@/server/services/report.service"
@@ -90,11 +90,14 @@ export default async function RegisterReportPage({ searchParams }: PageProps<"/r
         }))}
       />
 
+      <Alert tone="info" className="mb-4">
+        {REGISTER_REPORT.scopeNote}
+      </Alert>
+
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="tabular text-[13px] font-semibold text-text-strong">
           {report.orgUnitName} · {REGISTER_REPORT.rowCount(report.rows.length)}
         </p>
-        <p className="text-[11.5px] text-text-subtle">{REGISTER_REPORT.scopeNote}</p>
       </div>
 
       <RegisterTable rows={report.rows} />

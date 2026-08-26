@@ -4,7 +4,7 @@ import { APP_NAME, DOCUMENTS } from "@/constants"
 import { PERMISSIONS } from "@/lib/authz"
 import { DocumentPager, DocumentToolbar } from "@/components/documents/document-toolbar"
 import { IssueQueueForm } from "@/components/documents/issue-queue-form"
-import { Badge, PageHeader } from "@/components/ui/primitives"
+import { Alert, Badge, PageHeader } from "@/components/ui/primitives"
 import { listDocuments } from "@/server/services/document-list.service"
 import { requirePermission } from "@/server/session"
 import type { DocumentDirectionValue } from "@/schemas/document.schema"
@@ -59,7 +59,9 @@ export default async function IssueQueuePage({ searchParams }: PageProps<"/regis
         chipParam="direction"
       />
 
-      <p className="mb-3 text-[12px] text-text-subtle">{DOCUMENTS.queueOrderHint}</p>
+      <Alert tone="info" className="mb-4">
+        {DOCUMENTS.queueOrderHint}
+      </Alert>
 
       <IssueQueueForm
         rows={result.rows}
