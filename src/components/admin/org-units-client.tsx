@@ -240,7 +240,7 @@ export function OrgUnitsClient({
 function ArchivedToggle({ checked }: { checked: boolean }) {
   return (
     <form method="get" className="flex items-center gap-2">
-      <label className="flex cursor-pointer items-center gap-2 text-[12.5px] text-text-medium">
+      <label className="flex cursor-pointer items-center gap-2 text-caption text-text-medium">
         <Checkbox
           name="archived"
           value="1"
@@ -341,20 +341,20 @@ const TreeRow = memo(function TreeRow({
           <span className="min-w-0 flex-1">
             <span
               className={cn(
-                "block truncate text-[13.5px] font-semibold",
+                "block truncate text-label font-semibold",
                 node.isActive ? "text-text-strong" : "text-text-subtle line-through",
               )}
             >
               {node.nameTh}
             </span>
-            <span className="tabular block truncate text-[11px] text-text-subtle">
+            <span className="tabular block truncate text-micro text-text-subtle">
               {node.code} · {ORG_UNIT_TYPE_LABELS[node.type]}
               {node.canIssueNumber ? null : ` · ${ORG_UNITS.cannotIssue}`}
             </span>
           </span>
 
           {node.memberCount > 0 ? (
-            <span className="tabular flex shrink-0 items-center gap-1 text-[11px] text-text-subtle">
+            <span className="tabular flex shrink-0 items-center gap-1 text-micro text-text-subtle">
               <Users className="size-3.5" aria-hidden />
               {node.memberCount}
             </span>
@@ -488,11 +488,11 @@ function OrgUnitDetail({
           <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-border p-3.5">
             <Checkbox name="canIssueNumber" value="1" defaultChecked={unit.canIssueNumber} />
             <span className="min-w-0">
-              <span className="flex items-center gap-1.5 text-[13px] font-semibold text-text-strong">
+              <span className="flex items-center gap-1.5 text-label font-semibold text-text-strong">
                 <Hash className="size-3.5 text-text-subtle" aria-hidden />
                 {ORG_UNITS.canIssueNumber}
               </span>
-              <span className="mt-1 block text-[11px] leading-relaxed text-text-subtle">
+              <span className="mt-1 block text-micro leading-relaxed text-text-subtle">
                 {ORG_UNITS.canIssueNumberHint}
               </span>
             </span>
@@ -500,12 +500,12 @@ function OrgUnitDetail({
 
           <div className="grid grid-cols-2 gap-2.5">
             <div className="rounded-xl bg-secondary p-3.5">
-              <div className="tabular text-xl font-bold text-primary">{unit.memberCount}</div>
-              <div className="text-[11px] text-text-medium">{ORG_UNITS.memberCount}</div>
+              <div className="tabular text-title font-bold text-primary">{unit.memberCount}</div>
+              <div className="text-micro text-text-medium">{ORG_UNITS.memberCount}</div>
             </div>
             <div className="rounded-xl bg-muted p-3.5">
-              <div className="tabular text-xl font-bold text-text-strong">{unit.childCount}</div>
-              <div className="text-[11px] text-text-medium">{ORG_UNITS.childCount}</div>
+              <div className="tabular text-title font-bold text-text-strong">{unit.childCount}</div>
+              <div className="text-micro text-text-medium">{ORG_UNITS.childCount}</div>
             </div>
           </div>
 
@@ -553,7 +553,7 @@ function ConfidentialRegistrarCard({
     return (
       <Card className="overflow-hidden">
         <CardHeader title={ORG_UNITS.registrarTitle} />
-        <p className="px-5 pb-5 text-[11px] leading-relaxed text-text-subtle">
+        <p className="px-5 pb-5 text-micro leading-relaxed text-text-subtle">
           {ORG_UNITS.registrarOnlyIssuingUnit}
         </p>
       </Card>
@@ -615,10 +615,10 @@ function ConfidentialRegistrarCard({
                 className="flex items-center justify-between gap-2 rounded-xl border border-border p-3"
               >
                 <span className="min-w-0">
-                  <span className="block truncate text-[13px] font-semibold text-text-strong">
+                  <span className="block truncate text-label font-semibold text-text-strong">
                     {row.fullName}
                   </span>
-                  <span className="mt-0.5 block text-[11px] text-text-subtle">
+                  <span className="mt-0.5 block text-micro text-text-subtle">
                     {row.clearanceLevel < 1
                       ? ORG_UNITS.registrarClearanceWarning
                       : ORG_UNITS.registrarClearanceHint(row.clearanceLevel)}
@@ -748,7 +748,7 @@ function ArchiveCard({ unit }: { unit: OrgUnitNodeView }) {
           {unit.isActive ? ORG_UNITS.archive : ORG_UNITS.restore}
         </Button>
 
-        <p className="text-[11px] leading-relaxed text-text-subtle">{ORG_UNITS.archiveNotice}</p>
+        <p className="text-micro leading-relaxed text-text-subtle">{ORG_UNITS.archiveNotice}</p>
       </form>
     </Card>
   )
@@ -773,7 +773,7 @@ function CreateOrgUnitForm({
 
   return (
     <form action={formAction} className="flex flex-col gap-3.5">
-      <div className="text-[14px] font-bold text-text-strong">{ORG_UNITS.createTitle}</div>
+      <div className="text-section font-bold text-text-strong">{ORG_UNITS.createTitle}</div>
 
       {state.status === "error" ? <Alert tone="danger" title={state.message} /> : null}
 
@@ -839,7 +839,7 @@ function CreateOrgUnitForm({
         </Field>
       </div>
 
-      <label className="flex cursor-pointer items-center gap-2.5 text-[12.5px] text-text-medium">
+      <label className="flex cursor-pointer items-center gap-2.5 text-caption text-text-medium">
         <Checkbox name="canIssueNumber" value="1" defaultChecked />
         {ORG_UNITS.canIssueNumber}
       </label>

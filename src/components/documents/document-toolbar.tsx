@@ -64,7 +64,7 @@ export function DocumentToolbar({
               key={chip.key || "all"}
               href={buildHref(basePath, { [chipParam]: chip.key, q })}
               className={cn(
-                "rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors",
+                "rounded-full px-3.5 py-1.5 text-caption font-semibold transition-colors",
                 (activeChip ?? "") === chip.key
                   ? "bg-primary text-primary-foreground"
                   : "bg-card text-text-medium ring-1 ring-border ring-inset hover:bg-muted",
@@ -100,9 +100,7 @@ export function DocumentPager({
 
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-      <p className="tabular text-[12.5px] text-text-subtle">
-        {DOCUMENTS.pageInfo(from, to, total)}
-      </p>
+      <p className="tabular text-caption text-text-subtle">{DOCUMENTS.pageInfo(from, to, total)}</p>
 
       <div className="flex gap-2">
         <Button asChild size="sm" variant="outline" disabled={page <= 1}>

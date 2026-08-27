@@ -98,7 +98,7 @@ export function DocumentTable({
                 <th
                   key={label}
                   scope="col"
-                  className="px-5 py-3 text-left text-[11px] font-bold tracking-wide text-text-subtle uppercase"
+                  className="px-5 py-3 text-left text-micro font-bold tracking-wide text-text-subtle uppercase"
                 >
                   {label}
                 </th>
@@ -127,11 +127,11 @@ export function DocumentTable({
                 <td className="max-w-lg px-5 py-3">
                   <Link
                     href={`/documents/${row.id}`}
-                    className="block truncate text-[13.5px] font-semibold text-text-strong hover:text-primary hover:underline"
+                    className="block truncate text-label font-semibold text-text-strong hover:text-primary hover:underline"
                   >
                     {row.subject}
                   </Link>
-                  <div className="tabular mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-text-subtle">
+                  <div className="tabular mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-micro text-text-subtle">
                     <span className={cn(!row.docNo && "italic")}>
                       {row.docNo ?? DOCUMENTS.noDocNo}
                     </span>
@@ -152,16 +152,16 @@ export function DocumentTable({
 
                 {variant === "drafts" ? (
                   <>
-                    <td className="px-5 py-3 text-[12.5px] text-text-medium">
+                    <td className="px-5 py-3 text-caption text-text-medium">
                       {row.documentTypeName}
                     </td>
                     <td className="px-5 py-3">
                       <DocumentStatusBadge status={row.status} />
                     </td>
-                    <td className="tabular px-5 py-3 text-[12px] whitespace-nowrap text-text-medium">
+                    <td className="tabular px-5 py-3 text-caption whitespace-nowrap text-text-medium">
                       {formatThaiDateTime(row.updatedAt, "short")}
                     </td>
-                    <td className="max-w-xs px-5 py-3 text-[12px] text-danger-text">
+                    <td className="max-w-xs px-5 py-3 text-caption text-danger-text">
                       {row.lastReturnNote ? (
                         <span className="line-clamp-2">{row.lastReturnNote}</span>
                       ) : (
@@ -173,10 +173,10 @@ export function DocumentTable({
 
                 {variant === "inbox" ? (
                   <>
-                    <td className="px-5 py-3 text-[12.5px] text-text-medium">
+                    <td className="px-5 py-3 text-caption text-text-medium">
                       {row.externalSenderName ?? row.ownerUnitName}
                     </td>
-                    <td className="tabular px-5 py-3 text-[12px] whitespace-nowrap text-text-medium">
+                    <td className="tabular px-5 py-3 text-caption whitespace-nowrap text-text-medium">
                       {formatThaiDate(row.receivedDate ?? row.docDate ?? row.updatedAt, "short")}
                     </td>
                     <td className="px-5 py-3">
@@ -193,7 +193,7 @@ export function DocumentTable({
 
                 {variant === "outbox" || variant === "registry" ? (
                   <>
-                    <td className="px-5 py-3 text-[12.5px] text-text-medium">
+                    <td className="px-5 py-3 text-caption text-text-medium">
                       {row.externalRecipientName ??
                         (row.recipientCount > 0
                           ? DOCUMENTS.recipientCount(row.recipientCount)
@@ -205,7 +205,7 @@ export function DocumentTable({
                         label={levelLabel(row.confidentialityLevel)}
                       />
                     </td>
-                    <td className="tabular px-5 py-3 text-[12px] whitespace-nowrap text-text-medium">
+                    <td className="tabular px-5 py-3 text-caption whitespace-nowrap text-text-medium">
                       {row.docDate ? formatThaiDate(row.docDate, "short") : "—"}
                     </td>
                     <td className="px-5 py-3">
@@ -216,9 +216,9 @@ export function DocumentTable({
 
                 {variant === "queue" ? (
                   <>
-                    <td className="px-5 py-3 text-[12.5px] text-text-medium">
+                    <td className="px-5 py-3 text-caption text-text-medium">
                       {row.ownerUnitName}
-                      <div className="text-[11px] text-text-subtle">{row.createdByName}</div>
+                      <div className="text-micro text-text-subtle">{row.createdByName}</div>
                     </td>
                     <td className="px-5 py-3">
                       {row.urgencyLevel > 0 ? (
@@ -226,7 +226,7 @@ export function DocumentTable({
                           {URGENCY_LEVELS[row.urgencyLevel]?.label ?? ""}
                         </Badge>
                       ) : (
-                        <span className="text-[12px] text-text-subtle">—</span>
+                        <span className="text-caption text-text-subtle">—</span>
                       )}
                     </td>
                     <td className="px-5 py-3">
@@ -235,7 +235,7 @@ export function DocumentTable({
                         label={levelLabel(row.confidentialityLevel)}
                       />
                     </td>
-                    <td className="tabular px-5 py-3 text-[12px] whitespace-nowrap text-text-medium">
+                    <td className="tabular px-5 py-3 text-caption whitespace-nowrap text-text-medium">
                       {formatThaiDateTime(row.updatedAt, "short")}
                     </td>
                   </>

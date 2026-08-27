@@ -68,7 +68,7 @@ export function IssueQueueForm({
 
       {rows.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[12.5px] text-text-subtle">
+          <p className="text-caption text-text-subtle">
             {selectedIds.length > 0
               ? `${DOCUMENTS.selectedCount(selectedIds.length)} · ${DOCUMENTS.queueIrreversible}`
               : DOCUMENTS.selectNone}

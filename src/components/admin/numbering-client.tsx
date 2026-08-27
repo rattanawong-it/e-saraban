@@ -34,19 +34,19 @@ export function NumberingClient({ config }: { config: NumberingConfig }) {
 
           <div className="flex flex-col gap-3 p-5">
             <Row label={NUMBERING.defaultPattern}>
-              <code className="tabular rounded-md bg-surface-sunken px-2 py-1 text-[12.5px]">
+              <code className="tabular rounded-md bg-surface-sunken px-2 py-1 text-caption">
                 {config.defaultPattern}
               </code>
             </Row>
 
             <Row label={NUMBERING.currentYear}>
-              <span className="tabular text-[13px] font-bold text-text-strong">
+              <span className="tabular text-label font-bold text-text-strong">
                 {`พ.ศ. ${config.year}`}
               </span>
             </Row>
 
             <Row label={NUMBERING.yearModeLabel}>
-              <span className="text-[12.5px] text-text-medium">
+              <span className="text-caption text-text-medium">
                 {config.yearMode === "FISCAL"
                   ? NUMBERING.yearModeFiscal
                   : NUMBERING.yearModeCalendar}
@@ -55,7 +55,7 @@ export function NumberingClient({ config }: { config: NumberingConfig }) {
 
             <Link
               href="/admin/settings"
-              className="text-[12px] font-semibold text-primary hover:underline"
+              className="text-caption font-semibold text-primary hover:underline"
             >
               {`${NUMBERING.changeAtSettings} · ${SETTINGS.title}`}
             </Link>
@@ -70,13 +70,13 @@ export function NumberingClient({ config }: { config: NumberingConfig }) {
           <ul className="grid gap-2 p-5 sm:grid-cols-2">
             {NUMBER_PATTERN_TOKENS.map((item) => (
               <li key={item.token} className="flex items-baseline gap-2">
-                <code className="tabular rounded-md bg-surface-sunken px-1.5 py-0.5 text-[12px] text-primary">
+                <code className="tabular rounded-md bg-surface-sunken px-1.5 py-0.5 text-caption text-primary">
                   {item.token}
                 </code>
-                <span className="min-w-0 flex-1 truncate text-[12px] text-text-medium">
+                <span className="min-w-0 flex-1 truncate text-caption text-text-medium">
                   {item.label}
                 </span>
-                <span className="tabular text-[11.5px] text-text-subtle">{item.example}</span>
+                <span className="tabular text-micro text-text-subtle">{item.example}</span>
               </li>
             ))}
           </ul>
@@ -112,7 +112,7 @@ export function NumberingClient({ config }: { config: NumberingConfig }) {
         />
 
         {config.sequences.length === 0 ? (
-          <p className="px-5 py-8 text-center text-[12.5px] text-text-subtle">
+          <p className="px-5 py-8 text-center text-caption text-text-subtle">
             {NUMBERING.sequencesEmpty}
           </p>
         ) : (
@@ -142,7 +142,7 @@ export function NumberingClient({ config }: { config: NumberingConfig }) {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-[12.5px] text-text-subtle">{label}</span>
+      <span className="text-caption text-text-subtle">{label}</span>
       {children}
     </div>
   )
@@ -184,18 +184,18 @@ function PatternRow({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[13.5px] font-bold text-text-strong">{title}</span>
+            <span className="text-label font-bold text-text-strong">{title}</span>
             {badge ? <Badge tone="neutral">{badge}</Badge> : null}
           </div>
-          <div className="tabular text-[11.5px] text-text-subtle">{subtitle}</div>
+          <div className="tabular text-micro text-text-subtle">{subtitle}</div>
         </div>
 
         {state.status !== "idle" && state.message ? (
           <span
             className={
               state.status === "error"
-                ? "text-[12px] font-semibold text-danger-text"
-                : "text-[12px] font-semibold text-success-text"
+                ? "text-caption font-semibold text-danger-text"
+                : "text-caption font-semibold text-success-text"
             }
           >
             {state.message}
@@ -227,7 +227,7 @@ function PatternRow({
         </Button>
       </div>
 
-      <p className="text-[11.5px] text-text-subtle">
+      <p className="text-micro text-text-subtle">
         {issues.length > 0 ? (
           <span className="text-danger-text">
             {`${NUMBERING.invalidPattern} — ${issues.map((issue) => issue.message).join(" · ")}`}

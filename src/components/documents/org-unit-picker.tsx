@@ -76,7 +76,7 @@ export function OrgUnitPicker({
           <label
             key={unit.id}
             className={cn(
-              "flex cursor-pointer items-center gap-2.5 px-3 py-1.5 text-[12.5px] transition-colors hover:bg-muted",
+              "flex cursor-pointer items-center gap-2.5 px-3 py-1.5 text-caption transition-colors hover:bg-muted",
               !matches(unit) && "hidden",
             )}
           >
@@ -95,13 +95,13 @@ export function OrgUnitPicker({
         ))}
 
         {visibleCount === 0 ? (
-          <p className="px-3 py-6 text-center text-[12px] text-text-subtle">
+          <p className="px-3 py-6 text-center text-caption text-text-subtle">
             {DOCUMENTS.unitSearchEmpty}
           </p>
         ) : null}
       </div>
 
-      <p className="mt-1.5 text-[11.5px] text-text-subtle">
+      <p className="mt-1.5 text-micro text-text-subtle">
         {selectedIds.length > 0
           ? DOCUMENTS.unitSelectedCount(selectedIds.length)
           : DOCUMENTS.unitSelectedNone}

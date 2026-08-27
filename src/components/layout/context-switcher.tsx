@@ -55,10 +55,10 @@ export function ContextSwitcher({
     <>
       <Building2 className="size-[17px] shrink-0 text-primary" strokeWidth={1.7} aria-hidden />
       <div className="min-w-0 text-left">
-        <div className="text-[9px] tracking-wide text-text-subtle uppercase">
+        <div className="text-micro tracking-wide text-text-subtle uppercase">
           {HEADER.workingAs}
         </div>
-        <div className="truncate text-[12.5px] leading-tight font-bold text-primary">
+        <div className="truncate text-caption leading-tight font-bold text-primary">
           {active?.orgUnitName ?? HEADER.singleAffiliation}
         </div>
       </div>
@@ -96,7 +96,7 @@ export function ContextSwitcher({
           role="menu"
           className="absolute top-13 left-0 z-71 w-80 overflow-hidden rounded-xl border border-border bg-popover shadow-xl"
         >
-          <div className="border-b border-row-border px-4 py-3 text-[11px] font-bold tracking-wide text-text-subtle uppercase">
+          <div className="border-b border-row-border px-4 py-3 text-micro font-bold tracking-wide text-text-subtle uppercase">
             {HEADER.switchUnit}
           </div>
 
@@ -116,10 +116,10 @@ export function ContextSwitcher({
                   )}
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13.5px] font-semibold text-text-strong">
+                    <div className="truncate text-label font-semibold text-text-strong">
                       {affiliation.orgUnitName}
                     </div>
-                    <div className="mt-0.5 truncate text-[11.5px] text-text-subtle">
+                    <div className="mt-0.5 truncate text-micro text-text-subtle">
                       {[affiliation.positionTitle, affiliation.roleLabels.join(" · ")]
                         .filter(Boolean)
                         .join(" — ")}

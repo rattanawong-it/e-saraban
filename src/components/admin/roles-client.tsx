@@ -68,17 +68,15 @@ export function RolesClient({
             )}
           >
             <div className="flex items-start justify-between gap-2">
-              <span className="text-[14px] font-bold text-text-strong">{role.nameTh}</span>
+              <span className="text-section font-bold text-text-strong">{role.nameTh}</span>
               {role.isSystem ? <Badge tone="neutral">{ROLES.systemRole}</Badge> : null}
             </div>
-            <div className="tabular mt-1 text-[11px] text-text-subtle">{role.code}</div>
+            <div className="tabular mt-1 text-micro text-text-subtle">{role.code}</div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge tone="brand">
                 {`${Object.keys(role.permissions).length.toLocaleString("th-TH")} สิทธิ์`}
               </Badge>
-              <span className="text-[11px] text-text-subtle">
-                {ROLES.userCount(role.userCount)}
-              </span>
+              <span className="text-micro text-text-subtle">{ROLES.userCount(role.userCount)}</span>
             </div>
           </button>
         ))}
@@ -106,7 +104,7 @@ function PermissionMatrix({
         <input type="hidden" name="roleId" value={role.id} />
 
         <div className="flex flex-wrap items-center gap-2 border-b border-border bg-surface-sunken px-5 py-3">
-          <span className="text-[11px] font-bold text-text-subtle">{ROLES.scopeLegend}</span>
+          <span className="text-micro font-bold text-text-subtle">{ROLES.scopeLegend}</span>
           {PERMISSION_SCOPES.map((scope) => (
             <Badge key={scope} tone="neutral">
               {SCOPE_LABELS[scope]}
@@ -134,7 +132,7 @@ function PermissionMatrix({
         <div className="flex flex-col gap-5 p-5">
           {Object.entries(groups).map(([group, items]) => (
             <div key={group}>
-              <div className="mb-2 text-[11px] font-bold tracking-wide text-text-subtle uppercase">
+              <div className="mb-2 text-micro font-bold tracking-wide text-text-subtle uppercase">
                 {group}
               </div>
 
@@ -158,7 +156,7 @@ function PermissionMatrix({
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-sunken px-5 py-4">
-          <p className="max-w-lg text-[11.5px] leading-relaxed text-text-subtle">
+          <p className="max-w-lg text-micro leading-relaxed text-text-subtle">
             {ROLES.changeWarning}
           </p>
           <Button type="submit" disabled={pending}>
@@ -203,17 +201,17 @@ function PermissionRow({
         <span className="min-w-0">
           <span
             className={cn(
-              "block text-[13px] font-semibold",
+              "block text-label font-semibold",
               checked ? "text-text-strong" : "text-text-subtle",
             )}
           >
             {permission.nameTh}
           </span>
-          <span className="tabular block truncate text-[10.5px] text-text-subtle">
+          <span className="tabular block truncate text-micro text-text-subtle">
             {permission.code}
           </span>
           {permission.description ? (
-            <span className="mt-0.5 block text-[11.5px] leading-relaxed text-text-subtle">
+            <span className="mt-0.5 block text-micro leading-relaxed text-text-subtle">
               {permission.description}
             </span>
           ) : null}
@@ -226,7 +224,7 @@ function PermissionRow({
           defaultValue={scope}
           disabled={!checked}
           aria-label={`${ROLES.scopeLegend} ${permission.nameTh}`}
-          className="py-2 text-[12.5px]"
+          className="py-2 text-caption"
         >
           {PERMISSION_SCOPES.map((value) => (
             <option key={value} value={value}>

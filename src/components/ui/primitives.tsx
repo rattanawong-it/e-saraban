@@ -29,8 +29,10 @@ export function CardHeader({
       )}
     >
       <div>
-        <div className="text-[15px] font-bold text-text-strong">{title}</div>
-        {description ? <div className="mt-0.5 text-xs text-text-subtle">{description}</div> : null}
+        <div className="text-body font-bold text-text-strong">{title}</div>
+        {description ? (
+          <div className="mt-0.5 text-caption text-text-subtle">{description}</div>
+        ) : null}
       </div>
       {action}
     </div>
@@ -63,7 +65,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ring-inset",
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-micro font-bold ring-1 ring-inset",
         BADGE_TONES[tone],
         className,
       )}
@@ -87,7 +89,7 @@ export function ConfidentialityBadge({ level, label }: { level: number; label: s
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ring-inset",
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-micro font-bold ring-1 ring-inset",
         CONFIDENTIALITY_TONES[level] ?? CONFIDENTIALITY_TONES[0],
       )}
     >
@@ -123,7 +125,7 @@ export function Alert({
       role={tone === "danger" ? "alert" : "status"}
     >
       <Icon className="mt-0.5 size-[18px] shrink-0" aria-hidden />
-      <div className="min-w-0 text-[13px] leading-relaxed">
+      <div className="min-w-0 text-label leading-relaxed">
         {title ? <div className="font-bold">{title}</div> : null}
         {children}
       </div>
@@ -143,8 +145,8 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-[22px] font-bold text-text-strong">{title}</h1>
-        {description ? <p className="mt-1 text-[13.5px] text-text-subtle">{description}</p> : null}
+        <h1 className="text-title-l font-bold text-text-strong">{title}</h1>
+        {description ? <p className="mt-1 text-label text-text-subtle">{description}</p> : null}
       </div>
       {action}
     </div>
@@ -163,9 +165,9 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
       {icon ? <div className="mb-3 text-text-subtle">{icon}</div> : null}
-      <div className="text-sm font-semibold text-text-medium">{title}</div>
+      <div className="text-section font-semibold text-text-medium">{title}</div>
       {description ? (
-        <div className="mt-1.5 max-w-sm text-xs leading-relaxed text-text-subtle">
+        <div className="mt-1.5 max-w-sm text-caption leading-relaxed text-text-subtle">
           {description}
         </div>
       ) : null}
@@ -190,7 +192,7 @@ export function StatCard({
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">
-        <div className="text-[12.5px] font-semibold text-text-subtle">{label}</div>
+        <div className="text-caption font-semibold text-text-subtle">{label}</div>
         {icon ? (
           <span
             className={cn("flex size-9 items-center justify-center rounded-xl", BADGE_TONES[tone])}
@@ -199,10 +201,10 @@ export function StatCard({
           </span>
         ) : null}
       </div>
-      <div className="tabular mt-2 text-[28px] leading-none font-bold text-text-strong">
+      <div className="tabular mt-2 text-display leading-none font-bold text-text-strong">
         {value}
       </div>
-      {hint ? <div className="mt-2 text-[11.5px] text-text-subtle">{hint}</div> : null}
+      {hint ? <div className="mt-2 text-micro text-text-subtle">{hint}</div> : null}
     </div>
   )
 }

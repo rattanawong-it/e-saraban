@@ -51,7 +51,7 @@ export function DocumentTimeline({ entries }: { entries: TimelineEntry[] }) {
 
               <span
                 className={cn(
-                  "z-1 mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ring-4 ring-card",
+                  "z-1 mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-micro font-bold ring-4 ring-card",
                   HIGHLIGHTED[entry.actionType] ?? "bg-muted text-text-medium",
                 )}
                 aria-hidden
@@ -61,11 +61,11 @@ export function DocumentTimeline({ entries }: { entries: TimelineEntry[] }) {
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <span className="text-[13.5px] font-bold text-text-strong">
+                  <span className="text-label font-bold text-text-strong">
                     {ACTION_LABELS[entry.actionType]}
                   </span>
                   {entry.fromStatus && entry.toStatus && entry.fromStatus !== entry.toStatus ? (
-                    <span className="text-[11.5px] text-text-subtle">
+                    <span className="text-micro text-text-subtle">
                       {DOCUMENTS.timelineStatus(
                         STATUS_LABELS[entry.fromStatus],
                         STATUS_LABELS[entry.toStatus],
@@ -74,14 +74,14 @@ export function DocumentTimeline({ entries }: { entries: TimelineEntry[] }) {
                   ) : null}
                 </div>
 
-                <div className="tabular mt-0.5 text-[11.5px] text-text-subtle">
+                <div className="tabular mt-0.5 text-micro text-text-subtle">
                   {entry.actorName ?? DOCUMENTS.actorSystem}
                   {entry.actorUnitName ? ` · ${entry.actorUnitName}` : ""}
                   {` · ${formatThaiDateTime(entry.createdAt)}`}
                 </div>
 
                 {entry.note ? (
-                  <p className="mt-1.5 rounded-lg bg-surface-sunken px-3 py-2 text-[12.5px] leading-relaxed whitespace-pre-line text-text-medium">
+                  <p className="mt-1.5 rounded-lg bg-surface-sunken px-3 py-2 text-caption leading-relaxed whitespace-pre-line text-text-medium">
                     {entry.note}
                   </p>
                 ) : null}

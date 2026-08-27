@@ -86,7 +86,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
             key={item.key || "all"}
             href={item.key ? `/admin/audit?filter=${item.key}` : "/admin/audit"}
             className={cn(
-              "rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors",
+              "rounded-full px-3.5 py-1.5 text-caption font-semibold transition-colors",
               chip === item.key
                 ? "bg-primary text-primary-foreground"
                 : "bg-card text-text-medium ring-1 ring-border ring-inset hover:bg-muted",
@@ -113,7 +113,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
                   <th
                     key={label}
                     scope="col"
-                    className="px-5 py-3 text-left text-[11px] font-bold tracking-wide text-text-subtle uppercase"
+                    className="px-5 py-3 text-left text-micro font-bold tracking-wide text-text-subtle uppercase"
                   >
                     {label}
                   </th>
@@ -124,22 +124,22 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
             <tbody>
               {result.rows.map((row) => (
                 <tr key={row.id} className="border-b border-row-border last:border-b-0">
-                  <td className="tabular px-5 py-3 text-[12px] whitespace-nowrap text-text-medium">
+                  <td className="tabular px-5 py-3 text-caption whitespace-nowrap text-text-medium">
                     {formatThaiDateTime(row.at, "short")}
                   </td>
-                  <td className="px-5 py-3 text-[12.5px]">
+                  <td className="px-5 py-3 text-caption">
                     <div className="font-semibold text-text-strong">
                       {row.actorName ?? AUDIT.system}
                     </div>
-                    <div className="tabular text-[11px] text-text-subtle">
+                    <div className="tabular text-micro text-text-subtle">
                       {[row.actorUsername, row.actorOrgUnitName].filter(Boolean).join(" · ")}
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-[12.5px] text-text-strong">
+                  <td className="px-5 py-3 text-caption text-text-strong">
                     {AUDIT_ACTION_LABELS[row.action as AuditAction] ?? row.action}
-                    <div className="tabular text-[10.5px] text-text-subtle">{row.action}</div>
+                    <div className="tabular text-micro text-text-subtle">{row.action}</div>
                   </td>
-                  <td className="px-5 py-3 text-[12px] text-text-medium">
+                  <td className="px-5 py-3 text-caption text-text-medium">
                     {AUDIT_ENTITY_LABELS[row.entityType as AuditEntityType] ?? row.entityType}
                   </td>
                   <td className="px-5 py-3">
@@ -147,7 +147,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
                       {row.result === "DENY" ? "DENY" : "ALLOW"}
                     </Badge>
                   </td>
-                  <td className="tabular px-5 py-3 text-[11.5px] whitespace-nowrap text-text-subtle">
+                  <td className="tabular px-5 py-3 text-micro whitespace-nowrap text-text-subtle">
                     {row.ip ?? "—"}
                   </td>
                 </tr>
@@ -159,11 +159,11 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
         {result.rows.length === 0 ? <EmptyState title={AUDIT.empty} /> : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3.5">
-          <div className="tabular text-[12px] text-text-subtle">{AUDIT.total(result.total)}</div>
+          <div className="tabular text-caption text-text-subtle">{AUDIT.total(result.total)}</div>
 
           <div className="flex items-center gap-2.5">
             <PageLink chip={chip} page={page - 1} disabled={page <= 1} label={AUDIT.previous} />
-            <span className="tabular text-[12px] text-text-medium">
+            <span className="tabular text-caption text-text-medium">
               {AUDIT.page} {page} {AUDIT.of} {totalPages}
             </span>
             <PageLink
@@ -199,7 +199,7 @@ function PageLink({
 }) {
   if (disabled) {
     return (
-      <span className="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-text-subtle opacity-50">
+      <span className="rounded-lg px-3 py-1.5 text-caption font-semibold text-text-subtle opacity-50">
         {label}
       </span>
     )
@@ -212,7 +212,7 @@ function PageLink({
   return (
     <Link
       href={`/admin/audit?${query.toString()}`}
-      className="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-primary hover:bg-secondary"
+      className="rounded-lg px-3 py-1.5 text-caption font-semibold text-primary hover:bg-secondary"
     >
       {label}
     </Link>

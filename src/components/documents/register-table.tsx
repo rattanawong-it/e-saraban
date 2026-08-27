@@ -23,7 +23,7 @@ export function RegisterTable({ rows }: { rows: RegisterRow[] }) {
     <Card className="overflow-hidden">
       {/* ตารางกว้างกว่าจอมือถือเสมอ — ให้เลื่อนในกล่องของตัวเอง ไม่ใช่ทั้งหน้า */}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[880px] border-collapse text-[13px]">
+        <table className="w-full min-w-[880px] border-collapse text-label">
           <thead>
             <tr className="border-b border-border bg-muted/60 text-left">
               <Th className="w-[92px] text-center">{REGISTER_REPORT.columns.seq}</Th>
@@ -72,7 +72,7 @@ export function RegisterTable({ rows }: { rows: RegisterRow[] }) {
                   {row.note ? (
                     <span className="flex items-center gap-1.5">
                       <Badge tone="neutral">{REGISTER_REPORT.cancelledTag}</Badge>
-                      <span className="text-[11.5px]">{row.note}</span>
+                      <span className="text-micro">{row.note}</span>
                     </span>
                   ) : (
                     ""
@@ -95,7 +95,7 @@ function Th({ children, className }: { children: React.ReactNode; className?: st
   return (
     <th
       scope="col"
-      className={`px-3 py-2.5 text-[11.5px] font-semibold text-text-medium ${className ?? ""}`}
+      className={`px-3 py-2.5 text-micro font-semibold text-text-medium ${className ?? ""}`}
     >
       {children}
     </th>

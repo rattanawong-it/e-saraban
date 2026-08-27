@@ -27,8 +27,8 @@ export default async function NotificationsPage() {
 
       {items.length === 0 ? (
         <div className="rounded-xl border border-border bg-card px-6 py-14 text-center">
-          <p className="text-[14px] font-medium text-text-medium">{NOTIFICATION_UI.empty}</p>
-          <p className="mt-1 text-[13px] text-text-subtle">{NOTIFICATION_UI.emptyHint}</p>
+          <p className="text-section font-medium text-text-medium">{NOTIFICATION_UI.empty}</p>
+          <p className="mt-1 text-label text-text-subtle">{NOTIFICATION_UI.emptyHint}</p>
         </div>
       ) : (
         <ul className="overflow-hidden rounded-xl border border-border bg-card">
@@ -46,14 +46,14 @@ export default async function NotificationsPage() {
 
                 <div className="min-w-0 flex-1">
                   <p
-                    className={`text-[14px] ${unread ? "font-bold text-text-strong" : "font-medium text-text-medium"}`}
+                    className={`text-section ${unread ? "font-bold text-text-strong" : "font-medium text-text-medium"}`}
                   >
                     {item.title}
                   </p>
-                  <p className="mt-0.5 text-[13px] text-text-subtle">{item.body}</p>
+                  <p className="mt-0.5 text-label text-text-subtle">{item.body}</p>
                 </div>
 
-                <span className="shrink-0 text-[12px] whitespace-nowrap text-text-subtle">
+                <span className="shrink-0 text-caption whitespace-nowrap text-text-subtle">
                   {formatThaiDateTime(item.createdAt)}
                 </span>
               </div>

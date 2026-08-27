@@ -45,13 +45,15 @@ export function AuthBrandPanel({
             />
           </div>
           <div>
-            <div className="text-[15px] font-bold tracking-wide">{BRAND.name}</div>
-            <div className="text-xs text-white/65">{BRAND.tagline}</div>
+            <div className="text-body font-bold tracking-wide">{BRAND.name}</div>
+            <div className="text-caption text-white/65">{BRAND.tagline}</div>
           </div>
         </div>
 
-        <h1 className="mb-4 max-w-md text-2xl leading-snug font-bold lg:text-[32px]">{title}</h1>
-        <p className="max-w-sm text-[15px] leading-relaxed text-white/75 lg:mb-10">{subtitle}</p>
+        <h1 className="mb-4 max-w-md text-title-l leading-snug font-bold lg:text-display">
+          {title}
+        </h1>
+        <p className="max-w-sm text-body leading-relaxed text-white/75 lg:mb-10">{subtitle}</p>
 
         {features ? (
           <ul className="hidden flex-col gap-5 lg:flex">
@@ -63,14 +65,14 @@ export function AuthBrandPanel({
                 >
                   <Icon className="size-5" strokeWidth={1.7} />
                 </span>
-                <span className="pt-1.5 text-[13.5px] leading-relaxed text-white/90">{label}</span>
+                <span className="pt-1.5 text-label leading-relaxed text-white/90">{label}</span>
               </li>
             ))}
           </ul>
         ) : null}
       </div>
 
-      <div className="relative z-10 mt-8 hidden text-xs text-white/50 lg:block">
+      <div className="relative z-10 mt-8 hidden text-caption text-white/50 lg:block">
         {BRAND.copyright}
       </div>
     </div>
@@ -94,9 +96,9 @@ export function AuthFormPanel({
 export function AuthHeading({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="mb-7">
-      <h2 className="text-2xl font-bold text-text-strong">{title}</h2>
+      <h2 className="text-title-l font-bold text-text-strong">{title}</h2>
       {subtitle ? (
-        <p className="mt-2 text-sm leading-relaxed text-text-subtle">{subtitle}</p>
+        <p className="mt-2 text-body leading-relaxed text-text-subtle">{subtitle}</p>
       ) : null}
     </div>
   )

@@ -75,10 +75,10 @@ export function AttachmentPanel({
                 <Paperclip className="size-4 shrink-0 text-text-subtle" aria-hidden />
 
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13px] font-semibold text-text-strong">
+                  <div className="truncate text-label font-semibold text-text-strong">
                     {file.fileName}
                   </div>
-                  <div className="tabular text-[11px] text-text-subtle">
+                  <div className="tabular text-micro text-text-subtle">
                     {DOCUMENTS.attachmentMeta(formatFileSize(file.sizeBytes), file.uploadedByName)}
                     {` · ${DOCUMENTS.versionLabel(file.version)} · ${formatThaiDateTime(file.uploadedAt, "short")}`}
                   </div>
@@ -134,11 +134,11 @@ export function AttachmentPanel({
               type="file"
               name="file"
               required
-              className="text-[12.5px] file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-secondary-foreground"
+              className="text-caption file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-caption file:font-semibold file:text-secondary-foreground"
             />
 
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[11px] text-text-subtle">{DOCUMENTS.uploadHint(maxSizeMb)}</p>
+              <p className="text-micro text-text-subtle">{DOCUMENTS.uploadHint(maxSizeMb)}</p>
 
               <Button type="submit" size="sm" variant="outline" disabled={uploading}>
                 {uploading ? (
@@ -151,9 +151,7 @@ export function AttachmentPanel({
             </div>
           </form>
         ) : lockedReason ? (
-          <p className="border-t border-border pt-4 text-[11.5px] text-text-subtle">
-            {lockedReason}
-          </p>
+          <p className="border-t border-border pt-4 text-micro text-text-subtle">{lockedReason}</p>
         ) : null}
       </div>
     </Card>

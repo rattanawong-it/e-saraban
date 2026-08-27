@@ -66,7 +66,7 @@ export function AppHeader({
       {/* ช่องค้นหาเป็นของ P4 — ใส่ไว้ให้เห็นตำแหน่งจริงแต่ยังกดไม่ได้ */}
       <div className="hidden h-11 max-w-95 min-w-0 flex-1 items-center gap-2.5 rounded-lg border border-border bg-muted px-4 text-text-subtle xl:flex">
         <Search className="size-[17px] shrink-0" aria-hidden />
-        <span className="truncate text-[13.5px]">{HEADER.searchPlaceholder}</span>
+        <span className="truncate text-label">{HEADER.searchPlaceholder}</span>
       </div>
 
       <div className="flex-1" />
@@ -97,7 +97,7 @@ export function AppHeader({
           onClick={() => setProfileOpen((value) => !value)}
           aria-expanded={profileOpen}
           aria-haspopup="menu"
-          className="flex size-9.5 cursor-pointer items-center justify-center rounded-lg bg-primary text-[13px] font-bold text-primary-foreground"
+          className="flex size-9.5 cursor-pointer items-center justify-center rounded-lg bg-primary text-label font-bold text-primary-foreground"
         >
           {user.initials}
         </button>
@@ -108,11 +108,11 @@ export function AppHeader({
             className="absolute top-12 right-0 z-71 w-62 overflow-hidden rounded-xl border border-border bg-popover shadow-xl"
           >
             <div className="px-4.5 py-4">
-              <div className="text-[14.5px] font-bold text-text-strong">{user.fullName}</div>
-              <div className="mt-0.5 text-[12.5px] text-text-subtle">
+              <div className="text-body font-bold text-text-strong">{user.fullName}</div>
+              <div className="mt-0.5 text-caption text-text-subtle">
                 {user.email ?? user.username}
               </div>
-              <div className="mt-2 text-[11px] text-text-subtle">
+              <div className="mt-2 text-micro text-text-subtle">
                 {[activeAffiliation?.roleLabels[0], activeAffiliation?.orgUnitName]
                   .filter(Boolean)
                   .join(" · ")}
@@ -125,7 +125,7 @@ export function AppHeader({
             <Link
               href="/help"
               role="menuitem"
-              className="flex items-center gap-2.5 px-4.5 py-3 text-[13.5px] font-semibold text-text-medium transition-colors hover:bg-muted"
+              className="flex items-center gap-2.5 px-4.5 py-3 text-label font-semibold text-text-medium transition-colors hover:bg-muted"
             >
               <BookOpen className="size-4" aria-hidden />
               {HELP_NAV_LABEL}
@@ -135,7 +135,7 @@ export function AppHeader({
             <Link
               href="/change-password"
               role="menuitem"
-              className="flex items-center gap-2.5 px-4.5 py-3 text-[13.5px] font-semibold text-text-medium transition-colors hover:bg-muted"
+              className="flex items-center gap-2.5 px-4.5 py-3 text-label font-semibold text-text-medium transition-colors hover:bg-muted"
             >
               <KeyRound className="size-4" aria-hidden />
               {HEADER.changePassword}
@@ -146,7 +146,7 @@ export function AppHeader({
               <button
                 type="submit"
                 role="menuitem"
-                className="flex w-full cursor-pointer items-center gap-2.5 px-4.5 py-3 text-left text-[13.5px] font-semibold text-danger transition-colors hover:bg-danger-bg"
+                className="flex w-full cursor-pointer items-center gap-2.5 px-4.5 py-3 text-left text-label font-semibold text-danger transition-colors hover:bg-danger-bg"
               >
                 <LogOut className="size-4" aria-hidden />
                 {HEADER.logout}

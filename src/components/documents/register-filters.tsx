@@ -132,7 +132,7 @@ export function RegisterFilters({
           </Button>
         </div>
 
-        <p className="text-[11.5px] text-text-subtle">{REGISTER_REPORT.exportNote}</p>
+        <p className="text-micro text-text-subtle">{REGISTER_REPORT.exportNote}</p>
       </form>
     </Card>
   )

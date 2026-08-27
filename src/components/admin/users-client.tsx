@@ -158,10 +158,10 @@ export function UsersClient({
                 name="q"
                 defaultValue={query}
                 placeholder={USERS.searchPlaceholder}
-                className="min-w-0 flex-1 border-none bg-transparent text-[13px] text-text-strong outline-none placeholder:text-text-subtle"
+                className="min-w-0 flex-1 border-none bg-transparent text-label text-text-strong outline-none placeholder:text-text-subtle"
               />
             </div>
-            <label className="flex cursor-pointer items-center gap-2 text-[12.5px] text-text-medium">
+            <label className="flex cursor-pointer items-center gap-2 text-caption text-text-medium">
               <Checkbox name="inactive" value="1" defaultChecked={showInactive} />
               {USERS.showInactive}
             </label>
@@ -192,7 +192,7 @@ export function UsersClient({
                   >
                     <span
                       className={cn(
-                        "flex size-10 shrink-0 items-center justify-center rounded-xl text-[13px] font-bold",
+                        "flex size-10 shrink-0 items-center justify-center rounded-xl text-label font-bold",
                         user.isActive ? "bg-brand-pale text-primary" : "bg-muted text-text-subtle",
                       )}
                     >
@@ -200,10 +200,10 @@ export function UsersClient({
                     </span>
 
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13.5px] font-semibold text-text-strong">
+                      <span className="block truncate text-label font-semibold text-text-strong">
                         {user.fullName}
                       </span>
-                      <span className="tabular block truncate text-[11.5px] text-text-subtle">
+                      <span className="tabular block truncate text-micro text-text-subtle">
                         {user.username}
                         {user.affiliations[0] ? ` · ${user.affiliations[0].orgUnitName}` : ""}
                       </span>
@@ -256,12 +256,12 @@ function UserDetail({
     <div className="flex flex-col gap-4">
       <Card className="overflow-hidden">
         <div className="flex items-center gap-3.5 border-b border-border px-5 py-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-pale text-[15px] font-bold text-primary">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-pale text-body font-bold text-primary">
             {user.initials}
           </span>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[15px] font-bold text-text-strong">{user.fullName}</div>
-            <div className="tabular truncate text-xs text-text-subtle">{user.username}</div>
+            <div className="truncate text-body font-bold text-text-strong">{user.fullName}</div>
+            <div className="tabular truncate text-caption text-text-subtle">{user.username}</div>
           </div>
         </div>
 
@@ -326,7 +326,7 @@ function UserDetail({
             </Select>
           </Field>
 
-          <div className="tabular text-[11.5px] text-text-subtle">
+          <div className="tabular text-micro text-text-subtle">
             {USERS.lastLogin}:{" "}
             {user.lastLoginAt ? formatThaiDateTime(user.lastLoginAt) : USERS.neverLoggedIn}
           </div>
@@ -361,7 +361,7 @@ function UserDetail({
             >
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[13px] font-semibold text-text-strong">
+                  <span className="text-label font-semibold text-text-strong">
                     {affiliation.orgUnitName}
                   </span>
                   {affiliation.isPrimary ? <Badge tone="brand">{USERS.primary}</Badge> : null}
@@ -374,7 +374,7 @@ function UserDetail({
                   ))}
                 </div>
                 {affiliation.positionTitle ? (
-                  <div className="mt-1 text-[11.5px] text-text-subtle">
+                  <div className="mt-1 text-micro text-text-subtle">
                     {affiliation.positionTitle}
                   </div>
                 ) : null}
@@ -480,7 +480,7 @@ function AddAffiliationForm({
         <TextInput id="aff-positionTitle" name="positionTitle" />
       </Field>
 
-      <label className="flex cursor-pointer items-center gap-2.5 text-[13px] text-text-medium">
+      <label className="flex cursor-pointer items-center gap-2.5 text-label text-text-medium">
         <Checkbox name="isPrimary" />
         ตั้งเป็นสังกัดหลัก
       </label>
@@ -569,7 +569,7 @@ function TemporaryPasswordPanel({ data }: { data: TemporaryPasswordData }) {
     <Alert tone="warning" title={USERS.temporaryPasswordTitle}>
       <p className="mt-1 leading-relaxed">{USERS.temporaryPasswordBody}</p>
       <div className="mt-3 flex items-center gap-2.5">
-        <code className="tabular flex-1 rounded-lg bg-card px-3 py-2 text-[15px] font-bold tracking-wider text-text-strong">
+        <code className="tabular flex-1 rounded-lg bg-card px-3 py-2 text-body font-bold tracking-wider text-text-strong">
           {data.temporaryPassword}
         </code>
         <Button
@@ -606,7 +606,7 @@ function CreateUserForm({
   return (
     <form action={formAction} className="flex flex-col gap-3.5">
       <div className="flex items-center justify-between">
-        <div className="text-[14px] font-bold text-text-strong">{USERS.createTitle}</div>
+        <div className="text-section font-bold text-text-strong">{USERS.createTitle}</div>
         <button
           type="button"
           onClick={onDone}
@@ -726,19 +726,19 @@ function RegistrationQueue({
         <ul>
           {registrations.map((request) => (
             <li key={request.id} className="border-b border-row-border p-5 last:border-b-0">
-              <div className="text-[13.5px] font-semibold text-text-strong">{request.fullName}</div>
-              <div className="tabular mt-0.5 text-[11.5px] text-text-subtle">
+              <div className="text-label font-semibold text-text-strong">{request.fullName}</div>
+              <div className="tabular mt-0.5 text-micro text-text-subtle">
                 {request.username} · {request.email}
               </div>
-              <div className="mt-1 text-[12px] text-text-medium">
+              <div className="mt-1 text-caption text-text-medium">
                 {[request.orgUnitName, request.positionTitle].filter(Boolean).join(" · ")}
               </div>
               {request.note ? (
-                <p className="mt-2 rounded-lg bg-muted px-3 py-2 text-[11.5px] leading-relaxed text-text-medium">
+                <p className="mt-2 rounded-lg bg-muted px-3 py-2 text-micro leading-relaxed text-text-medium">
                   {request.note}
                 </p>
               ) : null}
-              <div className="tabular mt-2 text-[11px] text-text-subtle">
+              <div className="tabular mt-2 text-micro text-text-subtle">
                 {USERS.requestedAt} {formatThaiDateTime(request.createdAt)}
               </div>
 
@@ -797,12 +797,12 @@ function ResetQueue({ resets }: { resets: ResetRow[] }) {
               className="flex items-start justify-between gap-3 border-b border-row-border px-5 py-3.5 last:border-b-0"
             >
               <div className="min-w-0">
-                <div className="truncate text-[13px] font-semibold text-text-strong">
+                <div className="truncate text-label font-semibold text-text-strong">
                   {reset.userFullName ?? reset.email}
                 </div>
-                <div className="tabular truncate text-[11.5px] text-text-subtle">{reset.email}</div>
+                <div className="tabular truncate text-micro text-text-subtle">{reset.email}</div>
               </div>
-              <div className="tabular shrink-0 text-[11px] text-text-subtle">
+              <div className="tabular shrink-0 text-micro text-text-subtle">
                 {formatThaiDateTime(reset.createdAt, "short")}
               </div>
             </li>
@@ -811,9 +811,7 @@ function ResetQueue({ resets }: { resets: ResetRow[] }) {
       )}
 
       <div className="border-t border-border px-5 py-3">
-        <p className="text-[11px] leading-relaxed text-text-subtle">
-          {USERS.temporaryPasswordBody}
-        </p>
+        <p className="text-micro leading-relaxed text-text-subtle">{USERS.temporaryPasswordBody}</p>
       </div>
     </Card>
   )

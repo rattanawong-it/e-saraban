@@ -62,8 +62,8 @@ export function AppSidebar({
             />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[13.5px] font-bold">{BRAND.name}</div>
-            <div className="truncate text-[10.5px] text-white/55">{BRAND.tagline}</div>
+            <div className="truncate text-label font-bold">{BRAND.name}</div>
+            <div className="truncate text-micro text-white/55">{BRAND.tagline}</div>
           </div>
           <button
             type="button"
@@ -79,7 +79,7 @@ export function AppSidebar({
           {groups.map((group, index) => (
             <div key={group.label ?? `group-${index}`} className={index > 0 ? "mt-3.5" : ""}>
               {group.label ? (
-                <div className="px-3 pt-2 pb-1 text-[10px] font-bold tracking-wider text-white/40 uppercase">
+                <div className="px-3 pt-2 pb-1 text-micro font-bold tracking-wider text-white/40 uppercase">
                   {group.label}
                 </div>
               ) : null}
@@ -112,7 +112,7 @@ function NavRow({ item, pathname }: { item: NavItem; pathname: string }) {
           onClick={() => setExpanded((value) => !value)}
           aria-expanded={expanded}
           className={cn(
-            "flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-[13.5px] font-medium transition-colors",
+            "flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-label font-medium transition-colors",
             active ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/5 hover:text-white",
           )}
         >
@@ -154,7 +154,7 @@ function NavLeaf({
     <Link
       href={item.href}
       className={cn(
-        "flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13.5px] font-medium transition-colors",
+        "flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-label font-medium transition-colors",
         active ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/5 hover:text-white",
       )}
     >
@@ -163,7 +163,7 @@ function NavLeaf({
       ) : null}
       <span className="flex-1 truncate">{item.label}</span>
       {item.phase ? (
-        <span className="tabular shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-[9.5px] font-bold text-white/50">
+        <span className="tabular shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-micro font-bold text-white/50">
           {item.phase}
         </span>
       ) : null}

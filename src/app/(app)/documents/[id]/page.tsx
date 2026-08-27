@@ -126,7 +126,7 @@ export default async function DocumentDetailPage({ params }: PageProps<"/documen
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="tabular flex flex-wrap items-center gap-2">
-            <span className="text-[13px] font-bold text-primary">
+            <span className="text-label font-bold text-primary">
               {document.docNo ?? DOCUMENTS.noDocNo}
             </span>
             <DocumentStatusBadge status={document.status} />
@@ -141,10 +141,10 @@ export default async function DocumentDetailPage({ params }: PageProps<"/documen
             ) : null}
           </div>
 
-          <h1 className="mt-1.5 text-[22px] leading-snug font-bold text-text-strong">
+          <h1 className="mt-1.5 text-title-l leading-snug font-bold text-text-strong">
             {document.subject}
           </h1>
-          <p className="mt-1 text-[13px] text-text-subtle">
+          <p className="mt-1 text-label text-text-subtle">
             {`${document.documentType.nameTh} · ${DIRECTION_LABELS[document.direction]}`}
           </p>
         </div>
@@ -174,10 +174,10 @@ export default async function DocumentDetailPage({ params }: PageProps<"/documen
 
             <div className="flex flex-col gap-5 p-5">
               <div>
-                <div className="text-[11px] font-bold tracking-wide text-text-subtle uppercase">
+                <div className="text-micro font-bold tracking-wide text-text-subtle uppercase">
                   {DOCUMENTS.detailSummary}
                 </div>
-                <p className="mt-1 text-[13.5px] leading-relaxed whitespace-pre-line text-text-medium">
+                <p className="mt-1 text-label leading-relaxed whitespace-pre-line text-text-medium">
                   {document.summary ?? (
                     <span className="text-text-subtle italic">{DOCUMENTS.noSummary}</span>
                   )}
@@ -269,7 +269,7 @@ export default async function DocumentDetailPage({ params }: PageProps<"/documen
             <CardHeader title={DOCUMENTS.detailRecipients} />
 
             {document.recipients.length === 0 ? (
-              <p className="px-5 py-6 text-center text-[12.5px] text-text-subtle">
+              <p className="px-5 py-6 text-center text-caption text-text-subtle">
                 {DOCUMENTS.noRecipient}
               </p>
             ) : (
@@ -277,10 +277,10 @@ export default async function DocumentDetailPage({ params }: PageProps<"/documen
                 {document.recipients.map((recipient) => (
                   <li key={recipient.id} className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate text-[13px] font-semibold text-text-strong">
+                      <div className="truncate text-label font-semibold text-text-strong">
                         {recipientName(recipient)}
                       </div>
-                      <div className="text-[11px] text-text-subtle">
+                      <div className="text-micro text-text-subtle">
                         {RECIPIENT_KIND_LABELS[recipient.kind]}
                       </div>
                     </div>
@@ -328,8 +328,8 @@ function BackLink() {
 function Info({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-[11px] font-bold tracking-wide text-text-subtle uppercase">{label}</dt>
-      <dd className="mt-0.5 text-[13px] text-text-medium">{children}</dd>
+      <dt className="text-micro font-bold tracking-wide text-text-subtle uppercase">{label}</dt>
+      <dd className="mt-0.5 text-label text-text-medium">{children}</dd>
     </div>
   )
 }

@@ -27,8 +27,10 @@ export function ForgotPasswordForm() {
         <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-full bg-success-bg">
           <CheckCircle2 className="size-8 text-success" aria-hidden />
         </div>
-        <h2 className="text-[22px] font-bold text-text-strong">{FORGOT_PASSWORD.sentTitle}</h2>
-        <p className="mt-3 text-sm leading-relaxed text-text-subtle">{FORGOT_PASSWORD.sentBody}</p>
+        <h2 className="text-title-l font-bold text-text-strong">{FORGOT_PASSWORD.sentTitle}</h2>
+        <p className="mt-3 text-body leading-relaxed text-text-subtle">
+          {FORGOT_PASSWORD.sentBody}
+        </p>
 
         <Button asChild variant="outline" block className="mt-7">
           <Link href="/login">
@@ -77,7 +79,7 @@ export function ForgotPasswordForm() {
       </form>
 
       <div className="mt-6 rounded-xl bg-secondary px-4 py-3.5">
-        <p className="text-xs leading-relaxed text-text-medium">{FORGOT_PASSWORD.notice}</p>
+        <p className="text-caption leading-relaxed text-text-medium">{FORGOT_PASSWORD.notice}</p>
       </div>
     </>
   )

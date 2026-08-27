@@ -72,22 +72,22 @@ export function AclPanel({
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="truncate text-[13px] font-semibold text-text-strong">
+                    <span className="truncate text-label font-semibold text-text-strong">
                       {row.userName}
                     </span>
-                    <span className="tabular text-[11px] text-text-subtle">({row.username})</span>
+                    <span className="tabular text-micro text-text-subtle">({row.username})</span>
                     <PermissionTag permission={row.permission} effect={row.effect} />
                     {row.isOwner ? <Tag tone="muted">{ACL.ownerTag}</Tag> : null}
                     {row.isAutomatic ? <Tag tone="muted">{ACL.automaticTag}</Tag> : null}
                   </div>
 
-                  <div className="tabular mt-0.5 text-[11px] text-text-subtle">
+                  <div className="tabular mt-0.5 text-micro text-text-subtle">
                     {ACL.grantedBy(row.grantedByName, formatThaiDateTime(row.grantedAt, "short"))}
                     {row.expiresAt ? ` · ${ACL.expiresOn(formatThaiDate(row.expiresAt))}` : ""}
                   </div>
 
                   {row.reason && !row.isAutomatic ? (
-                    <div className="mt-0.5 text-[11px] text-text-subtle">
+                    <div className="mt-0.5 text-micro text-text-subtle">
                       {ACL.reasonLabel}: {row.reason}
                     </div>
                   ) : null}
@@ -158,13 +158,13 @@ export function AclPanel({
                         (candidate.hasClearance ? "" : " cursor-not-allowed opacity-60")
                       }
                     >
-                      <div className="text-[13px] font-semibold text-text-strong">
+                      <div className="text-label font-semibold text-text-strong">
                         {candidate.fullName}
-                        <span className="tabular ml-1.5 text-[11px] font-normal text-text-subtle">
+                        <span className="tabular ml-1.5 text-micro font-normal text-text-subtle">
                           ({candidate.username})
                         </span>
                       </div>
-                      <div className="tabular text-[11px] text-text-subtle">
+                      <div className="tabular text-micro text-text-subtle">
                         {candidate.orgUnitName ?? ACL.noOrgUnit}
                         {` · ${ACL.clearanceOf(candidate.clearanceLevel)}`}
                         {candidate.hasClearance
@@ -275,7 +275,7 @@ function Tag({
   }
 
   return (
-    <span className={`rounded px-1.5 py-0.5 text-[10.5px] font-semibold ${tones[tone]}`}>
+    <span className={`rounded px-1.5 py-0.5 text-micro font-semibold ${tones[tone]}`}>
       {children}
     </span>
   )

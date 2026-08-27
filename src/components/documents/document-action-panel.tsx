@@ -147,7 +147,7 @@ export function DocumentActionPanel({
         ) : null}
 
         {transitions.length === 0 ? (
-          <p className="text-[12.5px] text-text-subtle">{DOCUMENTS.actionEmpty}</p>
+          <p className="text-caption text-text-subtle">{DOCUMENTS.actionEmpty}</p>
         ) : (
           <div className="flex flex-col gap-2">
             {transitions.map((transition) => {

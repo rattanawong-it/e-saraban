@@ -44,9 +44,7 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
               <Label htmlFor="yearMode" className="mb-1">
                 {SETTINGS.yearMode}
               </Label>
-              <p className="text-[11.5px] leading-relaxed text-text-subtle">
-                {SETTINGS.yearModeHint}
-              </p>
+              <p className="text-micro leading-relaxed text-text-subtle">{SETTINGS.yearModeHint}</p>
             </div>
             <div className="w-64">
               <Select id="yearMode" name="yearMode" defaultValue={settings.numbering.yearMode}>
@@ -61,12 +59,12 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
 
           <div className="flex items-center justify-between gap-4 border-t border-row-border pt-4">
             <div>
-              <div className="text-[13px] font-semibold text-text-strong">
+              <div className="text-label font-semibold text-text-strong">
                 {SETTINGS.languageTitle}
               </div>
-              <div className="mt-0.5 text-[11.5px] text-text-subtle">{SETTINGS.languageHint}</div>
+              <div className="mt-0.5 text-micro text-text-subtle">{SETTINGS.languageHint}</div>
             </div>
-            <span className="rounded-full bg-secondary px-3.5 py-1.5 text-[12.5px] font-bold text-primary">
+            <span className="rounded-full bg-secondary px-3.5 py-1.5 text-caption font-bold text-primary">
               {SETTINGS.languageValue}
             </span>
           </div>
@@ -81,7 +79,7 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
               <Label htmlFor="maxSizeMb" className="mb-1">
                 {SETTINGS.maxSize}
               </Label>
-              <p className="text-[11.5px] text-text-subtle">{SETTINGS.maxSizeHint}</p>
+              <p className="text-micro text-text-subtle">{SETTINGS.maxSizeHint}</p>
             </div>
             <div className="flex items-center gap-2.5">
               <TextInput
@@ -93,7 +91,7 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
                 defaultValue={settings.file.maxSizeMb}
                 className="tabular w-24 text-center"
               />
-              <span className="text-[12.5px] text-text-subtle">{SETTINGS.maxSizeUnit}</span>
+              <span className="text-caption text-text-subtle">{SETTINGS.maxSizeUnit}</span>
             </div>
           </div>
 
@@ -103,7 +101,7 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
               {ALL_MIME_TYPES.map((mime) => (
                 <label
                   key={mime}
-                  className="flex cursor-pointer items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-[12.5px] text-text-medium has-checked:border-primary has-checked:bg-secondary has-checked:text-primary"
+                  className="flex cursor-pointer items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-caption text-text-medium has-checked:border-primary has-checked:bg-secondary has-checked:text-primary"
                 >
                   <Checkbox
                     name="allowedMimeTypes"
@@ -136,7 +134,7 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
                 defaultValue={settings.password.minLength}
                 className="tabular w-20 text-center"
               />
-              <span className="text-[12.5px] whitespace-nowrap text-text-subtle">
+              <span className="text-caption whitespace-nowrap text-text-subtle">
                 {SETTINGS.minLengthUnit}
               </span>
             </div>
@@ -196,9 +194,7 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
             />
           </div>
 
-          <p className="mt-4 text-[11.5px] leading-relaxed text-text-subtle">
-            {SETTINGS.lockoutHint}
-          </p>
+          <p className="mt-4 text-micro leading-relaxed text-text-subtle">{SETTINGS.lockoutHint}</p>
         </div>
       </Card>
 
@@ -233,8 +229,8 @@ function ToggleRow({
   return (
     <label className="flex cursor-pointer items-center justify-between gap-4 border-t border-row-border pt-4">
       <span>
-        <span className="block text-[13px] font-semibold text-text-strong">{title}</span>
-        <span className="mt-0.5 block text-[11.5px] text-text-subtle">{hint}</span>
+        <span className="block text-label font-semibold text-text-strong">{title}</span>
+        <span className="mt-0.5 block text-micro text-text-subtle">{hint}</span>
       </span>
       <Checkbox name={name} defaultChecked={defaultChecked} className="size-5" />
     </label>
@@ -269,7 +265,7 @@ function NumberField({
           defaultValue={defaultValue}
           className="tabular"
         />
-        <span className="text-[12px] whitespace-nowrap text-text-subtle">{unit}</span>
+        <span className="text-caption whitespace-nowrap text-text-subtle">{unit}</span>
       </div>
     </div>
   )

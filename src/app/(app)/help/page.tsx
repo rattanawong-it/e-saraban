@@ -40,13 +40,13 @@ export default async function HelpPage() {
           aria-label={HELP.tocTitle}
           className="shrink-0 rounded-xl border border-border bg-card p-4 lg:sticky lg:top-6 lg:w-60"
         >
-          <p className="mb-2 text-[12px] font-bold text-text-subtle">{HELP.tocTitle}</p>
+          <p className="mb-2 text-caption font-bold text-text-subtle">{HELP.tocTitle}</p>
           <ul className="flex flex-wrap gap-x-4 gap-y-1 lg:flex-col lg:gap-1">
             {sections.map((section) => (
               <li key={section.id}>
                 <a
                   href={`#${section.id}`}
-                  className="text-[13.5px] font-medium text-text-medium hover:text-primary hover:underline"
+                  className="text-label font-medium text-text-medium hover:text-primary hover:underline"
                 >
                   {section.title}
                 </a>
@@ -59,12 +59,12 @@ export default async function HelpPage() {
           {sections.map((section) => (
             <Card key={section.id} id={section.id} className="scroll-mt-6">
               <CardBody className="flex flex-col gap-5">
-                <h2 className="text-[16px] font-bold text-text-strong">{section.title}</h2>
+                <h2 className="text-title font-bold text-text-strong">{section.title}</h2>
 
                 {section.entries.map((entry) => (
                   <div key={entry.q}>
-                    <h3 className="text-[14px] font-bold text-text-strong">{entry.q}</h3>
-                    <p className="mt-1 text-[13.5px] leading-relaxed text-text-medium">{entry.a}</p>
+                    <h3 className="text-section font-bold text-text-strong">{entry.q}</h3>
+                    <p className="mt-1 text-label leading-relaxed text-text-medium">{entry.a}</p>
 
                     {/* ใช้ Alert ตัวเดียวกับที่ทั้งระบบใช้ ไม่ประกอบสีเตือนขึ้นมาเองซ้ำ */}
                     {entry.warn ? (
@@ -80,10 +80,8 @@ export default async function HelpPage() {
 
           <Card>
             <CardBody>
-              <h2 className="text-[15px] font-bold text-text-strong">{HELP.contactTitle}</h2>
-              <p className="mt-1 text-[13.5px] leading-relaxed text-text-medium">
-                {HELP.contactBody}
-              </p>
+              <h2 className="text-body font-bold text-text-strong">{HELP.contactTitle}</h2>
+              <p className="mt-1 text-label leading-relaxed text-text-medium">{HELP.contactBody}</p>
             </CardBody>
           </Card>
         </div>

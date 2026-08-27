@@ -113,7 +113,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
       {result.empty ? null : (
         <>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="tabular text-[13px] font-semibold text-text-strong">
+            <p className="tabular text-label font-semibold text-text-strong">
               {SEARCH.resultCount(result.total)}
             </p>
           </div>

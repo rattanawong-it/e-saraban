@@ -89,7 +89,7 @@ export function NotificationBell({ unreadCount, cap }: { unreadCount: number; ca
         <Bell className="size-[18px]" aria-hidden />
 
         {unreadCount > 0 ? (
-          <span className="absolute -top-1 -right-1 flex min-w-4.5 items-center justify-center rounded-full bg-danger px-1 text-[10px] leading-4.5 font-bold text-white">
+          <span className="absolute -top-1 -right-1 flex min-w-4.5 items-center justify-center rounded-full bg-danger px-1 text-micro leading-4.5 font-bold text-white">
             {unreadCount >= cap ? NOTIFICATION_UI.overflowCount(cap) : unreadCount}
           </span>
         ) : null}
@@ -101,7 +101,7 @@ export function NotificationBell({ unreadCount, cap }: { unreadCount: number; ca
           className="absolute top-12 right-0 z-71 w-88 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-popover shadow-xl"
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <span className="text-[14px] font-bold text-text-strong">
+            <span className="text-section font-bold text-text-strong">
               {NOTIFICATION_UI.panelTitle}
             </span>
 
@@ -109,7 +109,7 @@ export function NotificationBell({ unreadCount, cap }: { unreadCount: number; ca
               <button
                 type="button"
                 onClick={markAll}
-                className="cursor-pointer text-[12px] text-primary hover:underline"
+                className="cursor-pointer text-caption text-primary hover:underline"
               >
                 {NOTIFICATION_UI.markAllRead}
               </button>
@@ -118,7 +118,7 @@ export function NotificationBell({ unreadCount, cap }: { unreadCount: number; ca
 
           <div className="max-h-96 overflow-y-auto">
             {loading && items === null ? (
-              <p className="px-4 py-6 text-center text-[13px] text-text-subtle">
+              <p className="px-4 py-6 text-center text-label text-text-subtle">
                 {NOTIFICATION_UI.loading}
               </p>
             ) : items && items.length > 0 ? (
@@ -131,8 +131,8 @@ export function NotificationBell({ unreadCount, cap }: { unreadCount: number; ca
               </ul>
             ) : (
               <div className="px-4 py-8 text-center">
-                <p className="text-[13px] font-medium text-text-medium">{NOTIFICATION_UI.empty}</p>
-                <p className="mt-1 text-[12px] text-text-subtle">{NOTIFICATION_UI.emptyHint}</p>
+                <p className="text-label font-medium text-text-medium">{NOTIFICATION_UI.empty}</p>
+                <p className="mt-1 text-caption text-text-subtle">{NOTIFICATION_UI.emptyHint}</p>
               </div>
             )}
           </div>
@@ -140,7 +140,7 @@ export function NotificationBell({ unreadCount, cap }: { unreadCount: number; ca
           <Link
             href="/notifications"
             onClick={() => setOpen(false)}
-            className="block border-t border-border px-4 py-3 text-center text-[12.5px] font-medium text-primary hover:bg-muted"
+            className="block border-t border-border px-4 py-3 text-center text-caption font-medium text-primary hover:bg-muted"
           >
             {NOTIFICATION_UI.viewAll}
           </Link>
@@ -173,12 +173,12 @@ function NotificationRow({ item, onOpen }: { item: NotificationView; onOpen: () 
 
         <div className="min-w-0">
           <p
-            className={`text-[13.5px] ${unread ? "font-bold text-text-strong" : "font-medium text-text-medium"}`}
+            className={`text-label ${unread ? "font-bold text-text-strong" : "font-medium text-text-medium"}`}
           >
             {item.title}
           </p>
-          <p className="mt-0.5 truncate text-[12.5px] text-text-subtle">{item.body}</p>
-          <p className="mt-1 text-[11px] text-text-subtle">
+          <p className="mt-0.5 truncate text-caption text-text-subtle">{item.body}</p>
+          <p className="mt-1 text-micro text-text-subtle">
             {formatThaiDateTime(item.createdAt, "short")}
           </p>
         </div>

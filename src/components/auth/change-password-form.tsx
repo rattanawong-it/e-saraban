@@ -64,12 +64,12 @@ export function ChangePasswordForm({ minLength }: { minLength: number }) {
         </Field>
 
         <div className="rounded-xl bg-secondary px-4 py-3.5">
-          <div className="mb-2 text-[12.5px] font-bold text-secondary-foreground">
+          <div className="mb-2 text-caption font-bold text-secondary-foreground">
             {CHANGE_PASSWORD.policyTitle}
           </div>
           <ul className="flex flex-col gap-1.5">
             {CHANGE_PASSWORD.policyItems(minLength).map((item) => (
-              <li key={item} className="flex items-start gap-2 text-xs text-text-medium">
+              <li key={item} className="flex items-start gap-2 text-caption text-text-medium">
                 <Check className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
                 {item}
               </li>

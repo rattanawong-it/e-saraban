@@ -65,7 +65,7 @@ export default async function DashboardPage() {
       />
 
       {/* งานหนังสือขึ้นก่อน — คนเปิดหน้านี้มาดูว่า "วันนี้ต้องทำอะไร" ไม่ได้มาดูจำนวนผู้ใช้ */}
-      <h2 className="mb-3 text-[13px] font-bold text-text-strong">{DASHBOARD.documentSection}</h2>
+      <h2 className="mb-3 text-label font-bold text-text-strong">{DASHBOARD.documentSection}</h2>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -95,7 +95,7 @@ export default async function DashboardPage() {
       </div>
 
       <Card className="mt-4 p-5">
-        <div className="mb-3 text-[12.5px] font-semibold text-text-subtle">
+        <div className="mb-3 text-caption font-semibold text-text-subtle">
           {DASHBOARD.monthSection}
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
@@ -105,7 +105,7 @@ export default async function DashboardPage() {
         </div>
       </Card>
 
-      <h2 className="mt-7 mb-3 text-[13px] font-bold text-text-strong">
+      <h2 className="mt-7 mb-3 text-label font-bold text-text-strong">
         {DASHBOARD.identitySection}
       </h2>
 
@@ -180,7 +180,7 @@ export default async function DashboardPage() {
             action={
               <Link
                 href="/inbox"
-                className="text-[12.5px] font-semibold text-primary hover:underline"
+                className="text-caption font-semibold text-primary hover:underline"
               >
                 {COMMON.showAll} →
               </Link>
@@ -195,10 +195,10 @@ export default async function DashboardPage() {
                   className="flex items-start justify-between gap-4 px-5 py-3.5 hover:bg-surface-sunken"
                 >
                   <div className="min-w-0">
-                    <div className="truncate text-[13.5px] font-semibold text-text-strong">
+                    <div className="truncate text-label font-semibold text-text-strong">
                       {row.subject}
                     </div>
-                    <div className="tabular mt-0.5 text-[11.5px] text-text-subtle">
+                    <div className="tabular mt-0.5 text-micro text-text-subtle">
                       {row.docNo ?? DASHBOARD.noDocNoYet}
                       {row.dueDate
                         ? ` · ${DASHBOARD.awaitingAckDue(formatThaiDate(row.dueDate, "short"))}`
@@ -234,7 +234,7 @@ export default async function DashboardPage() {
               stats.canReadAudit ? (
                 <Link
                   href="/admin/audit"
-                  className="text-[12.5px] font-semibold text-primary hover:underline"
+                  className="text-caption font-semibold text-primary hover:underline"
                 >
                   {COMMON.showAll} →
                 </Link>
@@ -252,16 +252,16 @@ export default async function DashboardPage() {
                   className="flex items-start justify-between gap-4 border-b border-row-border px-5 py-3.5 last:border-b-0"
                 >
                   <div className="min-w-0">
-                    <div className="text-[13.5px] font-semibold text-text-strong">
+                    <div className="text-label font-semibold text-text-strong">
                       {AUDIT_ACTION_LABELS[row.action as AuditAction] ?? row.action}
                     </div>
-                    <div className="mt-0.5 truncate text-[11.5px] text-text-subtle">
+                    <div className="mt-0.5 truncate text-micro text-text-subtle">
                       {row.actor
                         ? `${row.actor.prefix ?? ""}${row.actor.firstName} ${row.actor.lastName}`.trim()
                         : "ระบบ"}
                     </div>
                   </div>
-                  <div className="tabular shrink-0 text-[11.5px] text-text-subtle">
+                  <div className="tabular shrink-0 text-micro text-text-subtle">
                     {formatThaiDateTime(row.at, "short")}
                   </div>
                 </li>
@@ -280,10 +280,10 @@ export default async function DashboardPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-[13.5px] font-semibold text-text-strong">
+                    <div className="text-label font-semibold text-text-strong">
                       {affiliation.orgUnitName}
                     </div>
-                    <div className="tabular mt-0.5 text-[11.5px] text-text-subtle">
+                    <div className="tabular mt-0.5 text-micro text-text-subtle">
                       {affiliation.orgUnitCode}
                     </div>
                   </div>
@@ -301,7 +301,7 @@ export default async function DashboardPage() {
                 </div>
 
                 {affiliation.positionTitle ? (
-                  <div className="mt-2 text-[11.5px] text-text-subtle">
+                  <div className="mt-2 text-micro text-text-subtle">
                     {affiliation.positionTitle}
                   </div>
                 ) : null}
@@ -318,8 +318,8 @@ export default async function DashboardPage() {
 function MonthCount({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-xl border border-border px-4 py-3">
-      <div className="text-[11.5px] text-text-subtle">{label}</div>
-      <div className="tabular mt-1 text-[22px] font-bold text-text-strong">
+      <div className="text-micro text-text-subtle">{label}</div>
+      <div className="tabular mt-1 text-title-l font-bold text-text-strong">
         {value.toLocaleString("th-TH")}
       </div>
     </div>

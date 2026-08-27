@@ -30,8 +30,8 @@ export function ComingSoon({
           {COMING_SOON.badge} · {phase}
         </Badge>
 
-        <h1 className="text-xl font-bold text-text-strong">{title}</h1>
-        <p className="mx-auto mt-3 max-w-md text-[13.5px] leading-relaxed text-text-subtle">
+        <h1 className="text-title-l font-bold text-text-strong">{title}</h1>
+        <p className="mx-auto mt-3 max-w-md text-label leading-relaxed text-text-subtle">
           {description ?? COMING_SOON.body(phase)}
         </p>
 

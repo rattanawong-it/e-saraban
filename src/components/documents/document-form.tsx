@@ -272,7 +272,7 @@ export function DocumentForm(props: DocumentFormProps) {
             </Field>
 
             {isEdit ? null : (
-              <p className="text-[11.5px] leading-relaxed text-text-subtle">
+              <p className="text-micro leading-relaxed text-text-subtle">
                 {isIncoming ? DOCUMENTS.incomingNumberHint : DOCUMENTS.attachAfterSaveHint}
               </p>
             )}
@@ -312,7 +312,7 @@ export function DocumentForm(props: DocumentFormProps) {
           </Button>
         </div>
 
-        <p className="text-center text-[11.5px] text-text-subtle">
+        <p className="text-center text-micro text-text-subtle">
           {isEdit
             ? DOCUMENTS.editHint
             : isIncoming

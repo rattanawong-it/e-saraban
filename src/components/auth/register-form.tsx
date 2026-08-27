@@ -122,7 +122,7 @@ export function RegisterForm({
     <>
       <Link
         href="/login"
-        className="mb-6 inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary hover:underline"
+        className="mb-6 inline-flex items-center gap-1.5 text-label font-semibold text-primary hover:underline"
       >
         <ArrowLeft className="size-4" aria-hidden />
         {REGISTER.backToLogin}
@@ -186,7 +186,9 @@ export function RegisterForm({
             />
           </InputShell>
           <FieldError messages={state.fieldErrors?.email} />
-          <p className="mt-1.5 text-xs leading-relaxed text-text-subtle">{REGISTER.emailHint}</p>
+          <p className="mt-1.5 text-caption leading-relaxed text-text-subtle">
+            {REGISTER.emailHint}
+          </p>
         </div>
 
         <div>
@@ -264,7 +266,7 @@ export function RegisterForm({
           </InputShell>
           {mismatch ? (
             <p
-              className="mt-1.5 flex items-center gap-1.5 text-[11.5px] text-danger-text"
+              className="mt-1.5 flex items-center gap-1.5 text-micro text-danger-text"
               role="alert"
             >
               <X className="size-[13px] shrink-0" aria-hidden />
@@ -301,7 +303,7 @@ export function RegisterForm({
       </form>
 
       <div className="mt-6 border-t border-border pt-5 text-center">
-        <p className="text-[12.5px] text-text-subtle">
+        <p className="text-caption text-text-subtle">
           {REGISTER.haveAccount}{" "}
           <Link href="/login" className="font-semibold text-primary hover:underline">
             {REGISTER.loginLink}
@@ -319,31 +321,29 @@ function RegistrationSent({ summary }: { summary?: RegistrationSummary }) {
       <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-full bg-success-bg">
         <CheckCircle2 className="size-8 text-success" aria-hidden />
       </div>
-      <h2 className="text-[22px] font-bold text-text-strong">{REGISTER.successTitle}</h2>
+      <h2 className="text-title-l font-bold text-text-strong">{REGISTER.successTitle}</h2>
 
       {summary ? (
         <>
-          <p className="mt-2.5 text-sm leading-relaxed text-text-subtle">
+          <p className="mt-2.5 text-body leading-relaxed text-text-subtle">
             {REGISTER.successLeadPrefix} <b className="text-text-strong">{summary.fullName}</b>{" "}
             {REGISTER.successLeadSuffix}
           </p>
-          <p className="mt-1 text-[14.5px] font-bold text-text-strong">{summary.orgUnitName}</p>
+          <p className="mt-1 text-body font-bold text-text-strong">{summary.orgUnitName}</p>
         </>
       ) : null}
 
       {summary ? (
         <div className="mt-6 rounded-xl border border-border bg-surface-sunken px-4 py-3.5">
-          <p className="text-[11.5px] font-semibold text-text-subtle">
+          <p className="text-micro font-semibold text-text-subtle">
             {REGISTER.successUsernameLabel}
           </p>
-          <p className="mt-1 font-mono text-[17px] font-bold text-text-strong">
-            {summary.username}
-          </p>
-          <p className="mt-1 text-[11.5px] text-text-subtle">{REGISTER.successUsernameHint}</p>
+          <p className="mt-1 font-mono text-title font-bold text-text-strong">{summary.username}</p>
+          <p className="mt-1 text-micro text-text-subtle">{REGISTER.successUsernameHint}</p>
         </div>
       ) : null}
 
-      <div className="mt-4 rounded-xl border border-border bg-card px-4 py-4 text-left text-[12.5px] leading-relaxed text-text-medium">
+      <div className="mt-4 rounded-xl border border-border bg-card px-4 py-4 text-left text-caption leading-relaxed text-text-medium">
         {REGISTER.successNoticePrefix} <b className="text-text-strong">{summary?.email}</b>{" "}
         {REGISTER.successNoticeSuffix}
       </div>

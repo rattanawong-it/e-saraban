@@ -52,7 +52,7 @@ export function LoginForm() {
             </Label>
             <Link
               href="/forgot-password"
-              className="text-[12.5px] font-semibold text-primary hover:underline"
+              className="text-caption font-semibold text-primary hover:underline"
             >
               {LOGIN.forgot}
             </Link>
@@ -85,7 +85,7 @@ export function LoginForm() {
 
         <label className="flex cursor-pointer items-center gap-2.5 select-none">
           <Checkbox name="remember" defaultChecked />
-          <span className="text-[13px] text-text-medium">{LOGIN.remember}</span>
+          <span className="text-label text-text-medium">{LOGIN.remember}</span>
         </label>
 
         <Button type="submit" size="lg" block disabled={pending} className="mt-1">
@@ -104,7 +104,7 @@ export function LoginForm() {
       </form>
 
       <div className="mt-7 border-t border-border pt-5 text-center">
-        <p className="text-[12.5px] leading-relaxed text-text-subtle">
+        <p className="text-caption leading-relaxed text-text-subtle">
           {LOGIN.noAccount}{" "}
           <Link href="/register" className="font-semibold text-primary hover:underline">
             {LOGIN.registerLink}

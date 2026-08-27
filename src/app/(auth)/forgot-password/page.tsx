@@ -17,7 +17,7 @@ export default function ForgotPasswordPage() {
       <AuthFormPanel>
         <Link
           href="/login"
-          className="mb-6 inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary hover:underline"
+          className="mb-6 inline-flex items-center gap-1.5 text-label font-semibold text-primary hover:underline"
         >
           <ArrowLeft className="size-4" aria-hidden />
           {FORGOT_PASSWORD.backToLogin}

@@ -167,7 +167,7 @@ export function SearchFilters({
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-          <label className="flex cursor-pointer items-center gap-2 text-[13px] text-text-strong">
+          <label className="flex cursor-pointer items-center gap-2 text-label text-text-strong">
             <Checkbox name="hasAttachment" value="1" defaultChecked={values.hasAttachment} />
             {SEARCH.hasAttachment}
           </label>
