@@ -12,7 +12,13 @@ import { prisma } from "@/lib/db"
 // ทำไมไม่ใช้บัญชีของผู้พัฒนา: รหัสผ่านของคนจริงไม่ควรอยู่ในโค้ดที่ commit ขึ้น git
 // และเทสต์ที่พึ่งบัญชีของใครคนหนึ่งจะพังทันทีที่เขาเปลี่ยนรหัสหรือถูกปรับสิทธิ์
 
-import { E2E_NOTIFICATION, E2E_PASSWORD, E2E_PREFIX, E2E_USERNAME } from "./constants"
+import {
+  E2E_NOTIFICATION,
+  E2E_PASSWORD,
+  E2E_PREFIX,
+  E2E_SEARCH_SUBJECT,
+  E2E_USERNAME,
+} from "./constants"
 
 // ตรงกับ ARGON2_OPTIONS ของ prisma/seed.ts — ถ้าไม่ตรง แฮชที่ได้จะตรวจไม่ผ่านตอนล็อกอิน
 const ARGON2_OPTIONS = { algorithm: 2, memoryCost: 19_456, timeCost: 2, parallelism: 1 } as const
@@ -149,6 +155,50 @@ export async function ensureE2ENotifications() {
 }
 
 /**
+ * เตรียมเอกสารให้เคสค้นหาภาษาไทยมีของจริงให้ค้นเจอ
+ *
+ * ⚠️ เคสนี้เคยพึ่งเอกสารที่บังเอิญมีคำว่า "อบรม" อยู่บนฐาน dev — ฐานที่ seed สด
+ * ไม่มีเลย เคสจึงแดงบน CI รอบแรกทั้งที่หน้าค้นหาตอบ "พบ 0 ฉบับ" อย่างถูกต้อง
+ *
+ * ชั้นความลับ 0 โดยตั้งใจ — เคสนี้ตรวจว่า pg_trgm ค้นคำกลางประโยคภาษาไทยได้
+ * ไม่ได้ตรวจด่านสิทธิ์ ซึ่งมีชุดของตัวเองอยู่แล้ว
+ */
+export async function ensureE2ESearchDocument() {
+  const user = await prisma.user.findUnique({ where: { username: E2E_USERNAME } })
+  if (!user) throw new Error("ยังไม่ได้สร้างบัญชี e2e")
+
+  const existing = await prisma.document.findFirst({ where: { subject: E2E_SEARCH_SUBJECT } })
+  if (existing) return existing.id
+
+  const orgUnit = await prisma.orgUnit.findFirst({
+    where: { tenantId: user.tenantId, code: "510000" },
+  })
+  const documentType = await prisma.documentType.findFirst({
+    where: { tenantId: user.tenantId, direction: "INTERNAL", isActive: true },
+  })
+
+  if (!orgUnit || !documentType) throw new Error("ข้อมูล seed ไม่ครบ")
+
+  const document = await prisma.document.create({
+    data: {
+      tenantId: user.tenantId,
+      documentTypeId: documentType.id,
+      direction: "INTERNAL",
+      status: "DRAFT",
+      bookCode: documentType.defaultBookCode,
+      subject: E2E_SEARCH_SUBJECT,
+      confidentialityLevel: 0,
+      urgencyLevel: 0,
+      ownerUnitId: orgUnit.id,
+      createdById: user.id,
+      createdByUnitId: orgUnit.id,
+    },
+  })
+
+  return document.id
+}
+
+/**
  * ลบเอกสารที่ e2e สร้างไว้
  *
  * ⚠️ ไม่ลบตัวผู้ใช้ เพราะ audit log อ้างถึง `actorUserId` แบบ onDelete: Restrict
@@ -192,7 +242,8 @@ if (command) {
     if (command === "ensure") {
       const user = await ensureE2EUser()
       await ensureE2ENotifications()
-      console.log(`[e2e] พร้อมใช้บัญชี ${user.username} พร้อมแจ้งเตือนตัวอย่าง`)
+      await ensureE2ESearchDocument()
+      console.log(`[e2e] พร้อมใช้บัญชี ${user.username} พร้อมแจ้งเตือนและเอกสารตัวอย่าง`)
     } else if (command === "cleanup") {
       const removed = await cleanupE2EDocuments()
       console.log(`[e2e] ลบเอกสารที่เทสต์สร้างไว้ ${removed} ฉบับ`)

@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test"
 
+import { E2E_SEARCH_SUBJECT, E2E_SEARCH_TERM } from "./fixtures/constants"
+
 // ทะเบียนหนังสือและการดึงไฟล์ออก (spec D12)
 //
 // ⚠️ สองเคสในไฟล์นี้ล็อกบั๊กที่ **เจอจากการเปิดหน้าจริงด้วยมือ** ไม่ใช่จากเทสต์
@@ -75,9 +77,12 @@ test("ค้นภาษาไทยจากคำกลางประโย�
 
   // "อบรม" อยู่กลางคำว่า "โครงการอบรมการใช้งาน..." — full-text search ตัดคำไทยไม่ได้
   // จึงต้องพึ่ง pg_trgm · ถ้าวันหนึ่งมีคนเปลี่ยนไปใช้ tsvector เคสนี้จะแดงทันที
-  await page.getByLabel("คำค้น").fill("อบรม")
+  //
+  // ⚠️ เอกสารที่ต้องเจอมาจาก fixture ไม่ใช่ของที่บังเอิญมีอยู่บนฐาน — เดิมเคสนี้
+  // แดงบนฐานที่ seed สดเพราะไม่มีเอกสารคำนี้เลย (§23.16 ข้อ 3)
+  await page.getByLabel("คำค้น").fill(E2E_SEARCH_TERM)
   await page.getByRole("button", { name: "ค้นหา" }).click()
 
   await expect(page.getByText(/พบ \d+ ฉบับ/)).toBeVisible({ timeout: 20_000 })
-  await expect(page.getByText(/อบรม/).first()).toBeVisible()
+  await expect(page.getByText(E2E_SEARCH_SUBJECT).first()).toBeVisible()
 })
