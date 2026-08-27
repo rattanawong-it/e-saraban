@@ -55,7 +55,21 @@ export default async function DashboardPage() {
   ]
 
   return (
-    <>
+    // ── หน้าเดียวจบ ไม่มีแถบเลื่อนของหน้า (เฉพาะจอ lg ขึ้นไป ตามที่ผู้ดูแลกำหนด) ──────
+    //
+    // ⚠️ สูตรนี้ผูกกับค่าที่นิยามอยู่ที่อื่นสองตัว ถ้าใครไปแก้ต้องมาแก้ที่นี่ด้วย:
+    //     4.25rem = ความสูง header (`h-17` ใน app-header.tsx)
+    //     3.5rem  = padding บน+ล่างของ <main> (`lg:py-7` ใน app-shell.tsx คือ 1.75rem × 2)
+    //   มี e2e ล็อกไว้แล้ว ("หน้าภาพรวมต้องจบในหน้าจอเดียว") — แก้ความสูง header
+    //   แล้วลืมมาแก้ตรงนี้ เทสต์จะแดงทันทีแทนที่จะเงียบแล้วปล่อยให้หน้าล้นทีหลัง
+    //
+    // ⚠️ ทุกชั้นที่เป็น flex ระหว่างกล่องนี้ลงไปถึงกล่องที่เลื่อนได้ ต้องมี `min-h-0`
+    //   ไม่งั้นกล่องลูกจะ "ยืดออก" แทนที่จะ "เลื่อน" (พฤติกรรมปริยายของ flex item
+    //   คือ min-height:auto ซึ่งห้ามไม่ให้หดต่ำกว่าเนื้อหาข้างใน)
+    //
+    // ต่ำกว่า lg ปล่อยให้เลื่อนทั้งหน้าตามปกติ — จอมือถือยัดทุกอย่างลงหน้าเดียว
+    // ได้ก็ต่อเมื่อบีบจนอ่านไม่ออก
+    <div className="lg:flex lg:h-[calc(100dvh-4.25rem-3.5rem)] lg:flex-col lg:overflow-hidden">
       <PageHeader
         title={DASHBOARD.title}
         description={`${session.activeAffiliation?.orgUnitName ?? ""} · ${today}`}
@@ -67,7 +81,7 @@ export default async function DashboardPage() {
 
           ยอดรายเดือนอยู่แถบล่างของกรอบเดียวกันแต่พื้นต่างสี เพราะเป็น "ข้อมูลอ้างอิง"
           ไม่ใช่ "งานที่ต้องลงมือ" — ถ้าวางเสมอกันสายตาจะให้น้ำหนักเท่ากันทั้งที่ไม่ควร */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden lg:shrink-0">
         <CardHeader title={DASHBOARD.documentSection} />
 
         <StatRow
@@ -117,7 +131,7 @@ export default async function DashboardPage() {
       </Card>
 
       {awaitingAck.length > 0 ? (
-        <Card className="mt-5 overflow-hidden">
+        <Card className="mt-5 overflow-hidden lg:flex lg:min-h-0 lg:flex-[1_1_0] lg:flex-col">
           <CardHeader
             title={DASHBOARD.awaitingAckTitle}
             action={
@@ -130,7 +144,7 @@ export default async function DashboardPage() {
             }
           />
 
-          <ul>
+          <ul className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
             {awaitingAck.map((row) => (
               <li key={row.recipientId} className="border-b border-row-border last:border-b-0">
                 <Link
@@ -169,8 +183,8 @@ export default async function DashboardPage() {
         </Card>
       ) : null}
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-        <Card className="overflow-hidden">
+      <div className="mt-5 grid gap-5 lg:min-h-0 lg:flex-[2_1_0] lg:grid-cols-[1.6fr_1fr]">
+        <Card className="overflow-hidden lg:flex lg:min-h-0 lg:flex-col">
           <CardHeader
             title={DASHBOARD.recentActivity}
             action={
@@ -188,7 +202,7 @@ export default async function DashboardPage() {
           {activity.length === 0 ? (
             <EmptyState title={DASHBOARD.recentActivityEmpty} />
           ) : (
-            <ul>
+            <ul className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               {activity.map((row) => (
                 <li
                   key={row.id}
@@ -213,9 +227,9 @@ export default async function DashboardPage() {
           )}
         </Card>
 
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden lg:flex lg:min-h-0 lg:flex-col">
           <CardHeader title={DASHBOARD.myAffiliations} />
-          <ul>
+          <ul className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
             {session.affiliations.map((affiliation) => (
               <li
                 key={affiliation.orgUnitId}
@@ -253,6 +267,6 @@ export default async function DashboardPage() {
           </ul>
         </Card>
       </div>
-    </>
+    </div>
   )
 }

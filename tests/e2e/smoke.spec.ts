@@ -48,6 +48,52 @@ for (const { path, heading } of PAGES) {
   })
 }
 
+// ── หน้าภาพรวมต้องจบในหน้าจอเดียว ────────────────────────────────────────
+//
+// ⚠️ เคสนี้ล็อกข้อตกลงที่ผู้ดูแลสั่งไว้ (27 ส.ค. 2569) และล็อก **การผูกค่าข้ามไฟล์**
+// ไปพร้อมกัน — ความสูงของกล่องหน้าภาพรวมเป็นสูตร calc() ที่หักความสูง header
+// (`h-17`) กับ padding ของ <main> (`lg:py-7`) ออกจาก 100dvh ด้วยตัวเลขที่พิมพ์ไว้เอง
+// ถ้าใครไปแก้ความสูง header แล้วไม่ได้มาแก้สูตร หน้าจะเริ่มล้นเงียบ ๆ
+// โดยไม่มีเทสต์ไหนจับได้เลยถ้าไม่มีเคสนี้
+//
+// บังคับเฉพาะจอ lg ขึ้นไปตามที่ผู้ดูแลกำหนด — จอเล็กปล่อยให้เลื่อนทั้งหน้าตามปกติ
+const DESKTOP_SIZES = [
+  { width: 1280, height: 720 },
+  { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+]
+
+for (const size of DESKTOP_SIZES) {
+  test(`หน้าภาพรวมจบในหน้าจอเดียวที่ ${size.width}×${size.height}`, async ({ page }) => {
+    await page.setViewportSize(size)
+    await page.goto("/dashboard")
+    await expect(page.getByRole("heading", { name: DASHBOARD.title, level: 1 })).toBeVisible()
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
+    )
+
+    expect(overflow, "หน้าภาพรวมต้องไม่มีแถบเลื่อนของหน้า").toBeLessThanOrEqual(0)
+  })
+}
+
+test("รายการบนหน้าภาพรวมเลื่อนในกรอบตัวเอง ไม่ใช่ถูกตัดทิ้ง", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.goto("/dashboard")
+
+  // ⚠️ "ไม่มีแถบเลื่อน" ทำให้ผ่านได้ด้วยการซ่อนเนื้อหาทิ้งเหมือนกัน — เคสข้างบนจึงไม่พอ
+  // ต้องยืนยันด้วยว่าเนื้อหาที่เกินยังไปถึงได้ ผ่านกรอบที่เลื่อนได้ของตัวเอง
+  await expect(page.getByText(DASHBOARD.recentActivity)).toBeVisible()
+
+  const scrollable = await page.evaluate(() =>
+    [...document.querySelectorAll("main ul")].some(
+      (el) => getComputedStyle(el).overflowY === "auto",
+    ),
+  )
+
+  expect(scrollable, "รายการต้องอยู่ในกรอบที่เลื่อนได้").toBe(true)
+})
+
 test("เมนูข้างไม่แสดงเมนูที่ผู้ใช้ไม่มีสิทธิ์ (§10.2 — ซ่อน ไม่ใช่ disable)", async ({ page }) => {
   await page.goto("/dashboard")
 
