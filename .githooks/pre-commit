@@ -45,7 +45,12 @@ fi
 
 # ── 3. typecheck ทั้งโปรเจกต์ ────────────────────────────────
 # ตรวจทั้งโปรเจกต์เสมอ ไม่ใช่เฉพาะไฟล์ที่แก้ เพราะการแก้ type ในไฟล์หนึ่ง
-# ทำให้อีกไฟล์ที่ไม่ได้แตะพังได้ · 5 วินาที
+# ทำให้อีกไฟล์ที่ไม่ได้แตะพังได้
+#
+# ⚠️ สคริปต์ typecheck เรียก `next typegen` ก่อน tsc เสมอ — PageProps/LayoutProps/
+#    RouteContext เป็น global type ที่ Next generate ลง .next/types ตอน dev/build
+#    ซึ่งอยู่ใน .gitignore · clone ใหม่แล้วสั่ง tsc เปล่า ๆ จะพัง 17 error ทันที
+#    (รอบแรกที่ยังไม่มีของ ~12 วินาที · รอบต่อไป ~1 วินาที)
 echo "  [3/4] typecheck"
 pnpm typecheck
 
