@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { FileClock, FilePen, Inbox, RotateCcw } from "lucide-react"
+import { FileClock, FilePen, Inbox, MailOpen, NotebookPen, RotateCcw, Send } from "lucide-react"
 
 import {
   APP_NAME,
@@ -13,6 +13,7 @@ import {
 import { AUDIT_ACTION_LABELS, type AuditAction } from "@/lib/audit"
 import { canOrFalse, PERMISSIONS, type RoleCode } from "@/lib/authz"
 import { formatThaiDate, formatThaiDateTime } from "@/lib/thai"
+import { cn } from "@/lib/utils"
 import {
   Badge,
   Card,
@@ -49,9 +50,21 @@ export default async function DashboardPage() {
   const today = formatThaiDate(new Date(), "long")
 
   const thisMonth = [
-    { label: DASHBOARD.monthInternal, value: documents.thisMonth.internal },
-    { label: DASHBOARD.monthOutgoing, value: documents.thisMonth.outgoing },
-    { label: DASHBOARD.monthIncoming, value: documents.thisMonth.incoming },
+    {
+      label: DASHBOARD.monthInternal,
+      value: documents.thisMonth.internal,
+      icon: <NotebookPen className="size-4.5" aria-hidden />,
+    },
+    {
+      label: DASHBOARD.monthOutgoing,
+      value: documents.thisMonth.outgoing,
+      icon: <Send className="size-4.5" aria-hidden />,
+    },
+    {
+      label: DASHBOARD.monthIncoming,
+      value: documents.thisMonth.incoming,
+      icon: <MailOpen className="size-4.5" aria-hidden />,
+    },
   ]
 
   return (
@@ -81,52 +94,85 @@ export default async function DashboardPage() {
 
           ยอดรายเดือนอยู่แถบล่างของกรอบเดียวกันแต่พื้นต่างสี เพราะเป็น "ข้อมูลอ้างอิง"
           ไม่ใช่ "งานที่ต้องลงมือ" — ถ้าวางเสมอกันสายตาจะให้น้ำหนักเท่ากันทั้งที่ไม่ควร */}
+      {/* ทรงตามตัวอย่างที่ผู้ดูแลส่งมา (docs/sample_dashboard.png) — แบ่งเป็นสองกลุ่ม
+          ที่มีหัวข้อกำกับของตัวเอง ไอคอนเป็นแผ่นสี่เหลี่ยมมนวางซ้าย ป้ายอยู่บน ตัวเลขอยู่ล่าง
+          และช่องที่ยังมีงานค้างเป็นสีเขียวอ่อน ส่วนช่องที่เป็นศูนย์เป็นสีเทา
+
+          ต่างจากตัวอย่างอยู่จุดเดียว: แถบ "หนังสือเดือนนี้" ของตัวอย่างวางสามช่องเรียงแนวนอน
+          แต่ชื่อจริงของเรายาวกว่าตัวอย่างมาก ("บันทึกข้อความภายใน") พอบีบลงสามคอลัมน์
+          ในครึ่งการ์ดแล้วชื่อโดนตัดทุกช่อง — เรียงเป็นสามแถวแทน อ่านครบและสูงพอ ๆ กัน */}
       <Card className="overflow-hidden lg:shrink-0">
         <CardHeader title={DASHBOARD.documentSection} />
 
-        <StatRow
-          items={[
-            {
-              label: DASHBOARD.statPendingNumber,
-              value: documents.pendingNumber.toLocaleString("th-TH"),
-              tone: documents.pendingNumber > 0 ? "warning" : "neutral",
-              icon: <FileClock className="size-[18px]" aria-hidden />,
-            },
-            {
-              label: DASHBOARD.statAwaitingAck,
-              value: documents.awaitingMyAck.toLocaleString("th-TH"),
-              tone: documents.awaitingMyAck > 0 ? "brand" : "neutral",
-              icon: <Inbox className="size-[18px]" aria-hidden />,
-            },
-            {
-              label: DASHBOARD.statMyDrafts,
-              value: documents.myDrafts.toLocaleString("th-TH"),
-              tone: "neutral",
-              icon: <FilePen className="size-[18px]" aria-hidden />,
-            },
-            {
-              label: DASHBOARD.statMyReturned,
-              value: documents.myReturned.toLocaleString("th-TH"),
-              tone: documents.myReturned > 0 ? "danger" : "neutral",
-              icon: <RotateCcw className="size-[18px]" aria-hidden />,
-            },
-          ]}
-        />
+        <div className="grid gap-5 p-5 lg:grid-cols-2">
+          <section>
+            <h2 className="text-caption font-semibold text-text-subtle">
+              {DASHBOARD.actionSection}
+            </h2>
 
-        <div className="border-t border-border bg-surface-sunken px-5 py-4">
-          <div className="text-caption font-semibold text-text-subtle">
-            {DASHBOARD.monthSection}
-          </div>
-          <dl className="mt-2.5 flex flex-wrap items-baseline gap-x-7 gap-y-2">
-            {thisMonth.map((row) => (
-              <div key={row.label} className="flex items-baseline gap-2">
-                <dt className="text-caption text-text-subtle">{row.label}</dt>
-                <dd className="tabular text-title font-bold text-text-strong">
-                  {row.value.toLocaleString("th-TH")}
-                </dd>
-              </div>
-            ))}
-          </dl>
+            <StatRow
+              className="mt-2.5"
+              items={[
+                {
+                  label: DASHBOARD.statPendingNumber,
+                  value: documents.pendingNumber.toLocaleString("th-TH"),
+                  tone: documents.pendingNumber > 0 ? "warning" : "neutral",
+                  icon: <FileClock className="size-5.5" aria-hidden />,
+                },
+                {
+                  label: DASHBOARD.statAwaitingAck,
+                  value: documents.awaitingMyAck.toLocaleString("th-TH"),
+                  tone: documents.awaitingMyAck > 0 ? "brand" : "neutral",
+                  icon: <Inbox className="size-5.5" aria-hidden />,
+                },
+                {
+                  label: DASHBOARD.statMyDrafts,
+                  value: documents.myDrafts.toLocaleString("th-TH"),
+                  tone: documents.myDrafts > 0 ? "brand" : "neutral",
+                  icon: <FilePen className="size-5.5" aria-hidden />,
+                },
+                {
+                  label: DASHBOARD.statMyReturned,
+                  value: documents.myReturned.toLocaleString("th-TH"),
+                  tone: documents.myReturned > 0 ? "danger" : "neutral",
+                  icon: <RotateCcw className="size-5.5" aria-hidden />,
+                },
+              ]}
+            />
+          </section>
+
+          <section>
+            <h2 className="text-caption font-semibold text-text-subtle">
+              {DASHBOARD.monthSection}
+            </h2>
+
+            <div className="mt-2.5 divide-y divide-border overflow-hidden rounded-xl border border-border">
+              {thisMonth.map((row) => (
+                <div
+                  key={row.label}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-2.5",
+                    row.value > 0 ? "bg-brand-pale" : "bg-surface-sunken",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex size-9 shrink-0 items-center justify-center rounded-xl bg-card",
+                      row.value > 0 ? "text-primary" : "text-text-subtle",
+                    )}
+                  >
+                    {row.icon}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-label font-semibold text-text-medium">
+                    {row.label}
+                  </span>
+                  <span className="tabular text-title font-bold text-text-strong">
+                    {row.value.toLocaleString("th-TH")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
       </Card>
 

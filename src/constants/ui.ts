@@ -201,6 +201,7 @@ export const DASHBOARD = {
   statAwaitingAck: "รอฉันรับทราบ",
   statMyDrafts: "ร่างเอกสาร",
   statMyReturned: "ถูกตีกลับให้แก้",
+  actionSection: "งานที่ต้องดำเนินการ",
   monthSection: "หนังสือที่ออกเลขเดือนนี้",
   monthInternal: "บันทึกข้อความภายใน",
   monthOutgoing: "หนังสือส่งภายนอก",
