@@ -76,6 +76,7 @@ export default defineConfig({
     env: { PORT: String(PORT) },
     reuseExistingServer: REUSE_SERVER,
     // build (~35 วิ) + start · เผื่อเครื่องช้าและเผื่อ TypeScript ตรวจทั้งโปรเจกต์
-    timeout: 300_000,
+    // runner ของ CI มีสองคอร์และไม่มี .next/cache มาก่อน build จึงนานกว่าเครื่อง dev หลายเท่า
+    timeout: process.env.CI ? 600_000 : 300_000,
   },
 })

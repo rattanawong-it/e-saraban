@@ -1922,7 +1922,7 @@ return document.confidentialityLevel > 0
 3. **Responsive polish** — ผู้ใช้บอกว่า "น่าจะเรียบร้อยแล้ว" จึงข้ามไปก่อน ยังไม่ได้ตรวจจริงหลายความกว้าง
 4. **ข้อความ banner** — `docs/information-banners.md` ร่างครบทุกหน้าแล้ว **รอผู้ดูแลตรวจ**
    ยังไม่มีตัวไหนขึ้นหน้าเว็บ
-5. **ยังไม่มี CI · pre-commit hook** — e2e มีแล้วแต่ยังต้องสั่งรันเอง
+5. ~~**ยังไม่มี CI · pre-commit hook**~~ — เสร็จแล้วทั้งคู่ (§23.15)
 6. ของค้างจาก §22.7 — ข้อ 1 **ปิดแล้ว** (ดู §23.14) · ข้อ 2–5 ยังค้างเหมือนเดิม
 
 ### 23.14 ✅ ปิดคำถามค้าง — ฐานปีของเลขทะเบียนคือ **ปีปฏิทิน** (26 ส.ค. 2569)
@@ -1943,3 +1943,53 @@ system_settings · numbering → {"yearMode": "CALENDAR"}
 `CRITICAL` (`setting.service.ts`) — ถ้าใครเผลอสลับเป็น `FISCAL` หลัง 1 ต.ค.
 เลขจะกระโดดไปปีถัดไปทันทีโดยที่เลขเก่ายังอยู่ปีเดิม ทำให้ทะเบียนมีสองฐานปีปนกัน
 และแก้ย้อนหลังไม่ได้ตาม §6.4 · **ห้ามเปลี่ยนหลังจากออกเลขไปแล้วในปีนั้น**
+
+### 23.15 ด่านอัตโนมัติ — pre-commit hook + CI บน GitHub Actions
+
+ปิดข้อ 5 ของ §23.14 ครบทั้งสองครึ่งแล้ว
+
+**ครึ่งแรก — `.githooks/pre-commit`** (commit `d1a1af9`) รันสี่ด่านตอน commit:
+prettier (เฉพาะไฟล์ที่ stage) → eslint (เฉพาะไฟล์โค้ด) → typecheck ทั้งโปรเจกต์ → unit test
+ติดตั้งเองตอน `pnpm install` ผ่านสคริปต์ `prepare` → `scripts/setup-hooks.mjs`
+ที่ชี้ `core.hooksPath` มาที่โฟลเดอร์นี้ · ไม่ใช้ husky เพราะต้องการแค่ไฟล์เดียว
+
+ไม่มีด่านตรวจ semicolon แยกต่างหาก — `@stylistic/semi: never` ใน eslint
+กับ `semi: false` ใน prettier จับให้อยู่แล้ว hook แค่เรียกสองตัวนี้
+
+⚠️ **ด่าน typecheck กับ unit test ตรวจ "ไฟล์ในเครื่อง" ไม่ใช่ "สิ่งที่ stage ไว้"** —
+stage แค่บางส่วนของไฟล์แล้วผลที่ได้คือของทั้งไฟล์ · ยอมแลกเพราะทางเลือกคือ stash
+ของที่ยังไม่ stage ออกไปก่อน ซึ่งเคยทำงานค้างหายมาแล้ว · ข้ามด้วย `--no-verify` ได้
+
+**ครึ่งหลัง — `.github/workflows/ci.yml`** วิ่งตอน push ขึ้น `main` และตอนเปิด PR
+แบ่งเป็นสามงานขนานกัน ไม่รวมเป็นงานเดียวเพราะ lint ที่พังไม่ควรถูกกลบอยู่หลัง
+การรอฐานข้อมูลขึ้นสามนาที
+
+| งาน | ทำอะไร | ต้องมีฐานข้อมูล |
+| --- | --- | --- |
+| `checks` | prettier · eslint · typecheck · unit test (159 เคส) | ไม่ |
+| `integration` | migrate → seed → `pnpm test:integration` (118 เคส) | ใช่ |
+| `e2e` | migrate → seed → `pnpm test:e2e` (19 เคส บน production build) | ใช่ |
+
+**เรื่องที่ต้องรู้ถ้าจะแก้ไฟล์นี้:**
+
+1. **ต้องเขียนไฟล์ `.env` จริงลงดิสก์ก่อน `pnpm install` ทุกงาน** ไม่ใช่ตั้งแค่ตัวแปร
+   environment · เหตุผลสองชั้น: `postinstall` เรียก `prisma generate` ซึ่งอ่าน
+   `DATABASE_URL` ผ่าน `prisma.config.ts` · และ `global-setup.ts` ของ Playwright
+   เรียก `tsx --env-file=.env` ซึ่ง Node ล้มทันทีถ้าไม่มีไฟล์
+   `AUTH_SECRET` กับ `FILE_MASTER_KEY` สร้างสดด้วย `openssl rand` ทุกรอบ —
+   ไม่มีกุญแจปลอมค้างอยู่ใน repo ให้ใครหลงคัดลอกไปใช้จริง
+2. **Postgres ของ service ต้องเป็น `postgres:16-alpine` + locale ICU `th-TH`**
+   ให้ตรงกับ `docker-compose.yml` — รายงานทะเบียนเรียงลำดับภาษาไทยตาม collation ของฐาน
+   ถ้าใช้ locale ปริยาย CI จะเขียวแต่ของจริงเรียงคนละแบบ
+3. **ใช้ `db:deploy` (migrate deploy) ไม่ใช่ `migrate dev`** — schema ที่ไม่ตรงกับ
+   migration ต้องแดงตรงนี้ ไม่ใช่ถูก CI สร้าง migration ใหม่ให้เงียบ ๆ
+4. **e2e ยังกินเลขทะเบียนของหน่วย 510000 รอบละสองเลข** (§23.4) ที่นี่ไม่เป็นไร
+   เพราะฐานเกิดใหม่ทุกรอบ · **ห้ามชี้ workflow นี้ไปฐานจริงเด็ดขาด**
+5. **`webServer.timeout` ของ `playwright.config.ts` เป็น 600 วินาทีเมื่ออยู่บน CI**
+   (เดิม 300 คงไว้สำหรับเครื่อง dev) — runner มีสองคอร์และไม่มี `.next/cache` มาก่อน
+   `pnpm build` จึงนานกว่าเครื่องพัฒนาหลายเท่า
+6. รายงานของ Playwright ถูกเก็บเป็น artifact **เฉพาะตอนล้ม** (เก็บ 7 วัน) —
+   `reporter` ของ config เป็น `["github"], ["html"]` อยู่แล้วเมื่อเจอตัวแปร `CI`
+
+**ยังไม่ได้ทำ:** ไม่มีด่าน `pnpm build` แยกในงาน `checks` เพราะงาน `e2e` build อยู่แล้ว ·
+ถ้าวันหนึ่งตัด e2e ออกจาก CI ต้องเติม build กลับเข้าไปเอง ไม่งั้นจะไม่มีใครตรวจว่า build ผ่าน

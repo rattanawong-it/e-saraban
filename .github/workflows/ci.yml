@@ -1,0 +1,192 @@
+# ด่านตรวจอัตโนมัติของ e-Saraban (spec §13 · P5)
+#
+# แบ่งเป็นสามงานที่วิ่งขนานกัน เพราะสองงานหลังต้องรอ Postgres ขึ้นและ seed ให้เสร็จก่อน
+# ถ้ารวมเป็นงานเดียว ความผิดพลาดของ lint จะถูกกลบอยู่หลังการรอฐานข้อมูลสามนาที
+#
+#   checks       — prettier · eslint · typecheck · unit test   (ไม่ต้องมีฐานข้อมูล)
+#   integration  — integration test 118 เคส                    (ต้องมี Postgres + seed)
+#   e2e          — Playwright 19 เคสบน production build         (ต้องมี Postgres + seed)
+#
+# ตรงกับ .githooks/pre-commit ที่รันเฉพาะสามด่านแรกของ checks — integration กับ e2e
+# ถูกกันออกจาก hook เพราะต้องมีฐานข้อมูลจริง จึงมารันที่นี่แทน
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# ผลักคอมมิตใหม่ทับของเดิมบน ref เดียวกัน — ผลของรอบเก่าไม่มีใครดูอยู่แล้ว
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # ตรงกับรุ่นที่ใช้บนเครื่องพัฒนา (v24.14.1)
+  NODE_VERSION: "24"
+
+jobs:
+  checks:
+    name: รูปแบบโค้ด · typecheck · unit test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ⚠️ ต้องมาก่อน pnpm install — สคริปต์ postinstall เรียก prisma generate
+      # ซึ่งอ่าน DATABASE_URL ผ่าน prisma.config.ts · งานนี้ไม่ต่อฐานข้อมูลจริง
+      # ค่าจึงเป็นแค่ที่อยู่ให้ผ่านการตรวจรูปแบบ
+      - name: เตรียมไฟล์ .env ของ CI
+        run: |
+          cat > .env <<EOF
+          DATABASE_URL="postgresql://esaraban:esaraban_ci@localhost:5432/esaraban?schema=public"
+          AUTH_SECRET="$(openssl rand -base64 32)"
+          FILE_MASTER_KEY="$(openssl rand -base64 32)"
+          EOF
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: prettier
+        run: pnpm format:check
+
+      - name: eslint (รวมกติกาห้าม semicolon ของโปรเจกต์)
+        run: pnpm lint
+
+      - name: typecheck
+        run: pnpm typecheck
+
+      - name: unit test
+        run: pnpm test
+
+  integration:
+    name: integration test (Postgres จริง)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        # ต้องเป็นรุ่นเดียวกับ docker-compose.yml — ไม่งั้น CI ผ่านแต่ของจริงพัง
+        # locale ICU th-TH ด้วย เพราะรายงานทะเบียนเรียงลำดับภาษาไทยตาม collation ของฐาน
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: esaraban
+          POSTGRES_PASSWORD: esaraban_ci
+          POSTGRES_DB: esaraban
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=th-TH"
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U esaraban -d esaraban"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: เตรียมไฟล์ .env ของ CI
+        run: |
+          cat > .env <<EOF
+          DATABASE_URL="postgresql://esaraban:esaraban_ci@localhost:5432/esaraban?schema=public"
+          AUTH_SECRET="$(openssl rand -base64 32)"
+          FILE_MASTER_KEY="$(openssl rand -base64 32)"
+          EOF
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # migrate deploy ไม่ใช่ migrate dev — ห้ามให้ CI คิดแทนว่าจะสร้าง migration ใหม่
+      # ถ้า schema กับ migration ไม่ตรงกัน ต้องแดงตรงนี้ ไม่ใช่ถูกซ่อมให้เงียบ ๆ
+      - name: migrate
+        run: pnpm db:deploy
+
+      # เทสต์ทุกไฟล์เริ่มด้วยการหา tenant KRIRK และผังหน่วยงานจาก seed
+      - name: seed
+        run: pnpm db:seed
+
+      - name: integration test
+        run: pnpm test:integration
+
+  e2e:
+    name: e2e (Playwright บน production build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: esaraban
+          POSTGRES_PASSWORD: esaraban_ci
+          POSTGRES_DB: esaraban
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=th-TH"
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U esaraban -d esaraban"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ⚠️ ไฟล์นี้ต้องมีจริงบนดิสก์ ไม่ใช่แค่ตัวแปรใน environment — global-setup ของ
+      # Playwright เรียก tsx ด้วย --env-file=.env ซึ่ง Node จะล้มทันทีถ้าไม่มีไฟล์
+      - name: เตรียมไฟล์ .env ของ CI
+        run: |
+          cat > .env <<EOF
+          DATABASE_URL="postgresql://esaraban:esaraban_ci@localhost:5432/esaraban?schema=public"
+          AUTH_SECRET="$(openssl rand -base64 32)"
+          FILE_MASTER_KEY="$(openssl rand -base64 32)"
+          EOF
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: migrate
+        run: pnpm db:deploy
+
+      - name: seed
+        run: pnpm db:seed
+
+      # playwright.config.ts ประกาศไว้แค่ chromium — ไม่ต้องโหลดอีกสองเบราว์เซอร์
+      - name: ติดตั้งเบราว์เซอร์ของ Playwright
+        run: pnpm exec playwright install --with-deps chromium
+
+      # ⚠️ ชุดนี้กินเลขทะเบียนของหน่วย 510000 รอบละสองเลขและคืนไม่ได้ตาม §6.4
+      # ที่นี่ไม่เป็นไรเพราะฐานเกิดใหม่ทุกรอบ · **ห้ามชี้ไปฐานจริงเด็ดขาด**
+      # webServer ของ playwright.config.ts สั่ง `pnpm build && pnpm start` ให้เอง
+      - name: e2e
+        run: pnpm test:e2e
+
+      - name: เก็บรายงานตอนล้ม
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
