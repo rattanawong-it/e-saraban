@@ -1,18 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import {
-  Building2,
-  FileClock,
-  FilePen,
-  Inbox,
-  KeyRound,
-  RotateCcw,
-  ShieldAlert,
-  ShieldCheck,
-  UserCheck,
-  UserPlus,
-  Users,
-} from "lucide-react"
+import { FileClock, FilePen, Inbox, RotateCcw } from "lucide-react"
 
 import {
   APP_NAME,
@@ -23,8 +11,8 @@ import {
   URGENCY_LEVELS,
 } from "@/constants"
 import { AUDIT_ACTION_LABELS, type AuditAction } from "@/lib/audit"
+import { canOrFalse, PERMISSIONS, type RoleCode } from "@/lib/authz"
 import { formatThaiDate, formatThaiDateTime } from "@/lib/thai"
-import type { RoleCode } from "@/lib/authz"
 import {
   Badge,
   Card,
@@ -32,11 +20,10 @@ import {
   ConfidentialityBadge,
   EmptyState,
   PageHeader,
-  StatCard,
+  StatRow,
 } from "@/components/ui/primitives"
 import {
   getAwaitingAcknowledgement,
-  getDashboardStats,
   getDocumentStats,
   getRecentActivity,
 } from "@/server/services/dashboard.service"
@@ -48,14 +35,24 @@ export const metadata: Metadata = {
 
 export default async function DashboardPage() {
   const session = await requireSession()
-  const [stats, documents, awaitingAck, activity] = await Promise.all([
-    getDashboardStats(session.ctx),
+  const [documents, awaitingAck, activity] = await Promise.all([
     getDocumentStats(session.ctx),
     getAwaitingAcknowledgement(session.ctx),
     getRecentActivity(session.ctx),
   ])
 
+  // เดิมธงนี้มาจาก getDashboardStats() ซึ่งยิง COUNT แปดครั้งเพื่อเอาตัวเลขของหมวด
+  // "ผู้ใช้และหน่วยงาน" ที่ผู้ดูแลสั่งให้ถอดออก · ตอนนี้เหลือใช้แค่ธงสิทธิ์ตัวเดียว
+  // จึงอ่านจาก context ตรง ๆ ไม่ต้องแตะฐานข้อมูลเลย
+  const canReadAudit = canOrFalse(session.ctx, PERMISSIONS.AUDIT_READ)
+
   const today = formatThaiDate(new Date(), "long")
+
+  const thisMonth = [
+    { label: DASHBOARD.monthInternal, value: documents.thisMonth.internal },
+    { label: DASHBOARD.monthOutgoing, value: documents.thisMonth.outgoing },
+    { label: DASHBOARD.monthIncoming, value: documents.thisMonth.incoming },
+  ]
 
   return (
     <>
@@ -64,114 +61,60 @@ export default async function DashboardPage() {
         description={`${session.activeAffiliation?.orgUnitName ?? ""} · ${today}`}
       />
 
-      {/* งานหนังสือขึ้นก่อน — คนเปิดหน้านี้มาดูว่า "วันนี้ต้องทำอะไร" ไม่ได้มาดูจำนวนผู้ใช้ */}
-      <h2 className="mb-3 text-label font-bold text-text-strong">{DASHBOARD.documentSection}</h2>
+      {/* ตัวเลขสรุปทั้งหมดอยู่ในกรอบเดียว — คนเปิดหน้านี้มาดูว่า "วันนี้ต้องทำอะไร"
+          เดิมกระจายเป็นการ์ดแยกสี่ใบบวกอีกใบของยอดรายเดือน ต้องกวาดตาห้าจุด
+          กว่าจะตอบตัวเองได้ว่ามีงานค้างหรือเปล่า
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label={DASHBOARD.statPendingNumber}
-          value={documents.pendingNumber.toLocaleString("th-TH")}
-          tone={documents.pendingNumber > 0 ? "warning" : "neutral"}
-          icon={<FileClock className="size-[18px]" aria-hidden />}
-        />
-        <StatCard
-          label={DASHBOARD.statAwaitingAck}
-          value={documents.awaitingMyAck.toLocaleString("th-TH")}
-          tone={documents.awaitingMyAck > 0 ? "brand" : "neutral"}
-          icon={<Inbox className="size-[18px]" aria-hidden />}
-        />
-        <StatCard
-          label={DASHBOARD.statMyDrafts}
-          value={documents.myDrafts.toLocaleString("th-TH")}
-          tone="neutral"
-          icon={<FilePen className="size-[18px]" aria-hidden />}
-        />
-        <StatCard
-          label={DASHBOARD.statMyReturned}
-          value={documents.myReturned.toLocaleString("th-TH")}
-          tone={documents.myReturned > 0 ? "danger" : "neutral"}
-          icon={<RotateCcw className="size-[18px]" aria-hidden />}
-        />
-      </div>
+          ยอดรายเดือนอยู่แถบล่างของกรอบเดียวกันแต่พื้นต่างสี เพราะเป็น "ข้อมูลอ้างอิง"
+          ไม่ใช่ "งานที่ต้องลงมือ" — ถ้าวางเสมอกันสายตาจะให้น้ำหนักเท่ากันทั้งที่ไม่ควร */}
+      <Card className="overflow-hidden">
+        <CardHeader title={DASHBOARD.documentSection} />
 
-      <Card className="mt-4 p-5">
-        <div className="mb-3 text-caption font-semibold text-text-subtle">
-          {DASHBOARD.monthSection}
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <MonthCount label={DASHBOARD.monthInternal} value={documents.thisMonth.internal} />
-          <MonthCount label={DASHBOARD.monthOutgoing} value={documents.thisMonth.outgoing} />
-          <MonthCount label={DASHBOARD.monthIncoming} value={documents.thisMonth.incoming} />
+        <StatRow
+          items={[
+            {
+              label: DASHBOARD.statPendingNumber,
+              value: documents.pendingNumber.toLocaleString("th-TH"),
+              tone: documents.pendingNumber > 0 ? "warning" : "neutral",
+              icon: <FileClock className="size-[18px]" aria-hidden />,
+            },
+            {
+              label: DASHBOARD.statAwaitingAck,
+              value: documents.awaitingMyAck.toLocaleString("th-TH"),
+              tone: documents.awaitingMyAck > 0 ? "brand" : "neutral",
+              icon: <Inbox className="size-[18px]" aria-hidden />,
+            },
+            {
+              label: DASHBOARD.statMyDrafts,
+              value: documents.myDrafts.toLocaleString("th-TH"),
+              tone: "neutral",
+              icon: <FilePen className="size-[18px]" aria-hidden />,
+            },
+            {
+              label: DASHBOARD.statMyReturned,
+              value: documents.myReturned.toLocaleString("th-TH"),
+              tone: documents.myReturned > 0 ? "danger" : "neutral",
+              icon: <RotateCcw className="size-[18px]" aria-hidden />,
+            },
+          ]}
+        />
+
+        <div className="border-t border-border bg-surface-sunken px-5 py-4">
+          <div className="text-caption font-semibold text-text-subtle">
+            {DASHBOARD.monthSection}
+          </div>
+          <dl className="mt-2.5 flex flex-wrap items-baseline gap-x-7 gap-y-2">
+            {thisMonth.map((row) => (
+              <div key={row.label} className="flex items-baseline gap-2">
+                <dt className="text-caption text-text-subtle">{row.label}</dt>
+                <dd className="tabular text-title font-bold text-text-strong">
+                  {row.value.toLocaleString("th-TH")}
+                </dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </Card>
-
-      <h2 className="mt-7 mb-3 text-label font-bold text-text-strong">
-        {DASHBOARD.identitySection}
-      </h2>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label={DASHBOARD.statOrgUnits}
-          value={stats.orgUnitCount.toLocaleString("th-TH")}
-          tone="brand"
-          icon={<Building2 className="size-[18px]" aria-hidden />}
-        />
-        <StatCard
-          label={DASHBOARD.statUsers}
-          value={stats.activeUserCount.toLocaleString("th-TH")}
-          tone="info"
-          icon={<Users className="size-[18px]" aria-hidden />}
-        />
-        <StatCard
-          label={DASHBOARD.statMyAffiliations}
-          value={stats.myAffiliationCount.toLocaleString("th-TH")}
-          tone="gold"
-          icon={<UserCheck className="size-[18px]" aria-hidden />}
-        />
-        {stats.canReadAudit ? (
-          <StatCard
-            label={DASHBOARD.statDeniedToday}
-            value={stats.deniedTodayCount.toLocaleString("th-TH")}
-            hint={`${DASHBOARD.statAuditToday}: ${stats.auditTodayCount.toLocaleString("th-TH")}`}
-            tone={stats.deniedTodayCount > 0 ? "danger" : "success"}
-            icon={<ShieldAlert className="size-[18px]" aria-hidden />}
-          />
-        ) : (
-          <StatCard
-            label={DASHBOARD.statAuditToday}
-            value="—"
-            hint={ROLE_LABELS.USER}
-            tone="neutral"
-            icon={<ShieldCheck className="size-[18px]" aria-hidden />}
-          />
-        )}
-      </div>
-
-      {stats.canManageUsers &&
-      (stats.pendingRegistrationCount > 0 ||
-        stats.pendingResetCount > 0 ||
-        stats.lockedUserCount > 0) ? (
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <StatCard
-            label={DASHBOARD.statPendingRegistrations}
-            value={stats.pendingRegistrationCount.toLocaleString("th-TH")}
-            tone={stats.pendingRegistrationCount > 0 ? "warning" : "neutral"}
-            icon={<UserPlus className="size-[18px]" aria-hidden />}
-          />
-          <StatCard
-            label={DASHBOARD.statPendingResets}
-            value={stats.pendingResetCount.toLocaleString("th-TH")}
-            tone={stats.pendingResetCount > 0 ? "warning" : "neutral"}
-            icon={<KeyRound className="size-[18px]" aria-hidden />}
-          />
-          <StatCard
-            label={DASHBOARD.statLockedUsers}
-            value={stats.lockedUserCount.toLocaleString("th-TH")}
-            tone={stats.lockedUserCount > 0 ? "danger" : "neutral"}
-            icon={<ShieldAlert className="size-[18px]" aria-hidden />}
-          />
-        </div>
-      ) : null}
 
       {awaitingAck.length > 0 ? (
         <Card className="mt-5 overflow-hidden">
@@ -231,7 +174,7 @@ export default async function DashboardPage() {
           <CardHeader
             title={DASHBOARD.recentActivity}
             action={
-              stats.canReadAudit ? (
+              canReadAudit ? (
                 <Link
                   href="/admin/audit"
                   className="text-caption font-semibold text-primary hover:underline"
@@ -311,17 +254,5 @@ export default async function DashboardPage() {
         </Card>
       </div>
     </>
-  )
-}
-
-/** ตัวเลขหนึ่งช่องในการ์ด "หนังสือเดือนนี้" — เล็กกว่า StatCard เพราะเป็นข้อมูลอ้างอิง ไม่ใช่งานค้าง */
-function MonthCount({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-xl border border-border px-4 py-3">
-      <div className="text-micro text-text-subtle">{label}</div>
-      <div className="tabular mt-1 text-title-l font-bold text-text-strong">
-        {value.toLocaleString("th-TH")}
-      </div>
-    </div>
   )
 }

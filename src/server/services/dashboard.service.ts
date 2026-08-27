@@ -14,73 +14,13 @@ import { documentVisibilityWhere } from "./document-visibility"
 // หน้ารายการและหน้าค้นหา — ตัวเลขบนหน้าภาพรวมก็คือการเปิดเผยข้อมูลรูปแบบหนึ่ง
 // "มีหนังสือลับรอออกเลข 3 ฉบับ" บอกอะไรกับคนที่ไม่ควรรู้ได้มากกว่าที่คิด
 
-export interface DashboardStats {
-  orgUnitCount: number
-  activeUserCount: number
-  myAffiliationCount: number
-  pendingRegistrationCount: number
-  pendingResetCount: number
-  auditTodayCount: number
-  deniedTodayCount: number
-  lockedUserCount: number
-  canManageUsers: boolean
-  canReadAudit: boolean
-}
-
-export async function getDashboardStats(ctx: ServiceContext): Promise<DashboardStats> {
-  const canManageUsers = canOrFalse(ctx, PERMISSIONS.USER_MANAGE)
-  const canReadAudit = canOrFalse(ctx, PERMISSIONS.AUDIT_READ)
-
-  const startOfToday = new Date()
-  startOfToday.setHours(0, 0, 0, 0)
-
-  const [
-    orgUnitCount,
-    activeUserCount,
-    myAffiliationCount,
-    pendingRegistrationCount,
-    pendingResetCount,
-    auditTodayCount,
-    deniedTodayCount,
-    lockedUserCount,
-  ] = await Promise.all([
-    prisma.orgUnit.count({ where: { tenantId: ctx.tenantId, isActive: true } }),
-    prisma.user.count({ where: { tenantId: ctx.tenantId, isActive: true, deletedAt: null } }),
-    prisma.userOrgUnit.count({ where: { userId: ctx.userId } }),
-    canManageUsers
-      ? prisma.registrationRequest.count({ where: { tenantId: ctx.tenantId, status: "PENDING" } })
-      : Promise.resolve(0),
-    canManageUsers
-      ? prisma.passwordResetRequest.count({ where: { status: "PENDING" } })
-      : Promise.resolve(0),
-    canReadAudit
-      ? prisma.auditLog.count({ where: { tenantId: ctx.tenantId, at: { gte: startOfToday } } })
-      : Promise.resolve(0),
-    canReadAudit
-      ? prisma.auditLog.count({
-          where: { tenantId: ctx.tenantId, at: { gte: startOfToday }, result: "DENY" },
-        })
-      : Promise.resolve(0),
-    canManageUsers
-      ? prisma.user.count({
-          where: { tenantId: ctx.tenantId, lockedUntil: { gt: new Date() }, deletedAt: null },
-        })
-      : Promise.resolve(0),
-  ])
-
-  return {
-    orgUnitCount,
-    activeUserCount,
-    myAffiliationCount,
-    pendingRegistrationCount,
-    pendingResetCount,
-    auditTodayCount,
-    deniedTodayCount,
-    lockedUserCount,
-    canManageUsers,
-    canReadAudit,
-  }
-}
+// ⚠️ เคยมี getDashboardStats() ที่ยิง COUNT แปดครั้ง (จำนวนหน่วยงาน · ผู้ใช้ · สังกัดของฉัน ·
+// คำขอค้าง · เหตุการณ์ audit วันนี้) ให้หมวด "ผู้ใช้และหน่วยงาน" บนหน้าภาพรวม
+// ผู้ดูแลสั่งถอดหมวดนั้นออกเมื่อ 27 ส.ค. 2569 — ตัวเลขทั้งชุดจึงไม่มีใครดูอีกแล้ว
+// หน้าภาพรวมอ่านสิทธิ์ audit จาก canOrFalse() ตรง ๆ แทน ไม่ต้องแตะฐานข้อมูล
+//
+// ถ้าวันหลังอยากได้ตัวเลขพวกนี้กลับมา ให้เขียนใหม่เฉพาะตัวที่จะแสดงจริง อย่ายกก้อนเดิมกลับมา
+// ทั้งชุด — ของเดิมนับทุกอย่างเสมอไม่ว่าหน้าจะแสดงกี่ตัว
 
 export interface DocumentStats {
   /** รอสารบรรณออกเลข — เห็นเฉพาะที่อยู่ในขอบเขตของผู้ใช้ */

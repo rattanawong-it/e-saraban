@@ -187,22 +187,16 @@ export const CHANGE_PASSWORD = {
 export const DASHBOARD = {
   title: "ภาพรวม",
   newDocument: "สร้างหนังสือใหม่",
-  statOrgUnits: "หน่วยงานที่ใช้งานอยู่",
-  statUsers: "ผู้ใช้งานที่เปิดใช้งาน",
-  statMyAffiliations: "สังกัดของฉัน",
-  statPendingRegistrations: "คำขอสมัครรออนุมัติ",
-  statPendingResets: "คำขอรีเซ็ตรหัสผ่าน",
-  statAuditToday: "เหตุการณ์วันนี้",
-  statDeniedToday: "การเข้าถึงที่ถูกปฏิเสธวันนี้",
-  statLockedUsers: "บัญชีที่ถูกล็อกอยู่",
   recentActivity: "กิจกรรมล่าสุด",
   recentActivityEmpty: "ยังไม่มีกิจกรรมในระบบ",
   myAffiliations: "สังกัดและบทบาทของฉัน",
   primaryBadge: "สังกัดหลัก",
 
   // ── สถิติฝั่งเอกสาร (P4) ──────────────────────────────────────────
+  // ⚠️ หมวด "ผู้ใช้และหน่วยงาน" (จำนวนหน่วยงาน · ผู้ใช้ · สังกัดของฉัน · คำขอค้าง ·
+  // เหตุการณ์ audit วันนี้) ถูกถอดออกจากหน้าภาพรวมตามที่ผู้ดูแลสั่ง 27 ส.ค. 2569
+  // ข้อความของหมวดนั้นจึงถูกลบตามไปด้วย — งานของผู้ดูแลยังเข้าถึงได้ที่ /admin/users
   documentSection: "งานหนังสือ",
-  identitySection: "ผู้ใช้และหน่วยงาน",
   statPendingNumber: "รอออกเลขทะเบียน",
   statAwaitingAck: "รอฉันรับทราบ",
   statMyDrafts: "ร่างเอกสาร",

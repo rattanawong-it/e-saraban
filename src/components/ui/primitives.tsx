@@ -175,36 +175,50 @@ export function EmptyState({
   )
 }
 
-/** ตัวเลขสถิติบนการ์ด dashboard */
-export function StatCard({
-  label,
-  value,
-  hint,
-  tone = "neutral",
-  icon,
-}: {
+/** ตัวเลขหนึ่งช่องใน StatRow */
+export interface StatItem {
   label: string
   value: React.ReactNode
   hint?: React.ReactNode
   tone?: BadgeTone
   icon?: React.ReactNode
-}) {
+}
+
+/**
+ * ตัวเลขสรุปหลายตัวรวมอยู่ในกรอบเดียว
+ *
+ * ⚠️ เดิมแต่ละตัวเลขเป็นการ์ดของตัวเอง — ผู้ใช้ต้องกวาดตาหลายจุดกว่าจะรู้ว่ามีงานค้างไหม
+ * และช่องที่เป็น 0 กินพื้นที่เท่ากับช่องที่มีงานจริง · รวมมาไว้กรอบเดียวแล้วให้เส้นคั่น
+ * ทำหน้าที่แยกช่องแทนขอบการ์ด
+ *
+ * เส้นคั่นมาจาก `gap-px` บนพื้นสีขอบ ไม่ใช่ border รายช่อง — วิธีนี้ได้เส้นครบทุกด้าน
+ * ของทุกช่องเอง โดยไม่ต้องไล่ปิด border ของช่องสุดท้ายในแต่ละแถวเวลาจำนวนคอลัมน์
+ * เปลี่ยนตามความกว้างจอ ซึ่งเป็นจุดที่พลาดกันบ่อยจนได้เส้นซ้อนหนาเป็นสองเท่า
+ */
+export function StatRow({ items, className }: { items: StatItem[]; className?: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="text-caption font-semibold text-text-subtle">{label}</div>
-        {icon ? (
-          <span
-            className={cn("flex size-9 items-center justify-center rounded-xl", BADGE_TONES[tone])}
-          >
-            {icon}
-          </span>
-        ) : null}
-      </div>
-      <div className="tabular mt-2 text-display leading-none font-bold text-text-strong">
-        {value}
-      </div>
-      {hint ? <div className="mt-2 text-micro text-text-subtle">{hint}</div> : null}
+    <div className={cn("grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-4", className)}>
+      {items.map((item) => (
+        <div key={item.label} className="bg-card px-5 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-caption font-semibold text-text-subtle">{item.label}</div>
+            {item.icon ? (
+              <span
+                className={cn(
+                  "flex size-8 shrink-0 items-center justify-center rounded-xl",
+                  BADGE_TONES[item.tone ?? "neutral"],
+                )}
+              >
+                {item.icon}
+              </span>
+            ) : null}
+          </div>
+          <div className="tabular mt-2 text-display leading-none font-bold text-text-strong">
+            {item.value}
+          </div>
+          {item.hint ? <div className="mt-2 text-micro text-text-subtle">{item.hint}</div> : null}
+        </div>
+      ))}
     </div>
   )
 }
