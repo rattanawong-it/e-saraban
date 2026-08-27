@@ -15,7 +15,16 @@ export const BUDDHIST_ERA_OFFSET = 543
 
 export type DateInput = Date | string | number
 
-/** `short` = 22/08/2569 · `medium` = 22 ส.ค. 2569 · `long` = 22 สิงหาคม 2569 */
+/**
+ * `short` = 22/08/2569 · `medium` = 22 ส.ค. 2569 · `long` = 22 สิงหาคม 2569
+ *
+ * ⚠️ **ค่าปริยายคือ `short`** ตามที่ผู้ดูแลกำหนด (27 ส.ค. 2569) — วันที่ที่แสดง
+ * เป็นข้อมูลต้องเป็น วว/ดด/ปปปป พ.ศ. เสมอ ทั้งบนหน้าจอ ไฟล์ Excel/PDF และลายน้ำ
+ * เพื่อให้ตรงกับสมุดทะเบียนกระดาษที่หน่วยงานใช้อยู่ และเทียบกันได้ทีละบรรทัด
+ *
+ * `medium` กับ `long` เหลือไว้สำหรับข้อความที่เป็นประโยค ไม่ใช่ข้อมูลในตาราง
+ * (เช่น หัวหน้าภาพรวมที่เขียนว่า "วันนี้ 22 สิงหาคม 2569") — ต้องระบุมาเองเท่านั้น
+ */
 export type ThaiDateStyle = "short" | "medium" | "long"
 
 const DATE_STYLE_OPTIONS: Record<ThaiDateStyle, Intl.DateTimeFormatOptions> = {
@@ -47,13 +56,13 @@ function format(value: DateInput, options: Intl.DateTimeFormatOptions): string {
   }).format(toDate(value))
 }
 
-/** วันที่ไทยพร้อม พ.ศ. — `formatThaiDate(d, "long")` → `22 สิงหาคม 2569` */
-export function formatThaiDate(value: DateInput, style: ThaiDateStyle = "medium"): string {
+/** วันที่ไทยพร้อม พ.ศ. — ปริยาย `22/08/2569` · `formatThaiDate(d, "long")` → `22 สิงหาคม 2569` */
+export function formatThaiDate(value: DateInput, style: ThaiDateStyle = "short"): string {
   return format(value, DATE_STYLE_OPTIONS[style])
 }
 
-/** วันที่ + เวลา 24 ชม. — `22 ส.ค. 2569 10:30` */
-export function formatThaiDateTime(value: DateInput, style: ThaiDateStyle = "medium"): string {
+/** วันที่ + เวลา 24 ชม. — ปริยาย `22/08/2569 10:30` */
+export function formatThaiDateTime(value: DateInput, style: ThaiDateStyle = "short"): string {
   return format(value, { ...DATE_STYLE_OPTIONS[style], ...TIME_OPTIONS })
 }
 

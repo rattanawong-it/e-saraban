@@ -328,9 +328,7 @@ function UserDetail({
 
           <div className="tabular text-[11.5px] text-text-subtle">
             {USERS.lastLogin}:{" "}
-            {user.lastLoginAt
-              ? formatThaiDateTime(user.lastLoginAt, "medium")
-              : USERS.neverLoggedIn}
+            {user.lastLoginAt ? formatThaiDateTime(user.lastLoginAt) : USERS.neverLoggedIn}
           </div>
 
           <Button type="submit" disabled={pending} block>
@@ -741,7 +739,7 @@ function RegistrationQueue({
                 </p>
               ) : null}
               <div className="tabular mt-2 text-[11px] text-text-subtle">
-                {USERS.requestedAt} {formatThaiDateTime(request.createdAt, "medium")}
+                {USERS.requestedAt} {formatThaiDateTime(request.createdAt)}
               </div>
 
               <form action={formAction} className="mt-3 flex flex-wrap items-end gap-2.5">

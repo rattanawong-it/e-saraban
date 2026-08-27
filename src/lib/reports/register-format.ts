@@ -39,8 +39,8 @@ export function registerSubtitle(report: Pick<RegisterReport, "year" | "from" | 
   const parts = [`ประจำปี พ.ศ. ${report.year}`]
 
   if (report.from || report.to) {
-    const from = report.from ? formatThaiDate(report.from, "medium") : "เริ่มต้น"
-    const to = report.to ? formatThaiDate(report.to, "medium") : "ปัจจุบัน"
+    const from = report.from ? formatThaiDate(report.from) : "เริ่มต้น"
+    const to = report.to ? formatThaiDate(report.to) : "ปัจจุบัน"
     parts.push(`ช่วงวันที่ ${from} – ${to}`)
   }
 
