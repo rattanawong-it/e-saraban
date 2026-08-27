@@ -2029,7 +2029,7 @@ src/app/api/files/[attachmentId]/route.ts(22,15): error TS2304: Cannot find name
 · ราคา: รอบแรกที่ยังไม่มีของ ~12 วินาที รอบต่อไป ~1 วินาที (ทดสอบโดยลบ
 `next-env.d.ts` กับ `.next/types` ทิ้งแล้วสั่ง `pnpm typecheck` — ผ่านใน 8.4 วินาที)
 
-#### ข้อ 2 ⏳ integration — เทสต์พึ่งชั้นความลับที่มีเฉพาะบนฐาน dev
+#### ข้อ 2 ✅ integration — เทสต์พึ่งชั้นความลับที่มีเฉพาะบนฐาน dev
 
 4 เคสตก · 1 ไฟล์ล้มทั้งชุด (108 ผ่าน · 12 ข้าม จาก 124)
 
@@ -2043,9 +2043,41 @@ ServiceError: นายทะเบียนหนังสือลับขอ
 ส่วน `confidential.test.ts` กับ `dashboard.test.ts` ตายตอนเวียนเอกสารลับ
 เพราะนายทะเบียนของหน่วยงานชั้นไม่ถึง
 
-**ทางแก้ที่เลือก:** ให้เทสต์ตั้งชั้นความลับของผู้ใช้ที่มันใช้เอง ไม่ใช่หวังว่าฐานจะมีให้ ·
+**ทำไม seed ถึงให้เธอชั้น 1:** `rattana.wong` คือผู้ใช้ "สองสังกัด" ที่ P1 สร้างไว้
+ทดสอบ Context Switcher — ชั้น 1 เป็นค่าที่ตั้งใจ ไม่ใช่ความบังเอิญ · ฐาน dev ถูกแก้เป็น 2
+ด้วยมือตอนทดสอบ P3 แล้วไม่มีใครรู้ว่าเทสต์เริ่มพึ่งค่าที่แก้ไปนั้น
+
+**ทางแก้ที่เลือก: ชุดเทสต์สร้างผู้ใช้ที่ตัวเองต้องการขึ้นมาเอง** ผ่าน
+`tests/integration/fixtures/users.ts` → `ensureIntegrationUser()` (upsert · เรียกซ้ำได้)
+ชื่อขึ้นต้น `integration.` ให้ดูออกทันทีว่าเป็นข้อมูลของเทสต์ · แนวเดียวกับที่
+`tests/e2e/fixtures/db-fixture.ts` ทำกับ `e2e.runner` มาตั้งแต่ต้น
+
+| ชุด | เคยยืม | ตอนนี้ |
+| --- | --- | --- |
+| `confidential.test.ts` | `rattana.wong` เป็นนายทะเบียนลับ | `integration.registrar` (ชั้น 3) |
+| `dashboard.test.ts` | `rattana.wong` เป็นนายทะเบียนลับ | `integration.registrar` (ชั้น 3) |
+| `confidential-registrar.test.ts` | `rattana.wong` เป็นผู้ช่วยนายทะเบียน | `integration.assistant-registrar` (ชั้น 2) |
+
 **ไม่แก้ `prisma/seed.ts` ให้ `rattana.wong` ชั้น 2** เพราะเป็นการดัดข้อมูลของคนจริง
 ให้เข้ากับเทสต์ และเทสต์ก็ยังพึ่งสภาพฐานอยู่ดี
+
+⚠️ **ผู้ใช้ที่ helper สร้างไม่ถูกลบตอน teardown โดยตั้งใจ** — audit log กับ ACL อ้างผู้ใช้
+ด้วย FK แบบ Restrict ลบไม่ได้อยู่แล้ว · และ `passwordHash` เป็นข้อความคงที่ที่ล็อกอินไม่ผ่าน
+(ไม่ต้องเสียเวลาแฮช argon2 เพราะผู้ใช้ชุดนี้ไม่เคยผ่านหน้าล็อกอิน ต่างจาก `e2e.runner`)
+
+**วิธีตรวจว่าแก้ได้จริง — จำลอง CI บนเครื่องโดยไม่แตะฐาน dev:**
+
+```sh
+docker exec esaraban-postgres psql -U esaraban -d postgres -c "CREATE DATABASE esaraban_citest"
+TEST_URL=$(sed -n 's/^DATABASE_URL=//p' .env | tr -d '"' | sed 's#/esaraban?#/esaraban_citest?#')
+DATABASE_URL="$TEST_URL" pnpm db:deploy && DATABASE_URL="$TEST_URL" pnpm db:seed
+DATABASE_URL="$TEST_URL" pnpm test:integration
+docker exec esaraban-postgres psql -U esaraban -d postgres -c "DROP DATABASE esaraban_citest"
+```
+
+ฐานใหม่รับ locale ICU `th-TH` ต่อจาก template1 ของ cluster จึงตรงกับ service ของ CI ·
+ผล: **124/124 เขียวบนฐานที่ seed สด** (รวม 12 เคสที่เคยถูก skip ยกไฟล์)
+และ **124/124 บนฐาน dev** ด้วย — ไม่พังของเดิม
 
 #### ข้อ 3 ⏳ e2e — เคสค้นหาพึ่งเอกสารที่มีอยู่แค่บนฐาน dev
 

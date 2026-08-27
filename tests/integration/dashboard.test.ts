@@ -5,6 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { PERMISSIONS, type GrantedPermissions } from "@/lib/authz"
 import { prisma } from "@/lib/db"
 import type { ServiceContext } from "@/server/context"
+
+import { ensureIntegrationUser } from "./fixtures/users"
 import { getAwaitingAcknowledgement, getDocumentStats } from "@/server/services/dashboard.service"
 import {
   circulateDocument,
@@ -80,13 +82,20 @@ beforeAll(async () => {
   const registrar = await prisma.user.findFirst({ where: { username: "registrar" } })
   const outsider = await prisma.user.findFirst({ where: { username: "somchai.j" } })
   const colleague = await prisma.user.findFirst({ where: { username: "dean.eng" } })
-  const confidentialRegistrar = await prisma.user.findFirst({
-    where: { username: "rattana.wong" },
-  })
 
-  if (!orgUnit || !otherUnit || !registrar || !outsider || !colleague || !confidentialRegistrar) {
+  if (!orgUnit || !otherUnit || !registrar || !outsider || !colleague) {
     throw new Error("ข้อมูล seed ไม่ครบ")
   }
+
+  // ชั้นความลับของนายทะเบียนต้องถึงชั้นของเอกสาร — สร้างเองแทนการยืมบัญชีจาก seed
+  // ที่ชั้นความลับอาจถูกแก้ทีหลัง (เหตุผลเต็มอยู่ที่ fixtures/users.ts)
+  const confidentialRegistrar = await ensureIntegrationUser({
+    tenantId: tenant.id,
+    key: "registrar",
+    firstName: "ทดสอบ",
+    lastName: "นายทะเบียนลับ",
+    clearanceLevel: 3,
+  })
 
   // เอกสารลับส่งเข้าคิวไม่ได้ถ้าหน่วยงานไม่มีนายทะเบียนหนังสือลับ (ดู confidential-registrar.test.ts)
   // ตั้งเป็นคนที่ไม่ใช่ colleague โดยตั้งใจ — ไม่งั้นเขาจะ "เห็น" เอกสารลับได้ตามสิทธิ์จริง
@@ -155,7 +164,7 @@ afterAll(async () => {
   if (!fixture) return
 
   await prisma.confidentialRegistrar.deleteMany({
-    where: { orgUnit: { code: "510000" }, user: { username: "rattana.wong" } },
+    where: { orgUnit: { code: "510000" }, user: { username: "integration.registrar" } },
   })
   await prisma.documentAcl.deleteMany({ where: { documentId: { in: createdDocumentIds } } })
   await prisma.documentRecipient.deleteMany({ where: { documentId: { in: createdDocumentIds } } })

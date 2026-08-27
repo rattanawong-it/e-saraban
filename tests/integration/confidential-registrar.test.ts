@@ -6,6 +6,8 @@ import { AUDIT_ACTIONS } from "@/lib/audit"
 import { PERMISSIONS, type GrantedPermissions } from "@/lib/authz"
 import { prisma } from "@/lib/db"
 import type { ServiceContext } from "@/server/context"
+
+import { ensureIntegrationUser } from "./fixtures/users"
 import { listDocumentAcl, revokeDocumentAcl } from "@/server/services/acl.service"
 import { listDocuments } from "@/server/services/document-list.service"
 import { createDocument, submitDocument } from "@/server/services/document.service"
@@ -92,22 +94,29 @@ beforeAll(async () => {
   const author = await prisma.user.findFirst({ where: { username: "dean.eng" } })
   const clerk = await prisma.user.findFirst({ where: { username: "registrar" } })
   const otherClerk = await prisma.user.findFirst({ where: { username: "admin" } })
-  const assistant = await prisma.user.findFirst({ where: { username: "rattana.wong" } })
   const lowClearance = await prisma.user.findFirst({ where: { username: "somchai.j" } })
 
-  if (!orgUnit || !author || !clerk || !otherClerk || !assistant || !lowClearance) {
+  if (!orgUnit || !author || !clerk || !otherClerk || !lowClearance) {
     throw new Error("ข้อมูล seed ไม่ครบ")
   }
 
+  // ผู้ช่วยนายทะเบียนคนที่สอง — ต้องมีชั้นความลับถึงและต้องไม่ซ้ำกับ clerk
+  // ใน seed ไม่มีใครเหลือแล้ว (มีชั้น ≥ 2 อยู่สองคนซึ่งถูกใช้เป็น author กับ clerk ไปแล้ว)
+  // ชุดนี้จึงสร้างเอง — เหตุผลเต็มอยู่ที่ fixtures/users.ts
+  const assistant = await ensureIntegrationUser({
+    tenantId: tenant.id,
+    key: "assistant-registrar",
+    firstName: "ทดสอบ",
+    lastName: "ผู้ช่วยนายทะเบียนลับ",
+    clearanceLevel: 2,
+  })
+
   // ⚠️ ด่านนี้อ่านชั้นความลับจาก **ฐานข้อมูล** ไม่ใช่จาก context ที่เทสต์ประกอบเอง
-  // ถ้าฐาน dev ถูกแก้ชั้นความลับด้วยมือ เทสต์จะเพี้ยนแบบงง ๆ — ตรวจให้ชัดตั้งแต่ตรงนี้
-  if (
-    clerk.clearanceLevel < 2 ||
-    assistant.clearanceLevel < 2 ||
-    lowClearance.clearanceLevel >= 2
-  ) {
+  // สองคนนี้ยังยืมจาก seed อยู่ (`registrar` ชั้น 2 · `somchai.j` ชั้น 0)
+  // ถ้าใครไปแก้ seed หรือแก้ฐานด้วยมือ ต้องแดงตรงนี้พร้อมบอกตัวเลข ไม่ใช่เพี้ยนแบบงง ๆ
+  if (clerk.clearanceLevel < 2 || lowClearance.clearanceLevel >= 2) {
     throw new Error(
-      `ชั้นความลับบนฐานไม่ตรงกับที่ชุดเทสต์นี้ต้องการ (registrar=${clerk.clearanceLevel} · rattana.wong=${assistant.clearanceLevel} · somchai.j=${lowClearance.clearanceLevel})`,
+      `ชั้นความลับบนฐานไม่ตรงกับที่ชุดเทสต์นี้ต้องการ (registrar=${clerk.clearanceLevel} · somchai.j=${lowClearance.clearanceLevel})`,
     )
   }
 

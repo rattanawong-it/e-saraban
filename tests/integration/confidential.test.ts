@@ -5,6 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { PERMISSIONS, type GrantedPermissions } from "@/lib/authz"
 import { prisma } from "@/lib/db"
 import type { ServiceContext } from "@/server/context"
+
+import { ensureIntegrationUser } from "./fixtures/users"
 import {
   circulateDocument,
   createDocument,
@@ -72,11 +74,20 @@ beforeAll(async () => {
   const author = await prisma.user.findFirst({ where: { username: "registrar" } })
   const recipient = await prisma.user.findFirst({ where: { username: "dean.eng" } })
   const lowClearance = await prisma.user.findFirst({ where: { username: "somchai.j" } })
-  const registrar = await prisma.user.findFirst({ where: { username: "rattana.wong" } })
 
-  if (!tenant || !orgUnit || !otherUnit || !author || !recipient || !lowClearance || !registrar) {
+  if (!tenant || !orgUnit || !otherUnit || !author || !recipient || !lowClearance) {
     throw new Error("ยังไม่ได้ seed — รัน pnpm db:seed ก่อน")
   }
+
+  // นายทะเบียนต้องเป็นคนที่ไม่ใช่ผู้เขียนและไม่ใช่ผู้รับ และต้องมีชั้นความลับถึง
+  // — ใน seed ไม่มีใครว่างพอ ชุดนี้จึงสร้างขึ้นเอง (เหตุผลเต็มอยู่ที่ fixtures/users.ts)
+  const registrar = await ensureIntegrationUser({
+    tenantId: tenant.id,
+    key: "registrar",
+    firstName: "ทดสอบ",
+    lastName: "นายทะเบียนลับ",
+    clearanceLevel: 3,
+  })
 
   // ตั้งแต่ P4 เอกสารลับส่งเข้าคิวออกเลขไม่ได้ถ้าหน่วยงานยังไม่มีนายทะเบียนหนังสือลับ
   // (ดู confidential-registrar.test.ts) — ชุดนี้จึงต้องตั้งไว้ก่อน ไม่งั้นติดตั้งแต่ด่านแรก
@@ -137,7 +148,7 @@ afterAll(async () => {
   if (!fixture) return
 
   await prisma.confidentialRegistrar.deleteMany({
-    where: { orgUnit: { code: "510000" }, user: { username: "rattana.wong" } },
+    where: { orgUnit: { code: "510000" }, user: { username: "integration.registrar" } },
   })
   await prisma.documentAcl.deleteMany({ where: { documentId: { in: createdDocumentIds } } })
   await prisma.documentRecipient.deleteMany({ where: { documentId: { in: createdDocumentIds } } })
