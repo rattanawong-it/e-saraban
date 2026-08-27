@@ -89,7 +89,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
     <>
       <PageHeader title={SEARCH.title} description={SEARCH.description} />
 
-      <Alert tone="info" className="mb-5">
+      <Alert tone="info" className="mb-4">
         {SEARCH.scopeNote}
       </Alert>
 

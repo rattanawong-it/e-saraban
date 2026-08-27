@@ -94,6 +94,46 @@ test("กดปุ่ม back ของเบราว์เซอร์แล�
   await expect(page.getByLabel(SEARCH.direction)).toHaveValue("INTERNAL")
 })
 
+// ── การจัดวางของการ์ดตัวกรอง (ผู้ดูแลกำหนด · docs/sample_v6.png) ──────────
+
+test("ช่อง ตั้งแต่ กับ ถึง ต้องอยู่แถวเดียวกัน ไม่ใช่คนละแถว", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto("/search")
+
+  const from = await page.getByLabel(SEARCH.from).boundingBox()
+  const to = await page.getByLabel(SEARCH.to).boundingBox()
+
+  // ⚠️ ของเดิม "ตั้งแต่" อยู่ท้ายแถวหนึ่ง ส่วน "ถึง" ไปโดดอยู่อีกแถว ทั้งที่เป็นช่วงเดียวกัน
+  // เคสนี้ล็อกว่าทั้งคู่ต้องนั่งแถวเดียวกันเสมอ และ "ตั้งแต่" ต้องอยู่ซ้ายของ "ถึง"
+  expect(from, "ไม่พบช่องตั้งแต่").toBeTruthy()
+  expect(to, "ไม่พบช่องถึง").toBeTruthy()
+  expect(Math.abs(from!.y - to!.y), "ตั้งแต่กับถึงต้องอยู่แถวเดียวกัน").toBeLessThan(4)
+  expect(from!.x).toBeLessThan(to!.x)
+})
+
+const SEARCH_SIZES = [
+  { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+]
+
+for (const size of SEARCH_SIZES) {
+  test(`เปิดหน้าค้นหาครั้งแรกต้องไม่มีแถบเลื่อนที่ ${size.width}×${size.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(size)
+    await page.goto("/search")
+    await expect(page.getByRole("heading", { name: SEARCH.title, level: 1 })).toBeVisible()
+
+    // ⚠️ "ครั้งแรก" คือยังไม่ใส่เงื่อนไข จึงยังไม่มีตารางผลลัพธ์ — พอค้นแล้วมีผล
+    // หน้าย่อมยาวเกินจอเป็นเรื่องปกติ เคสนี้จึงห้ามใส่เงื่อนไขใด ๆ ก่อนวัด
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
+    )
+
+    expect(overflow, "หน้าค้นหาตอนเปิดครั้งแรกต้องไม่มีแถบเลื่อน").toBeLessThanOrEqual(0)
+  })
+}
+
 // ── หน้าทะเบียนหนังสือใช้ฟอร์มคนละตัวแต่เป็นแบบแผนเดียวกัน ────────────────
 //
 // ⚠️ ของหน้านี้อันตรายกว่า เพราะปุ่มดาวน์โหลดพก query จาก URL ไปทั้งชุด

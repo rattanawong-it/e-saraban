@@ -48,9 +48,18 @@ export function SearchFilters({
   const formKey = JSON.stringify(values)
 
   return (
-    <Card className="mb-5 p-5">
+    <Card className="mb-4 p-4">
       <form key={formKey} method="get" action="/search" className="flex flex-col gap-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* ⚠️ `lg:col-span-2` ที่ช่อง "ช่วงวันที่ของ" คือสิ่งที่ดัน "ตั้งแต่" กับ "ถึง"
+            ให้ตกไปอยู่แถวสุดท้ายด้วยกัน (ผู้ดูแลกำหนด · docs/sample_v6.png)
+            ของเดิม "ตั้งแต่" อยู่ท้ายแถวหนึ่ง ส่วน "ถึง" ไปโดดอยู่อีกแถว
+            ทั้งที่เป็นช่วงเดียวกัน อ่านแล้วไม่รู้ว่าคู่กับอะไร
+
+            ⚠️ `xl:grid-cols-4` ไม่ได้ใส่เพื่อความสวยอย่างเดียว — มันยุบจาก 5 แถว
+            เหลือ 4 แถว ซึ่งเป็นสิ่งที่ทำให้หน้านี้เปิดครั้งแรกแล้วไม่มีแถบเลื่อน
+            (เดิมล้น 87px) · ถ้าถอดออกหรือเพิ่มช่องใหม่ แถบเลื่อนจะกลับมาทันที
+            มี e2e ล็อกไว้แล้ว */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <Field
             label={SEARCH.keyword}
             htmlFor="q"
@@ -149,7 +158,7 @@ export function SearchFilters({
             </Select>
           </Field>
 
-          <Field label={SEARCH.dateField} htmlFor="dateField">
+          <Field label={SEARCH.dateField} htmlFor="dateField" className="lg:col-span-2">
             <Select id="dateField" name="dateField" defaultValue={values.dateField}>
               <option value="docDate">{SEARCH.dateFieldOptions.docDate}</option>
               <option value="receivedDate">{SEARCH.dateFieldOptions.receivedDate}</option>
