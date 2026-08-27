@@ -137,17 +137,35 @@ export function PageHeader({
   title,
   description,
   action,
+  descriptionInline = false,
+  className,
 }: {
   title: string
   description?: React.ReactNode
   action?: React.ReactNode
+  /**
+   * วางคำอธิบายต่อท้ายหัวข้อในบรรทัดเดียวกันแทนที่จะขึ้นบรรทัดใหม่
+   *
+   * เพิ่มเป็นตัวเลือก ไม่ใช่เปลี่ยนพฤติกรรมเดิม — หน้าอื่นมีคำอธิบายยาวเป็นประโยค
+   * ซึ่งต่อท้ายหัวข้อแล้วอ่านไม่ออก · หน้าภาพรวมสั้นพอ (ชื่อหน่วยงาน · วันที่)
+   * และต้องการความสูงคืนมาให้เนื้อหาข้างล่าง (ผู้ดูแลกำหนด · docs/sample_v1.png)
+   */
+  descriptionInline?: boolean
+  className?: string
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-title-l font-bold text-text-strong">{title}</h1>
-        {description ? <p className="mt-1 text-label text-text-subtle">{description}</p> : null}
-      </div>
+    <div className={cn("mb-6 flex flex-wrap items-end justify-between gap-3", className)}>
+      {descriptionInline ? (
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h1 className="text-title-l font-bold text-text-strong">{title}</h1>
+          {description ? <p className="text-label text-text-subtle">{description}</p> : null}
+        </div>
+      ) : (
+        <div>
+          <h1 className="text-title-l font-bold text-text-strong">{title}</h1>
+          {description ? <p className="mt-1 text-label text-text-subtle">{description}</p> : null}
+        </div>
+      )}
       {action}
     </div>
   )
@@ -179,34 +197,33 @@ export function EmptyState({
 export interface StatItem {
   label: string
   value: React.ReactNode
-  hint?: React.ReactNode
   tone?: BadgeTone
   icon?: React.ReactNode
 }
 
 /**
- * แผ่นตัวเลขสรุปเรียงเป็นตาราง — ทรงตามตัวอย่างที่ผู้ดูแลส่งมา (docs/sample_dashboard.png)
+ * แผ่นตัวเลขสรุปเรียงแถวเดียว ทรงเตี้ย — ตาม docs/sample_v2.png
  *
- * แต่ละแผ่นวางไอคอนไว้ซ้ายเป็นสี่เหลี่ยมมนขนาดใหญ่ แล้ววางป้ายกับตัวเลขซ้อนกันทางขวา
- * — อ่านได้ในสายตาเดียวว่า "เรื่องอะไร กี่ฉบับ" ต่างจากทรงเดิมที่ป้ายอยู่บนสุด
- * ตัวเลขอยู่ล่างสุด และไอคอนลอยอยู่มุมขวาโดยไม่ได้เกี่ยวกับอะไร
+ * ⚠️ ทรงนี้แลกความใหญ่โตกับความสูงโดยตั้งใจ: หน้าภาพรวมต้องจบในหน้าจอเดียว
+ * ทุก px ที่แถบบนกินไป คือ px ที่รายการกิจกรรมข้างล่างเสียไป · ตัวเลขจึงเป็นขั้น
+ * title (18) ไม่ใช่ display (30) และแผ่นไอคอนเล็กลงจาก 11 หน่วยเหลือ 8
  *
- * ⚠️ สีของแผ่นผูกกับ "มีงานค้างหรือไม่" ไม่ใช่ผูกกับชนิดของงาน — ผู้เรียกส่ง tone
- * มาเป็น neutral เมื่อค่าเป็นศูนย์ ตามตัวอย่างที่ช่องค่าศูนย์เป็นสีเทาและช่องที่มีค่า
- * เป็นสีเขียวอ่อน · คนกวาดตาผ่านจึงเห็นทันทีว่ามีอะไรต้องทำบ้างโดยไม่ต้องอ่านตัวเลข
+ * ⚠️ สีของแผ่นไอคอนผูกกับ "มีงานค้างหรือไม่" ไม่ใช่ชนิดของงาน — ผู้เรียกส่ง tone
+ * เป็น neutral เมื่อค่าเป็นศูนย์ · ผู้ดูแลเลือกแนวทาง "กระชับแต่ยังมีสีบอกสถานะ"
+ * สีจึงเป็นสิ่งเดียวที่เหลือให้กวาดตาผ่านแล้วรู้ว่ามีอะไรต้องทำ
  */
 export function StatRow({ items, className }: { items: StatItem[]; className?: string }) {
   return (
-    <div className={cn("grid gap-3 sm:grid-cols-2", className)}>
+    <div className={cn("grid grid-cols-2 gap-2.5 lg:grid-cols-4", className)}>
       {items.map((item) => (
         <div
           key={item.label}
-          className="flex items-center gap-3.5 rounded-xl border border-border bg-card px-4 py-3.5"
+          className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5"
         >
           {item.icon ? (
             <span
               className={cn(
-                "flex size-11 shrink-0 items-center justify-center rounded-2xl",
+                "flex size-8 shrink-0 items-center justify-center rounded-lg",
                 BADGE_TONES[item.tone ?? "neutral"],
               )}
             >
@@ -215,11 +232,10 @@ export function StatRow({ items, className }: { items: StatItem[]; className?: s
           ) : null}
 
           <div className="min-w-0">
-            <div className="truncate text-caption font-semibold text-text-subtle">{item.label}</div>
-            <div className="tabular mt-0.5 text-display leading-none font-bold text-text-strong">
+            <div className="truncate text-micro font-semibold text-text-subtle">{item.label}</div>
+            <div className="tabular text-title leading-tight font-bold text-text-strong">
               {item.value}
             </div>
-            {item.hint ? <div className="mt-1 text-micro text-text-subtle">{item.hint}</div> : null}
           </div>
         </div>
       ))}

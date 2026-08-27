@@ -188,24 +188,26 @@ export const DASHBOARD = {
   title: "ภาพรวม",
   newDocument: "สร้างหนังสือใหม่",
   recentActivity: "กิจกรรมล่าสุด",
+  systemActor: "ระบบ",
+  activityAllowed: "สำเร็จ",
+  activityDenied: "ถูกปฏิเสธ",
   recentActivityEmpty: "ยังไม่มีกิจกรรมในระบบ",
-  myAffiliations: "สังกัดและบทบาทของฉัน",
-  primaryBadge: "สังกัดหลัก",
 
   // ── สถิติฝั่งเอกสาร (P4) ──────────────────────────────────────────
   // ⚠️ หมวด "ผู้ใช้และหน่วยงาน" (จำนวนหน่วยงาน · ผู้ใช้ · สังกัดของฉัน · คำขอค้าง ·
   // เหตุการณ์ audit วันนี้) ถูกถอดออกจากหน้าภาพรวมตามที่ผู้ดูแลสั่ง 27 ส.ค. 2569
   // ข้อความของหมวดนั้นจึงถูกลบตามไปด้วย — งานของผู้ดูแลยังเข้าถึงได้ที่ /admin/users
-  documentSection: "งานหนังสือ",
-  statPendingNumber: "รอออกเลขทะเบียน",
+  statPendingNumber: "รอออกเลข",
   statAwaitingAck: "รอฉันรับทราบ",
   statMyDrafts: "ร่างเอกสาร",
-  statMyReturned: "ถูกตีกลับให้แก้",
+  statMyReturned: "ตีกลับแก้ไข",
   actionSection: "งานที่ต้องดำเนินการ",
-  monthSection: "หนังสือที่ออกเลขเดือนนี้",
-  monthInternal: "บันทึกข้อความภายใน",
-  monthOutgoing: "หนังสือส่งภายนอก",
-  monthIncoming: "หนังสือรับ",
+
+  // ยอดออกเลขเดือนนี้ยุบเหลือชิปบรรทัดเดียว แยกรายทิศทางตอนชี้เมาส์
+  // (ผู้ดูแลเลือกไว้ · docs/sample_v3.png) — เดิมเป็นสามแถวเต็มครึ่งการ์ด
+  monthChip: (total: number) => `ออกเลขเดือนนี้ (${total.toLocaleString("th-TH")})`,
+  monthBreakdown: (internal: number, outgoing: number, incoming: number) =>
+    `บันทึกข้อความภายใน ${internal} · หนังสือส่งภายนอก ${outgoing} · หนังสือรับ ${incoming}`,
   awaitingAckTitle: "รอฉันรับทราบ",
   awaitingAckEmpty: "ไม่มีหนังสือค้างรับทราบ",
   awaitingAckDue: (date: string) => `กำหนดภายใน ${date}`,
