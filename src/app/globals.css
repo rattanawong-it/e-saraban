@@ -15,7 +15,15 @@
   --color-foreground: var(--foreground);
 
   --font-sans: var(--font-anuphan), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-num: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* ⚠️ ต้องมี Anuphan ต่อท้าย Inter เสมอ — Inter ไม่มีตัวอักษรไทย
+     ข้อความไทยที่อยู่ในองค์ประกอบที่ใช้ฟอนต์นี้ (คลาส .tabular) จะตกไปใช้ฟอนต์ของเครื่อง
+     ซึ่งเป็นคนละแบบกับทั้งระบบอย่างเห็นได้ชัด (ผู้ดูแลจับได้ที่บรรทัด "ทุกหน่วยงาน · 1 รายการ"
+     ของหน้าทะเบียน 27 ส.ค. 2569)
+
+     เบราว์เซอร์เลือกฟอนต์ทีละตัวอักษร ไม่ใช่ทีละก้อนข้อความ — ใส่แบบนี้แล้ว
+     ตัวเลขยังได้ Inter (เรียงหลักตรงตามที่ต้องการ) ส่วนอักษรไทยได้ Anuphan
+     เหมือนที่อื่นทั้งระบบ · แถวที่ปนไทยกับตัวเลขจึงกลมกลืนกันเอง */
+  --font-num: var(--font-inter), var(--font-anuphan), ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
   --font-heading: var(--font-anuphan), var(--font-inter), ui-sans-serif, sans-serif;
 
