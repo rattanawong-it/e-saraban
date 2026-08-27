@@ -6,6 +6,7 @@
 
 export * from "./app"
 export * from "./document"
+export * from "./filters"
 export * from "./help"
 export * from "./notification"
 export * from "./ui"

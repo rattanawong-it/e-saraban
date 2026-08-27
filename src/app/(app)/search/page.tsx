@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 
-import { APP_NAME, SEARCH } from "@/constants"
+import { APP_NAME, SEARCH, SEARCH_FILTER_DEFAULTS } from "@/constants"
 import { DocumentTable } from "@/components/documents/document-table"
 import { DocumentPager } from "@/components/documents/document-toolbar"
 import { SearchFilters } from "@/components/documents/search-filters"
@@ -43,19 +43,25 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   const session = await requireSession()
   const params = await searchParams
 
+  // ช่องที่ไม่มีใน query string = ผู้ใช้ไม่ได้เลือก → ใช้ค่าตั้งต้น
+  //
+  // ⚠️ ต้องเติมจาก SEARCH_FILTER_DEFAULTS เท่านั้น ห้ามเขียนค่าตั้งต้นซ้ำตรงนี้ —
+  // ปุ่ม "ล้างเงื่อนไข" ทำงานด้วยการพากลับมาที่ URL ที่ไม่มี query เลย
+  // ค่าที่ผู้ใช้เห็นหลังกดล้างจึงเป็นผลของบรรทัดพวกนี้ล้วน ๆ ถ้าสองที่หลุดจากกัน
+  // ปุ่มล้างจะพาไปที่ค่าที่ไม่มีใครตั้งใจ โดยไม่มีอะไรเตือน
   const values = {
-    q: readParam(params.q),
-    direction: readParam(params.direction),
-    status: readParam(params.status),
-    documentTypeId: readParam(params.documentTypeId),
-    ownerUnitId: readParam(params.ownerUnitId),
-    confidentiality: readParam(params.confidentiality),
-    urgency: readParam(params.urgency),
-    dateField: readParam(params.dateField) || "docDate",
-    from: readParam(params.from),
-    to: readParam(params.to),
+    q: readParam(params.q) || SEARCH_FILTER_DEFAULTS.q,
+    direction: readParam(params.direction) || SEARCH_FILTER_DEFAULTS.direction,
+    status: readParam(params.status) || SEARCH_FILTER_DEFAULTS.status,
+    documentTypeId: readParam(params.documentTypeId) || SEARCH_FILTER_DEFAULTS.documentTypeId,
+    ownerUnitId: readParam(params.ownerUnitId) || SEARCH_FILTER_DEFAULTS.ownerUnitId,
+    confidentiality: readParam(params.confidentiality) || SEARCH_FILTER_DEFAULTS.confidentiality,
+    urgency: readParam(params.urgency) || SEARCH_FILTER_DEFAULTS.urgency,
+    dateField: readParam(params.dateField) || SEARCH_FILTER_DEFAULTS.dateField,
+    from: readParam(params.from) || SEARCH_FILTER_DEFAULTS.from,
+    to: readParam(params.to) || SEARCH_FILTER_DEFAULTS.to,
     hasAttachment: readParam(params.hasAttachment) === "1",
-    sort: readParam(params.sort) || "latest",
+    sort: readParam(params.sort) || SEARCH_FILTER_DEFAULTS.sort,
   }
 
   const page = Number(readParam(params.page)) || 1

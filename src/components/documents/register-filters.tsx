@@ -2,6 +2,7 @@ import Link from "next/link"
 import { FileSpreadsheet, FileText, RotateCcw, Search } from "lucide-react"
 
 import { REGISTER_REPORT } from "@/constants"
+import type { RegisterFilterValues } from "@/constants"
 import { Button } from "@/components/ui/button"
 import { Field, Select, TextInput } from "@/components/ui/field"
 import { Card } from "@/components/ui/primitives"
@@ -12,19 +13,13 @@ import { Card } from "@/components/ui/primitives"
 // ของหน่วยงานฉัน ปีนี้" ไว้ใช้ทุกเดือนได้ · ปุ่มดาวน์โหลดเป็นลิงก์ที่พก query เดิมไปทั้งชุด
 // ผู้ใช้จึงได้ไฟล์ที่ตรงกับสิ่งที่เห็นบนจอเป๊ะ ไม่ใช่ทะเบียนคนละชุดกับที่กำลังดูอยู่
 
-export interface RegisterFilterValues {
-  book: string
-  orgUnitId: string
-  year: string
-  documentTypeId: string
-  from: string
-  to: string
-}
-
 export interface RegisterOption {
   id: string
   label: string
 }
+
+// นิยามค่าและค่าตั้งต้นย้ายไป `@/constants/filters` แล้ว — เหตุผลเดียวกับ search-filters.tsx
+export type { RegisterFilterValues }
 
 export function RegisterFilters({
   values,

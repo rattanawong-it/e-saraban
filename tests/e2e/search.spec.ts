@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 import { REGISTER_REPORT, SEARCH } from "@/constants/ui"
+import { SEARCH_FILTER_DEFAULTS, registerFilterDefaults } from "@/constants/filters"
 
 // ตัวกรองของหน้าค้นหาขั้นสูง (spec §10.1)
 //
@@ -12,31 +13,71 @@ import { REGISTER_REPORT, SEARCH } from "@/constants/ui"
 // เป็นบั๊กที่ integration test มองไม่เห็นเลย เพราะฝั่ง server คืนค่าถูกมาตลอด
 // ผิดเฉพาะสิ่งที่ค้างอยู่บนหน้าจอเท่านั้น
 
-/** ใส่เงื่อนไขหลายชนิดแล้วกดค้นหา — คืนค่าที่กรอกไว้เพื่อเอาไปเทียบ */
+/**
+ * ป้ายกำกับของแต่ละช่อง เทียบกับชื่อคีย์ใน `SEARCH_FILTER_DEFAULTS`
+ *
+ * ⚠️ ต้องครบทุกคีย์ — ชนิดของ Record บังคับไว้แล้ว ถ้าวันหลังเพิ่มช่องใหม่
+ * เข้าไปในค่าตั้งต้นแล้วลืมมาเติมที่นี่ typecheck จะแดงทันที ไม่ใช่ปล่อยให้
+ * ช่องใหม่ไม่มีใครตรวจว่ากดล้างแล้วกลับมาถูกไหม
+ */
+const SEARCH_FIELD_LABELS: Record<keyof typeof SEARCH_FILTER_DEFAULTS, string> = {
+  q: SEARCH.keyword,
+  direction: SEARCH.direction,
+  status: SEARCH.status,
+  documentTypeId: SEARCH.documentType,
+  ownerUnitId: SEARCH.ownerUnit,
+  confidentiality: SEARCH.confidentiality,
+  urgency: SEARCH.urgency,
+  dateField: SEARCH.dateField,
+  from: SEARCH.from,
+  to: SEARCH.to,
+  hasAttachment: SEARCH.hasAttachment,
+  sort: SEARCH.sort,
+}
+
+/** ใส่เงื่อนไขหลายชนิดแล้วกดค้นหา — เลือกให้ต่างจากค่าตั้งต้นทุกช่องที่เลือกได้ */
 async function searchWithFilters(page: import("@playwright/test").Page) {
   await page.goto("/search")
 
   await page.getByLabel(SEARCH.keyword).fill("อบรม")
   await page.getByLabel(SEARCH.direction).selectOption("INTERNAL")
+  await page.getByLabel(SEARCH.status).selectOption("DRAFT")
+  await page.getByLabel(SEARCH.confidentiality).selectOption("0")
+  await page.getByLabel(SEARCH.urgency).selectOption("0")
+  await page.getByLabel(SEARCH.dateField).selectOption("createdAt")
+  await page.getByLabel(SEARCH.from).fill("2026-01-01")
+  await page.getByLabel(SEARCH.to).fill("2026-12-31")
+  await page.getByLabel(SEARCH.hasAttachment).check()
   await page.getByLabel(SEARCH.sort).selectOption("oldest")
 
   await page.getByRole("button", { name: SEARCH.submit }).click()
   await page.waitForURL(/\/search\?/)
 }
 
-test("กดล้างเงื่อนไขแล้วทุกช่องต้องกลับเป็นค่าเริ่มต้น ไม่ใช่แค่ URL", async ({ page }) => {
+test("กดล้างเงื่อนไขแล้วทุกช่องต้องกลับเป็นค่าตั้งต้น ไม่ใช่ค่าว่าง", async ({ page }) => {
   await searchWithFilters(page)
 
   // ยืนยันก่อนว่าค่าติดอยู่จริง ไม่งั้นเคสนี้จะผ่านแบบไม่ได้ทดสอบอะไร
   await expect(page.getByLabel(SEARCH.direction)).toHaveValue("INTERNAL")
+  await expect(page.getByLabel(SEARCH.sort)).toHaveValue("oldest")
 
   await page.getByRole("link", { name: SEARCH.reset }).click()
   await expect(page).toHaveURL(/\/search$/)
 
-  await expect(page.getByLabel(SEARCH.keyword)).toHaveValue("")
-  // ⚠️ สองบรรทัดนี้คือตัวที่แดงตอนบั๊กยังอยู่ — ช่องข้อความล้างได้แต่ select ไม่ล้าง
-  await expect(page.getByLabel(SEARCH.direction)).toHaveValue("")
-  await expect(page.getByLabel(SEARCH.sort)).toHaveValue("latest")
+  // ไล่เทียบทุกช่องกับ SEARCH_FILTER_DEFAULTS ตัวจริงที่หน้าเพจใช้ ไม่ใช่ค่าที่พิมพ์ซ้ำในเทสต์
+  //
+  // ⚠️ "กลับเป็นค่าตั้งต้น" ไม่เท่ากับ "ล้างเป็นค่าว่าง" — `sort` ต้องเป็น latest
+  // และ `dateField` ต้องเป็น docDate · ถ้าวันหลังมีใครทำให้สองช่องนี้ว่าง
+  // ฟอร์มจะส่งค่าที่ service ไม่รู้จักไปโดยที่หน้าจอดู "สะอาดดี"
+  for (const [field, label] of Object.entries(SEARCH_FIELD_LABELS)) {
+    const expected = SEARCH_FILTER_DEFAULTS[field as keyof typeof SEARCH_FILTER_DEFAULTS]
+
+    if (typeof expected === "boolean") {
+      await expect(page.getByLabel(label), label).toBeChecked({ checked: expected })
+    } else {
+      await expect(page.getByLabel(label), label).toHaveValue(expected)
+    }
+  }
 })
 
 test("กดปุ่ม back ของเบราว์เซอร์แล้วตัวกรองต้องตรงกับ URL ที่ย้อนไป", async ({ page }) => {
@@ -58,10 +99,18 @@ test("กดปุ่ม back ของเบราว์เซอร์แล�
 // ⚠️ ของหน้านี้อันตรายกว่า เพราะปุ่มดาวน์โหลดพก query จาก URL ไปทั้งชุด
 // ถ้าตัวกรองบนจอไม่ตรงกับ URL ผู้ใช้จะเห็นเงื่อนไขชุดหนึ่งแต่ได้ไฟล์ของอีกชุดหนึ่ง
 
-test("ทะเบียนหนังสือ: กดล้างเงื่อนไขแล้วเล่มทะเบียนต้องกลับเป็นค่าเริ่มต้น", async ({ page }) => {
+test("ทะเบียนหนังสือ: กดล้างเงื่อนไขแล้วทุกช่องต้องกลับเป็นค่าตั้งต้น", async ({ page }) => {
   await page.goto("/reports/register")
 
+  // ปีตั้งต้นคือ "ปีล่าสุดที่เลือกได้" — อ่านจากตัวเลือกจริงบนหน้า ไม่ใช่คำนวณซ้ำในเทสต์
+  const years = await page.getByLabel(REGISTER_REPORT.year).locator("option").allTextContents()
+  const defaults = registerFilterDefaults(years.map(Number))
+
   await page.getByLabel(REGISTER_REPORT.book).selectOption("incoming")
+  await page.getByLabel(REGISTER_REPORT.year).selectOption(String(Number(defaults.year) - 1))
+  await page.getByLabel(REGISTER_REPORT.from).fill("2026-01-01")
+  await page.getByLabel(REGISTER_REPORT.to).fill("2026-12-31")
+
   await page.getByRole("button", { name: REGISTER_REPORT.submit }).click()
   await page.waitForURL(/\/reports\/register\?/)
 
@@ -70,6 +119,12 @@ test("ทะเบียนหนังสือ: กดล้างเงื่
   await page.getByRole("link", { name: REGISTER_REPORT.reset }).click()
   await expect(page).toHaveURL(/\/reports\/register$/)
 
-  // เดิมค้างเป็น incoming ทั้งที่ URL ว่างแล้ว
-  await expect(page.getByLabel(REGISTER_REPORT.book)).toHaveValue("outgoing")
+  // ⚠️ เล่มทะเบียนกับปีต้องมีค่าเสมอ ล้างเป็นค่าว่างไม่ได้ — ทะเบียนหนังสือ
+  // ไม่มีสภาพ "ไม่เลือกเล่ม" ให้แสดง และปุ่มดาวน์โหลดพก query ชุดนี้ไปทั้งชุด
+  await expect(page.getByLabel(REGISTER_REPORT.book)).toHaveValue(defaults.book)
+  await expect(page.getByLabel(REGISTER_REPORT.year)).toHaveValue(defaults.year)
+  await expect(page.getByLabel(REGISTER_REPORT.orgUnit)).toHaveValue(defaults.orgUnitId)
+  await expect(page.getByLabel(REGISTER_REPORT.documentType)).toHaveValue(defaults.documentTypeId)
+  await expect(page.getByLabel(REGISTER_REPORT.from)).toHaveValue(defaults.from)
+  await expect(page.getByLabel(REGISTER_REPORT.to)).toHaveValue(defaults.to)
 })

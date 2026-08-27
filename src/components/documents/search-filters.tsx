@@ -2,6 +2,7 @@ import Link from "next/link"
 import { RotateCcw, Search } from "lucide-react"
 
 import { CONFIDENTIALITY_LEVELS, SEARCH, URGENCY_LEVELS } from "@/constants"
+import type { SearchFilterValues } from "@/constants"
 import {
   DIRECTION_LABELS,
   DOCUMENT_DIRECTIONS,
@@ -18,25 +19,14 @@ import { Card } from "@/components/ui/primitives"
 // ผู้ใช้จึงบุ๊กมาร์กเงื่อนไขที่ใช้บ่อยได้ ส่งลิงก์ให้เพื่อนร่วมงานได้ และกด back ได้ตามปกติ
 // (ผลการค้นหายังถูกจำกัดด้วยสิทธิ์ของผู้เปิดลิงก์เสมอ ลิงก์จึงไม่ใช่ช่องทางแชร์ข้อมูล)
 
-export interface SearchFilterValues {
-  q: string
-  direction: string
-  status: string
-  documentTypeId: string
-  ownerUnitId: string
-  confidentiality: string
-  urgency: string
-  dateField: string
-  from: string
-  to: string
-  hasAttachment: boolean
-  sort: string
-}
-
 export interface SearchOption {
   id: string
   label: string
 }
+
+// นิยามค่าและค่าตั้งต้นย้ายไป `@/constants/filters` แล้ว เพราะชุด e2e ต้องอ่านค่าตั้งต้น
+// ชุดเดียวกันนี้ แต่ import ไฟล์ที่มี JSX เข้าไปไม่ได้ · re-export ไว้ให้ที่เรียกเดิมไม่ต้องแก้
+export type { SearchFilterValues }
 
 export function SearchFilters({
   values,

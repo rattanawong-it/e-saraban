@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 
-import { APP_NAME, REGISTER_REPORT } from "@/constants"
+import { APP_NAME, REGISTER_REPORT, registerFilterDefaults } from "@/constants"
 import { PERMISSIONS } from "@/lib/authz"
 import { RegisterFilters } from "@/components/documents/register-filters"
 import { RegisterTable } from "@/components/documents/register-table"
@@ -42,13 +42,21 @@ export default async function RegisterReportPage({ searchParams }: PageProps<"/r
 
   const years = selectableYears()
 
+  // ช่องที่ไม่มีใน query string = ผู้ใช้ไม่ได้เลือก → ใช้ค่าตั้งต้น
+  //
+  // ⚠️ ต้องเติมจาก registerFilterDefaults() เท่านั้น ห้ามเขียนค่าตั้งต้นซ้ำตรงนี้ —
+  // ปุ่ม "ล้างเงื่อนไข" พากลับมาที่ URL ที่ไม่มี query เลย ค่าที่ผู้ใช้เห็นหลังกดล้าง
+  // จึงเป็นผลของบรรทัดพวกนี้ล้วน ๆ · ของหน้านี้พลาดแล้วเจ็บกว่าหน้าค้นหา เพราะปุ่ม
+  // ดาวน์โหลดพก query ไปทั้งชุด ไฟล์ที่ได้จะไม่ตรงกับตัวกรองที่เห็นบนจอ
+  const defaults = registerFilterDefaults(years)
+
   const values = {
-    book: readParam(params.book) === "incoming" ? "incoming" : "outgoing",
-    orgUnitId: readParam(params.orgUnitId),
-    year: readParam(params.year) || String(years[0]),
-    documentTypeId: readParam(params.documentTypeId),
-    from: readParam(params.from),
-    to: readParam(params.to),
+    book: readParam(params.book) === "incoming" ? "incoming" : defaults.book,
+    orgUnitId: readParam(params.orgUnitId) || defaults.orgUnitId,
+    year: readParam(params.year) || defaults.year,
+    documentTypeId: readParam(params.documentTypeId) || defaults.documentTypeId,
+    from: readParam(params.from) || defaults.from,
+    to: readParam(params.to) || defaults.to,
   }
 
   const [options, report] = await Promise.all([
