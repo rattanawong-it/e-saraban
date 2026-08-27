@@ -55,11 +55,9 @@ export default async function DashboardPage() {
     //   ไม่งั้นกล่องลูกจะ "ยืดออก" แทนที่จะ "เลื่อน" (พฤติกรรมปริยายของ flex item
     //   คือ min-height:auto ซึ่งห้ามไม่ให้หดต่ำกว่าเนื้อหาข้างใน)
     <div className="lg:flex lg:h-[calc(100dvh-4.25rem-3.5rem)] lg:flex-col lg:overflow-hidden">
-      {/* คำอธิบายอยู่บรรทัดเดียวกับหัวข้อ คืนความสูงให้เนื้อหาข้างล่าง (docs/sample_v1.png) */}
       <PageHeader
         title={DASHBOARD.title}
         description={`${session.activeAffiliation?.orgUnitName ?? ""} · ${today}`}
-        descriptionInline
         className="mb-4"
       />
 

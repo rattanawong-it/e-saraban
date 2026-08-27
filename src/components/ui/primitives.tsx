@@ -137,35 +137,29 @@ export function PageHeader({
   title,
   description,
   action,
-  descriptionInline = false,
   className,
 }: {
   title: string
   description?: React.ReactNode
   action?: React.ReactNode
-  /**
-   * วางคำอธิบายต่อท้ายหัวข้อในบรรทัดเดียวกันแทนที่จะขึ้นบรรทัดใหม่
-   *
-   * เพิ่มเป็นตัวเลือก ไม่ใช่เปลี่ยนพฤติกรรมเดิม — หน้าอื่นมีคำอธิบายยาวเป็นประโยค
-   * ซึ่งต่อท้ายหัวข้อแล้วอ่านไม่ออก · หน้าภาพรวมสั้นพอ (ชื่อหน่วยงาน · วันที่)
-   * และต้องการความสูงคืนมาให้เนื้อหาข้างล่าง (ผู้ดูแลกำหนด · docs/sample_v1.png)
-   */
-  descriptionInline?: boolean
   className?: string
 }) {
   return (
     <div className={cn("mb-6 flex flex-wrap items-end justify-between gap-3", className)}>
-      {descriptionInline ? (
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h1 className="text-title-l font-bold text-text-strong">{title}</h1>
-          {description ? <p className="text-label text-text-subtle">{description}</p> : null}
-        </div>
-      ) : (
-        <div>
-          <h1 className="text-title-l font-bold text-text-strong">{title}</h1>
-          {description ? <p className="mt-1 text-label text-text-subtle">{description}</p> : null}
-        </div>
-      )}
+      {/* คำอธิบายอยู่ต่อท้ายหัวข้อในบรรทัดเดียวกัน ไม่ใช่บรรทัดล่าง
+          (ผู้ดูแลกำหนดให้ทุกหน้าเป็นแบบนี้ 27 ส.ค. 2569 · docs/sample_v1.png)
+
+          คืนความสูงให้เนื้อหาข้างล่างหน้าละราว 20px และทำให้หัวหน้าจอทุกหน้าอ่านเป็น
+          บรรทัดเดียวจบ · คำอธิบายที่ยาวสุดในระบบคือ 94 ตัวอักษร ซึ่งยังพอดีบรรทัดเดียว
+          ตั้งแต่ความกว้าง lg ขึ้นไป
+
+          ⚠️ `items-baseline` ไม่ใช่ `items-center` — ตัวหนังสือสองขนาดต้องนั่งบนเส้นฐาน
+          เดียวกัน ไม่งั้นคำอธิบายจะดูลอยสูงกว่าหัวข้อ · จอแคบ `flex-wrap` พาคำอธิบาย
+          ลงบรรทัดล่างให้เอง ซึ่งเป็นหน้าตาเดิมพอดี */}
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h1 className="text-title-l font-bold text-text-strong">{title}</h1>
+        {description ? <p className="text-label text-text-subtle">{description}</p> : null}
+      </div>
       {action}
     </div>
   )
