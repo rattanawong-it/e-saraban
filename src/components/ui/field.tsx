@@ -69,7 +69,7 @@ export function TextInput({
   return (
     <input
       className={cn(
-        "w-full rounded-lg border-[1.5px] bg-card px-3.5 py-[11px] text-body text-text-strong transition-colors outline-none placeholder:text-text-subtle focus:border-primary focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:opacity-70",
+        "w-full min-w-0 rounded-lg border-[1.5px] bg-card px-3.5 py-[11px] text-body text-text-strong transition-colors outline-none placeholder:text-text-subtle focus:border-primary focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:opacity-70",
         invalid ? "border-danger" : "border-input",
         className,
       )}
@@ -86,7 +86,7 @@ export function Select({
   return (
     <select
       className={cn(
-        "w-full cursor-pointer appearance-none rounded-lg border-[1.5px] bg-card bg-[length:16px] bg-[right_0.85rem_center] bg-no-repeat px-3.5 py-[11px] pr-10 text-body text-text-strong transition-colors outline-none focus:border-primary focus:ring-2 focus:ring-ring/20",
+        "w-full min-w-0 cursor-pointer appearance-none rounded-lg border-[1.5px] bg-card bg-[length:16px] bg-[right_0.85rem_center] bg-no-repeat px-3.5 py-[11px] pr-10 text-body text-text-strong transition-colors outline-none focus:border-primary focus:ring-2 focus:ring-ring/20",
         "bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%237C8877%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m6 9 6 6 6-6%22/%3E%3C/svg%3E')]",
         invalid ? "border-danger" : "border-input",
         className,
@@ -100,7 +100,7 @@ export function Textarea({ className, ...props }: React.ComponentProps<"textarea
   return (
     <textarea
       className={cn(
-        "w-full rounded-lg border-[1.5px] border-input bg-card px-3.5 py-3 text-body text-text-strong transition-colors outline-none placeholder:text-text-subtle focus:border-primary focus:ring-2 focus:ring-ring/20",
+        "w-full min-w-0 rounded-lg border-[1.5px] border-input bg-card px-3.5 py-3 text-body text-text-strong transition-colors outline-none placeholder:text-text-subtle focus:border-primary focus:ring-2 focus:ring-ring/20",
         className,
       )}
       {...props}
@@ -140,7 +140,13 @@ export function Field({
   children: React.ReactNode
 }) {
   return (
-    <div className={className}>
+    // ⚠️ `min-w-0` ห้ามถอด — Field เป็นลูกของ grid/flex เกือบทุกที่ และค่าปริยายของ
+    // ลูก grid/flex คือ `min-width: auto` ซึ่งแปลว่า "ห้ามหดต่ำกว่าความกว้างขั้นต่ำ
+    // ของเนื้อหาข้างใน" · ความกว้างขั้นต่ำของ <select> เท่ากับ **ตัวเลือกที่ยาวที่สุด**
+    // ฟอร์มสร้างหนังสือจึงกว้าง 851px ไม่ว่าจอจะแคบแค่ไหน เพราะประเภทหนังสือ
+    // มีตัวเลือกยาว ๆ อย่าง "บันทึกข้อความ · บันทึกข้อความภายในหน่วยงาน"
+    // (เจอจากชุด responsive 27 ส.ค. 2569 — พังทุกจอที่แคบกว่าราว 900px)
+    <div className={cn("min-w-0", className)}>
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
       <FieldError messages={errors} />

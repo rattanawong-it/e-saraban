@@ -13,6 +13,8 @@ import { prisma } from "@/lib/db"
 // และเทสต์ที่พึ่งบัญชีของใครคนหนึ่งจะพังทันทีที่เขาเปลี่ยนรหัสหรือถูกปรับสิทธิ์
 
 import {
+  E2E_ADMIN_PASSWORD,
+  E2E_ADMIN_USERNAME,
   E2E_NOTIFICATION,
   E2E_PASSWORD,
   E2E_PREFIX,
@@ -77,6 +79,68 @@ export async function ensureE2EUser() {
       userId: user.id,
       orgUnitId: orgUnit.id,
       positionTitle: "ผู้ใช้สำหรับทดสอบอัตโนมัติ",
+      isPrimary: true,
+    },
+  })
+
+  await prisma.userRole.upsert({
+    where: { userId_roleId_orgUnitId: { userId: user.id, roleId: role.id, orgUnitId: orgUnit.id } },
+    update: {},
+    create: { userId: user.id, roleId: role.id, orgUnitId: orgUnit.id },
+  })
+
+  return user
+}
+
+/**
+ * ผู้ใช้ฝั่งผู้ดูแลระบบของ e2e — ใช้เฉพาะชุดที่ต้องเปิดหน้าใต้ /admin
+ *
+ * ⚠️ แยกคนกับ `e2e.runner` โดยตั้งใจ ดูเหตุผลใน constants.ts
+ */
+export async function ensureE2EAdminUser() {
+  const tenant = await prisma.tenant.findFirst({ where: { code: "KRIRK" } })
+  if (!tenant) throw new Error("ยังไม่ได้ seed ฐานข้อมูล — รัน pnpm db:seed ก่อน")
+
+  const orgUnit = await prisma.orgUnit.findFirst({
+    where: { tenantId: tenant.id, code: "510000", canIssueNumber: true },
+  })
+  const role = await prisma.role.findFirst({ where: { code: "SYSTEM_ADMIN" } })
+
+  if (!orgUnit || !role) throw new Error("ข้อมูล seed ไม่ครบ (หน่วยงาน 510000 หรือบทบาทผู้ดูแล)")
+
+  const passwordHash = await hash(E2E_ADMIN_PASSWORD, ARGON2_OPTIONS)
+
+  const user = await prisma.user.upsert({
+    where: { username: E2E_ADMIN_USERNAME },
+    update: {
+      passwordHash,
+      mustChangePassword: false,
+      isActive: true,
+      deletedAt: null,
+      failedLoginCount: 0,
+      lockedUntil: null,
+      clearanceLevel: 3,
+    },
+    create: {
+      tenantId: tenant.id,
+      username: E2E_ADMIN_USERNAME,
+      passwordHash,
+      prefix: "นาย",
+      firstName: "อีทูอี",
+      lastName: "ผู้ดูแลระบบ",
+      email: "e2e.admin@example.invalid",
+      clearanceLevel: 3,
+      mustChangePassword: false,
+    },
+  })
+
+  await prisma.userOrgUnit.upsert({
+    where: { userId_orgUnitId: { userId: user.id, orgUnitId: orgUnit.id } },
+    update: { isPrimary: true },
+    create: {
+      userId: user.id,
+      orgUnitId: orgUnit.id,
+      positionTitle: "ผู้ดูแลระบบสำหรับทดสอบอัตโนมัติ",
       isPrimary: true,
     },
   })
@@ -241,6 +305,7 @@ if (command) {
   const run = async () => {
     if (command === "ensure") {
       const user = await ensureE2EUser()
+      await ensureE2EAdminUser()
       await ensureE2ENotifications()
       await ensureE2ESearchDocument()
       console.log(`[e2e] พร้อมใช้บัญชี ${user.username} พร้อมแจ้งเตือนและเอกสารตัวอย่าง`)

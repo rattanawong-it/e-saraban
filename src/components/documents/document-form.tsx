@@ -102,8 +102,15 @@ export function DocumentForm(props: DocumentFormProps) {
         : "/drafts"
 
   return (
-    <form action={formAction} className="grid gap-5 xl:grid-cols-[2fr_1fr] xl:items-start">
-      <div className="flex flex-col gap-5">
+    // ⚠️ `minmax(0,…)` ไม่ใช่ `2fr 1fr` เฉย ๆ — คอลัมน์ `fr` มีความกว้างขั้นต่ำเป็น
+    // min-content โดยปริยาย ซึ่งแปลว่า "ห้ามแคบกว่าเนื้อหาที่แคบสุดของข้างใน"
+    // รายการเลือกหน่วยงานมี 372 หน่วยชื่อยาว ฟอร์มจึงกว้าง 851px ไม่ว่าจอจะแคบแค่ไหน
+    // (เจอจากชุด responsive 27 ส.ค. 2569 — พังทุกจอที่แคบกว่าราว 900px)
+    <form
+      action={formAction}
+      className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:items-start"
+    >
+      <div className="flex min-w-0 flex-col gap-5">
         <Card className="overflow-hidden">
           <CardHeader
             title={DOCUMENTS.formSection}
@@ -238,7 +245,7 @@ export function DocumentForm(props: DocumentFormProps) {
         </Card>
       </div>
 
-      <div className="flex flex-col gap-5">
+      <div className="flex min-w-0 flex-col gap-5">
         <Card className="overflow-hidden">
           <CardHeader title={DOCUMENTS.sectionLevels} />
 
@@ -294,7 +301,7 @@ export function DocumentForm(props: DocumentFormProps) {
           </Card>
         ) : null}
 
-        <div className="flex gap-2.5">
+        <div className="flex flex-wrap gap-2.5">
           <Button type="submit" disabled={pending} block>
             {pending ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />

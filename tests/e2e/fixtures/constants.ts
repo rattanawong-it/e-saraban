@@ -7,6 +7,19 @@
 export const E2E_USERNAME = process.env.E2E_USERNAME ?? "e2e.runner"
 export const E2E_PASSWORD = process.env.E2E_PASSWORD ?? "E2eRunner!2569"
 
+/**
+ * บัญชีที่สองของ e2e — ฝั่งผู้ดูแลระบบ
+ *
+ * ⚠️ ต้องเป็นคนละคนกับ `e2e.runner` เด็ดขาด · `e2e.runner` เป็นสารบรรณกลาง
+ * และมีเคสที่ยืนยันว่า **เมนูผู้ดูแลต้องไม่โผล่ให้เขาเห็น** (§10.2 ซ่อน ไม่ใช่ disable)
+ * ถ้าไปเพิ่มบทบาทผู้ดูแลให้คนเดิม เคสนั้นจะแดงทันที
+ *
+ * มีไว้เพื่อให้ชุด responsive ตรวจหน้าผู้ดูแลได้ ซึ่งเป็นหน้าที่มีตารางกว้างที่สุด
+ * และเป็นที่ที่ปัญหาการแสดงผลบนจอแคบซ่อนตัวอยู่มากที่สุด
+ */
+export const E2E_ADMIN_USERNAME = process.env.E2E_ADMIN_USERNAME ?? "e2e.admin"
+export const E2E_ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "E2eAdmin!2569"
+
 /** คำนำหน้าของทุกอย่างที่ e2e สร้าง — ใช้ตามลบทีหลัง */
 export const E2E_PREFIX = "[e2e]"
 
