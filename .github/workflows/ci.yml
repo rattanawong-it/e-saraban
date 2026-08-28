@@ -148,12 +148,20 @@ jobs:
 
       # ⚠️ ไฟล์นี้ต้องมีจริงบนดิสก์ ไม่ใช่แค่ตัวแปรใน environment — global-setup ของ
       # Playwright เรียก tsx ด้วย --env-file=.env ซึ่ง Node จะล้มทันทีถ้าไม่มีไฟล์
+      #
+      # ⚠️ **ค่า GOOGLE_* เป็นของปลอมโดยตั้งใจ** — ปุ่ม "เข้าสู่ระบบด้วย Google" ซ่อนตัวเอง
+      # เมื่อยังไม่ตั้งค่า (spec §17.5) ถ้าไม่ใส่ที่นี่ หน้าล็อกอินบน CI จะไม่มีปุ่มและ
+      # เคสของ smoke.spec.ts จะแดงทั้งที่โค้ดถูกต้อง · ไม่มีเคสไหนยิงไปหา Google จริง
+      # จึงไม่ต้องใช้ค่าที่ใช้งานได้ และห้ามเอากุญแจจริงมาใส่ในไฟล์นี้เด็ดขาด
       - name: เตรียมไฟล์ .env ของ CI
         run: |
           cat > .env <<EOF
           DATABASE_URL="postgresql://esaraban:esaraban_ci@localhost:5432/esaraban?schema=public"
           AUTH_SECRET="$(openssl rand -base64 32)"
           FILE_MASTER_KEY="$(openssl rand -base64 32)"
+          GOOGLE_CLIENT_ID="ci-placeholder.apps.googleusercontent.com"
+          GOOGLE_CLIENT_SECRET="ci-placeholder-not-a-real-secret"
+          GOOGLE_ALLOWED_HD="krirk.ac.th"
           EOF
 
       - uses: pnpm/action-setup@v4
