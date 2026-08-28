@@ -85,21 +85,39 @@ for (const size of DESKTOP_SIZES) {
   })
 }
 
-test("รายการบนหน้าภาพรวมเลื่อนในกรอบตัวเอง ไม่ใช่ถูกตัดทิ้ง", async ({ page }) => {
+test("หน้าภาพรวมไม่มีแถบเลื่อนของกรอบ และแถวสุดท้ายต้องไม่ถูกตัดทิ้ง", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.goto("/dashboard")
 
-  // ⚠️ "ไม่มีแถบเลื่อน" ทำให้ผ่านได้ด้วยการซ่อนเนื้อหาทิ้งเหมือนกัน — เคสข้างบนจึงไม่พอ
-  // ต้องยืนยันด้วยว่าเนื้อหาที่เกินยังไปถึงได้ ผ่านกรอบที่เลื่อนได้ของตัวเอง
   await expect(page.getByText(DASHBOARD.recentActivity)).toBeVisible()
 
-  const scrollable = await page.evaluate(() =>
-    [...document.querySelectorAll("main ul")].some(
-      (el) => getComputedStyle(el).overflowY === "auto",
-    ),
+  // ผู้ดูแลสั่งเมื่อ 28 ส.ค. 2569 ว่าห้ามมีแถบเลื่อนทั้งของหน้าและของกรอบข้างใน
+  // (เดิมรายการอยู่ในกรอบที่ overflow-y-auto — เคสนี้เคยบังคับให้ต้องมี ตอนนี้กลับกัน)
+  const scrollers = await page.evaluate(() =>
+    [...document.querySelectorAll("main *")]
+      .filter((el) => {
+        const overflowY = getComputedStyle(el).overflowY
+        return (
+          (overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight + 1
+        )
+      })
+      .map((el) => el.tagName + "." + el.className)
+      .slice(0, 3),
   )
 
-  expect(scrollable, "รายการต้องอยู่ในกรอบที่เลื่อนได้").toBe(true)
+  expect(scrollers, "ต้องไม่มีกรอบที่ต้องเลื่อนในหน้าภาพรวม").toEqual([])
+
+  // ⚠️ "ไม่มีแถบเลื่อน" ทำให้ผ่านได้ด้วยการตัดเนื้อหาทิ้งเหมือนกัน (การ์ดมี overflow-hidden)
+  // จึงต้องยืนยันด้วยว่าแถวสุดท้ายยังอยู่ในกรอบจริง ไม่ได้ถูกดันตกขอบไปเงียบ ๆ
+  const rows = page.locator("main ul li")
+  const rowCount = await rows.count()
+
+  expect(rowCount, "ฐานทดสอบต้องมีความเคลื่อนไหวให้แสดงอย่างน้อยหนึ่งแถว").toBeGreaterThan(0)
+
+  const lastRow = await rows.last().boundingBox()
+
+  expect(lastRow, "อ่านตำแหน่งแถวสุดท้ายไม่ได้").not.toBeNull()
+  expect(lastRow!.y + lastRow!.height, "แถวสุดท้ายต้องอยู่ในหน้าจอ").toBeLessThanOrEqual(720)
 })
 
 test("เมนูข้างไม่แสดงเมนูที่ผู้ใช้ไม่มีสิทธิ์ (§10.2 — ซ่อน ไม่ใช่ disable)", async ({ page }) => {

@@ -7,7 +7,11 @@ import { prisma } from "@/lib/db"
 import type { ServiceContext } from "@/server/context"
 
 import { ensureIntegrationUser } from "./fixtures/users"
-import { getAwaitingAcknowledgement, getDocumentStats } from "@/server/services/dashboard.service"
+import {
+  getAwaitingAcknowledgement,
+  getDocumentStats,
+  getRecentActivity,
+} from "@/server/services/dashboard.service"
 import {
   circulateDocument,
   createDocument,
@@ -264,6 +268,51 @@ describe("สถิติงานหนังสือ", () => {
 
     const ownerAfter = await getDocumentStats(fixture.owner)
     expect(ownerAfter.pendingNumber).toBeGreaterThan(0)
+  })
+})
+
+describe("ความเคลื่อนไหวล่าสุด", () => {
+  it("แสดงเฉพาะเหตุการณ์ของหนังสือ ไม่ใช่การเข้าสู่ระบบหรือเรื่องของผู้ดูแล", async () => {
+    const document = await makeDocument("ฉบับที่ต้องขึ้นแผงความเคลื่อนไหว")
+    await submitDocument(fixture.owner, document.id)
+
+    const feed = await getRecentActivity(fixture.owner)
+
+    expect(feed.length).toBeGreaterThan(0)
+
+    // ทุกแถวต้องผูกกับหนังสือหนึ่งฉบับและกดต่อไปได้
+    for (const row of feed) {
+      expect(row.documentId).toBeTruthy()
+    }
+
+    expect(feed.some((row) => row.documentId === document.id)).toBe(true)
+  })
+
+  it("⚠️ ชื่อเรื่องของหนังสือลับต้องไม่หลุดออกมาที่หน้าแรก", async () => {
+    const secretSubject = `${PREFIX} ผลการสอบสวนทางวินัย`
+
+    const secret = await createDocument(fixture.owner, {
+      documentTypeId: fixture.memoTypeId,
+      subject: secretSubject,
+      confidentialityLevel: 2,
+      urgencyLevel: 0,
+      recipients: [],
+    })
+    createdDocumentIds.push(secret.id)
+    await submitDocument(fixture.owner, secret.id)
+
+    // เพื่อนร่วมงานที่ไม่มี ACL ต้องไม่เห็นแถวนี้เลย
+    const colleagueFeed = await getRecentActivity(fixture.colleague)
+    expect(colleagueFeed.some((row) => row.documentId === secret.id)).toBe(false)
+
+    // ส่วนเจ้าของเห็นแถว แต่ **ชื่อเรื่องต้องถูกแทนที่** เหมือนที่กระดิ่งทำ (§22.2)
+    // เพราะแผงนี้อยู่หน้าแรกที่คนเดินผ่านหลังจอเห็นได้ง่ายที่สุดในระบบ
+    const ownerFeed = await getRecentActivity(fixture.owner, 20)
+    const row = ownerFeed.find((item) => item.documentId === secret.id)
+
+    expect(row).toBeDefined()
+    expect(row?.subject).not.toBe(secretSubject)
+    expect(row?.subject).not.toContain("สอบสวน")
   })
 })
 

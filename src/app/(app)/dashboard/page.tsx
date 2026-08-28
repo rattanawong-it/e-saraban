@@ -3,9 +3,8 @@ import Link from "next/link"
 import { CalendarDays, FileClock, FilePen, Inbox, RotateCcw } from "lucide-react"
 
 import { APP_NAME, COMMON, CONFIDENTIALITY_LEVELS, DASHBOARD, URGENCY_LEVELS } from "@/constants"
-import { AUDIT_ACTION_LABELS, type AuditAction } from "@/lib/audit"
-import { canOrFalse, PERMISSIONS } from "@/lib/authz"
-import { formatThaiDate, formatThaiDateTime } from "@/lib/thai"
+import { formatRelativeThai, formatThaiDate } from "@/lib/thai"
+import { DocumentStatusBadge } from "@/components/documents/document-table"
 import {
   Badge,
   Card,
@@ -33,9 +32,6 @@ export default async function DashboardPage() {
     getAwaitingAcknowledgement(session.ctx),
     getRecentActivity(session.ctx),
   ])
-
-  // ธงสิทธิ์ตัวเดียวที่หน้านี้ต้องใช้ — อ่านจาก context ตรง ๆ ไม่ต้องแตะฐานข้อมูล
-  const canReadAudit = canOrFalse(session.ctx, PERMISSIONS.AUDIT_READ)
 
   const today = formatThaiDate(new Date(), "long")
 
@@ -125,7 +121,7 @@ export default async function DashboardPage() {
             }
           />
 
-          <ul className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+          <ul>
             {awaitingAck.map((row) => (
               <li key={row.recipientId} className="border-b border-row-border last:border-b-0">
                 <Link
@@ -164,51 +160,58 @@ export default async function DashboardPage() {
         </Card>
       ) : null}
 
-      <Card className="mt-4 overflow-hidden lg:flex lg:min-h-0 lg:flex-[2_1_0] lg:flex-col">
+      {/* ไม่ยืดเต็มพื้นที่ที่เหลือแล้ว — เมื่อรายการคงที่ 5 แถว การ์ดที่ยืดจะเหลือ
+          ช่องว่างในกรอบก้อนใหญ่ · ปล่อยให้สูงเท่าเนื้อหาแล้วหน้ายังจบในจอเดียวเหมือนเดิม */}
+      <Card className="mt-4 overflow-hidden">
         <CardHeader
           title={DASHBOARD.recentActivity}
           className="py-3"
           action={
-            canReadAudit ? (
-              <Link
-                href="/admin/audit"
-                className="text-caption font-semibold text-primary hover:underline"
-              >
-                {COMMON.showAll} →
-              </Link>
-            ) : null
+            // เดิมชี้ไป /admin/audit ซึ่งคนทั่วไปเข้าไม่ได้ ปุ่มจึงหายไปทั้งปุ่มสำหรับคนส่วนใหญ่
+            // แผงนี้พูดเรื่องหนังสือแล้ว ปลายทางที่ถูกจึงเป็นหน้าค้นหาที่ทุกคนใช้ได้
+            <Link
+              href="/search"
+              className="text-caption font-semibold text-primary hover:underline"
+            >
+              {COMMON.showAll} →
+            </Link>
           }
         />
 
+        {/* ⚠️ **ห้ามใส่ overflow-y-auto กลับเข้ามาที่รายการข้างล่าง** — ผู้ดูแลสั่งเมื่อ
+            28 ส.ค. 2569 ว่าหน้านี้ต้องจบในหน้าจอเดียวโดยไม่มีแถบเลื่อนทั้งของหน้าและของกรอบ
+            คุมความยาวด้วยจำนวนแถวที่ service คืนมา ไม่ใช่ด้วยการซ่อนส่วนที่ล้น */}
         {activity.length === 0 ? (
           <EmptyState title={DASHBOARD.recentActivityEmpty} />
         ) : (
-          <ul className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+          <ul>
             {activity.map((row) => (
-              <li
-                key={row.id}
-                className="flex items-center gap-3 border-b border-row-border px-4 py-2.5 last:border-b-0"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-label font-semibold text-text-strong">
-                    {AUDIT_ACTION_LABELS[row.action as AuditAction] ?? row.action}
+              <li key={row.id} className="border-b border-row-border last:border-b-0">
+                <Link
+                  href={`/documents/${row.documentId}`}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-secondary/60"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="tabular shrink-0 text-label font-semibold text-text-strong">
+                        {row.docNo ?? DASHBOARD.activityNoDocNo}
+                      </span>
+                      <span className="truncate text-label text-text-medium">{row.subject}</span>
+                    </div>
+                    <div className="truncate text-micro text-text-subtle">
+                      {DASHBOARD.activityLabels[row.actionType] ?? row.actionType}
+                      {row.actorName ? ` · ${row.actorName}` : ""}
+                    </div>
                   </div>
-                  <div className="truncate text-micro text-text-subtle">
-                    {row.actor
-                      ? `${row.actor.prefix ?? ""}${row.actor.firstName} ${row.actor.lastName}`.trim()
-                      : DASHBOARD.systemActor}
+
+                  {/* ป้ายเดิมเขียนว่า "สำเร็จ" ทุกแถวจึงไม่ได้บอกอะไรเลย —
+                      พื้นที่เท่ากันนี้ใช้บอกสถานะปัจจุบันของหนังสือมีประโยชน์กว่า */}
+                  <DocumentStatusBadge status={row.status} />
+
+                  <div className="shrink-0 text-micro text-text-subtle">
+                    {formatRelativeThai(row.at)}
                   </div>
-                </div>
-
-                {/* ผู้ดูแลขอให้เห็นสถานะของกิจกรรมด้วย — DENY คือความพยายามเข้าถึงที่ถูกปฏิเสธ
-                    ซึ่งเป็นสิ่งที่ต้องสะดุดตาที่สุดในรายการนี้ (§8.5) */}
-                <Badge tone={row.result === "DENY" ? "danger" : "success"} dot>
-                  {row.result === "DENY" ? DASHBOARD.activityDenied : DASHBOARD.activityAllowed}
-                </Badge>
-
-                <div className="tabular shrink-0 text-micro text-text-subtle">
-                  {formatThaiDateTime(row.at, "short")}
-                </div>
+                </Link>
               </li>
             ))}
           </ul>

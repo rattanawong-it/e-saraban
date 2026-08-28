@@ -210,11 +210,24 @@ export const CHANGE_PASSWORD = {
 export const DASHBOARD = {
   title: "ภาพรวม",
   newDocument: "สร้างหนังสือใหม่",
-  recentActivity: "กิจกรรมล่าสุด",
+  recentActivity: "ความเคลื่อนไหวล่าสุด",
   systemActor: "ระบบ",
-  activityAllowed: "สำเร็จ",
-  activityDenied: "ถูกปฏิเสธ",
-  recentActivityEmpty: "ยังไม่มีกิจกรรมในระบบ",
+  recentActivityEmpty: "ยังไม่มีความเคลื่อนไหวของหนังสือ",
+  activityNoDocNo: "ยังไม่มีเลข",
+
+  // เหตุการณ์ที่ขึ้นแผงความเคลื่อนไหว — เขียนจากมุมของคนอ่าน ไม่ใช่ชื่อสถานะในระบบ
+  // ("ตีกลับให้แก้ไข" บอกว่าต้องทำอะไรต่อ · "RETURNED" ไม่ได้บอก)
+  activityLabels: {
+    SUBMITTED: "ส่งให้สารบรรณออกเลข",
+    NUMBER_ISSUED: "ออกเลขทะเบียนแล้ว",
+    RETURNED: "ตีกลับให้แก้ไข",
+    CIRCULATED: "เวียนถึงผู้รับ",
+    ACKNOWLEDGED: "ผู้รับรับทราบแล้ว",
+    MARKED_SENT: "ส่งออกแล้ว",
+    FORWARDED: "ส่งต่อให้หน่วยงานอื่น",
+    CLOSED: "ปิดเรื่อง",
+    CANCELLED: "ยกเลิกหนังสือ",
+  } as Record<string, string>,
 
   // ── สถิติฝั่งเอกสาร (P4) ──────────────────────────────────────────
   // ⚠️ หมวด "ผู้ใช้และหน่วยงาน" (จำนวนหน่วยงาน · ผู้ใช้ · สังกัดของฉัน · คำขอค้าง ·

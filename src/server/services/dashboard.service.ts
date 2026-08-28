@@ -3,8 +3,11 @@ import "server-only"
 import { canOrFalse, PERMISSIONS } from "@/lib/authz"
 import { prisma } from "@/lib/db"
 
+import type { DocumentActionType } from "@/generated/prisma/client"
+
 import type { ServiceContext } from "../context"
 import { documentVisibilityWhere } from "./document-visibility"
+import { safeSubject } from "./notification.service"
 
 // ข้อมูลหน้า /dashboard
 //
@@ -141,21 +144,81 @@ export async function getAwaitingAcknowledgement(ctx: ServiceContext, take = 5) 
   return rows.map((row) => ({ ...row.document, recipientId: row.id, sentAt: row.sentAt }))
 }
 
-/** กิจกรรมล่าสุดที่ผู้ใช้คนนี้มีสิทธิ์เห็น — ใช้แทน "เอกสารล่าสุด" ในเฟส P1 */
-export async function getRecentActivity(ctx: ServiceContext, take = 8) {
-  if (!canOrFalse(ctx, PERMISSIONS.AUDIT_READ)) {
-    return prisma.auditLog.findMany({
-      where: { tenantId: ctx.tenantId, actorUserId: ctx.userId },
-      orderBy: { at: "desc" },
-      take,
-      include: { actor: { select: { prefix: true, firstName: true, lastName: true } } },
-    })
-  }
+/**
+ * ความเคลื่อนไหวล่าสุดของเอกสารที่ผู้ใช้คนนี้มองเห็นได้
+ *
+ * ⚠️ **เคยอ่านจากตาราง audit ตรง ๆ** ซึ่งเป็นของชั่วคราวตั้งแต่ P1 ตอนที่ระบบยังไม่มี
+ * เอกสารให้แสดง · ผลคือหน้าภาพรวมขึ้น "เข้าสู่ระบบด้วย Google" "ออกจากระบบ"
+ * "ผู้ดูแลรีเซ็ตรหัสผ่านให้" ปนกับงานเอกสาร และทุกแถวกดต่อไม่ได้เลย
+ *
+ * ตอนนี้อ่านจาก `DocumentAction` ซึ่งเป็นตารางที่ออกแบบมาเป็น "timeline ที่ผู้ใช้เห็น"
+ * อยู่แล้ว · เรื่องของระบบและของผู้ดูแลมีบ้านอยู่ที่ /admin/audit ตามเดิม
+ */
+export async function getRecentActivity(ctx: ServiceContext, take = 5) {
+  const visible = await documentVisibilityWhere(ctx)
 
-  return prisma.auditLog.findMany({
-    where: { tenantId: ctx.tenantId },
-    orderBy: { at: "desc" },
-    take,
-    include: { actor: { select: { prefix: true, firstName: true, lastName: true } } },
+  const rows = await prisma.documentAction.findMany({
+    where: {
+      actionType: { in: [...FEED_ACTIONS] },
+      document: { AND: [visible, { deletedAt: null }] },
+    },
+    orderBy: { createdAt: "desc" },
+    // ดึงมาเผื่อแล้วยุบให้เหลือฉบับละแถว — หนังสือฉบับหนึ่งขยับหลายจังหวะติดกันได้
+    // (ส่งให้สารบรรณ → ออกเลข → เวียน) ถ้าไม่ยุบ ฉบับเดียวจะกินแผงทั้งแผง
+    take: take * 4,
+    include: {
+      actorUser: { select: { prefix: true, firstName: true, lastName: true } },
+      document: {
+        select: {
+          id: true,
+          docNo: true,
+          subject: true,
+          status: true,
+          confidentialityLevel: true,
+        },
+      },
+    },
   })
+
+  const latestPerDocument = rows.filter(
+    (row, index) => rows.findIndex((other) => other.documentId === row.documentId) === index,
+  )
+
+  return latestPerDocument.slice(0, take).map((row) => ({
+    id: row.id,
+    documentId: row.documentId,
+    actionType: row.actionType,
+    at: row.createdAt,
+    docNo: row.document.docNo,
+    status: row.document.status,
+    confidentialityLevel: row.document.confidentialityLevel,
+    // ⚠️ ชื่อเรื่องของเอกสารชั้น 1–3 ห้ามหลุดมาที่นี่ — ด่านมองเห็นข้างบนกันคนที่ไม่มี
+    // ACL ออกไปแล้วก็จริง แต่ใช้ safeSubject ซ้ำอีกชั้นเหมือนกระดิ่ง (§22.2) เพราะ
+    // แผงนี้อยู่หน้าแรกที่คนเดินผ่านหลังจอเห็นได้ง่ายที่สุดในระบบ
+    subject: safeSubject(row.document),
+    actorName: row.actorUser
+      ? `${row.actorUser.prefix ?? ""}${row.actorUser.firstName} ${row.actorUser.lastName}`.trim()
+      : null,
+  }))
 }
+
+/**
+ * เหตุการณ์ที่ได้ขึ้นแผงนี้ — คัดเฉพาะ "สิ่งที่คนอื่นทำกับงานที่เราเกี่ยวข้อง"
+ *
+ * ตัด CREATED/UPDATED และการแนบไฟล์ออกโดยตั้งใจ: มันคือสิ่งที่เจ้าของเรื่องเพิ่งทำเอง
+ * และมีปริมาณมากที่สุดในระบบ (บนฐาน dev รอบหนึ่ง CREATED มี 2,739 แถวจากทั้งหมด 11,887)
+ * ถ้าปล่อยเข้ามา เหตุการณ์ที่ต้องรู้จริงอย่าง "ถูกตีกลับ" จะถูกดันตกขอบภายในไม่กี่นาที
+ */
+const FEED_ACTIONS = [
+  "SUBMITTED",
+  "NUMBER_ISSUED",
+  "RETURNED",
+  "CIRCULATED",
+  "ACKNOWLEDGED",
+  "MARKED_SENT",
+  "FORWARDED",
+  "CLOSED",
+  "CANCELLED",
+] as const satisfies readonly DocumentActionType[]
+
+export type RecentActivityItem = Awaited<ReturnType<typeof getRecentActivity>>[number]

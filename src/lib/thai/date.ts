@@ -114,3 +114,27 @@ export function toDateInputValue(value: DateInput): string {
     day: "2-digit",
   }).format(toDate(value))
 }
+
+/**
+ * เวลาแบบสัมพัทธ์สำหรับของที่เพิ่งเกิด — "3 นาทีที่แล้ว" · "2 ชั่วโมงที่แล้ว"
+ *
+ * ใช้กับรายการความเคลื่อนไหวบนหน้าภาพรวมเท่านั้น · เกินหนึ่งสัปดาห์ก็ไม่มีประโยชน์แล้ว
+ * ("14 วันที่แล้ว" ต้องนั่งคำนวณ) จึงตกกลับไปเป็นวันที่จริง
+ *
+ * ⚠️ ห้ามใช้กับทะเบียนหรือรายงาน — เอกสารราชการต้องอ้างวันที่จริงเสมอ
+ */
+export function formatRelativeThai(value: DateInput, now: DateInput = new Date()): string {
+  const diffMs = toDate(now).getTime() - toDate(value).getTime()
+  const minutes = Math.floor(diffMs / 60_000)
+
+  if (minutes < 1) return "เมื่อครู่"
+  if (minutes < 60) return `${minutes} นาทีที่แล้ว`
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} ชั่วโมงที่แล้ว`
+
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days} วันที่แล้ว`
+
+  return formatThaiDate(value, "short")
+}
