@@ -77,7 +77,9 @@ test("เอกสารที่ออกเลขแล้วแก้ไข�
   await page.goto(`${documentUrl}/edit`)
 
   await expect(page.getByRole("button", { name: "บันทึกการเปลี่ยนแปลง" })).toHaveCount(0)
-  await expect(page.getByRole("alert").or(page.getByRole("status")).first()).toBeVisible()
+  // ⚠️ เคยเป็น getByRole("alert") ซึ่ง **เขียวได้เองโดยไม่มีคำเตือนจริง** เพราะ
+  // route announcer ของ Next มี role="alert" ติดมาด้วยเสมอ (ดู primitives.tsx)
+  await expect(page.locator("[data-slot='alert']").first()).toBeVisible()
 })
 
 /**

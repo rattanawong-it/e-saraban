@@ -121,6 +121,11 @@ export function Alert({
 
   return (
     <div
+      // ⚠️ ป้ายนี้มีไว้ให้เทสต์เจาะจงถึงกล่องนี้ได้ — **ห้ามใช้ getByRole("alert") แทน**
+      // เพราะ Next มี route announcer ของตัวเอง (`<next-route-announcer>` ที่มี
+      // role="alert" อยู่ใน shadow DOM) ซึ่งโผล่มาหลัง hydration เสมอ ทำให้เทสต์ที่
+      // เช็ค "ต้องไม่มี alert" แพ้การแข่งเวลา และเทสต์ที่เช็ค "ต้องมี alert" เขียวปลอม
+      data-slot="alert"
       className={cn("flex gap-3 rounded-xl px-4 py-3.5 ring-1 ring-inset", cls, className)}
       role={tone === "danger" ? "alert" : "status"}
     >

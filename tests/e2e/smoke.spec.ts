@@ -143,9 +143,16 @@ test.describe("หน้าเข้าสู่ระบบ", () => {
 
   test("รหัสเหตุผลที่ไม่รู้จักต้องไม่ขึ้นข้อความอะไรเลย", async ({ page }) => {
     // ใครก็ใส่ ?error= อะไรก็ได้แล้วส่งลิงก์ไปหลอกคนอื่นว่าเป็นข้อความจากระบบ
-    await page.goto("/login?error=บัญชีของคุณถูกยึด+โทร+02-000-0000")
+    const injected = "บัญชีของคุณถูกยึด โทร 02-000-0000"
 
-    // Alert โทน danger เรนเดอร์เป็น role="alert" — ไม่มีกล่องแดง = ไม่มีข้อความหลุดออกมา
-    await expect(page.getByRole("alert")).toHaveCount(0)
+    await page.goto(`/login?error=${encodeURIComponent(injected)}`)
+
+    // ⚠️ **ห้ามใช้ getByRole("alert") ตรงนี้** — Next มี route announcer ของตัวเอง
+    // ที่มี role="alert" อยู่ใน shadow DOM และโผล่มาหลัง hydration เสมอ
+    // เทสต์จะกลายเป็นการแข่งเวลากับ hydration (แดงราว 7 ใน 10 ครั้ง · CI #10)
+    await expect(page.locator("[data-slot='alert']")).toHaveCount(0)
+
+    // ข้อความที่ผู้โจมตียัดมาต้องไม่ถูกเรนเดอร์ที่ไหนเลยบนหน้า
+    await expect(page.getByText("บัญชีของคุณถูกยึด")).toHaveCount(0)
   })
 })
