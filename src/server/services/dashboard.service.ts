@@ -154,6 +154,12 @@ export async function getAwaitingAcknowledgement(ctx: ServiceContext, take = 5) 
  * ตอนนี้อ่านจาก `DocumentAction` ซึ่งเป็นตารางที่ออกแบบมาเป็น "timeline ที่ผู้ใช้เห็น"
  * อยู่แล้ว · เรื่องของระบบและของผู้ดูแลมีบ้านอยู่ที่ /admin/audit ตามเดิม
  */
+/**
+ * ⚠️ **จำนวนแถวผูกกับความสูงของหน้า** — หน้าภาพรวมล็อกไว้ที่หนึ่งจอพอดี
+ * ที่ 1280×720 ใส่ได้การ์ดละ 5 แถวเมื่อเว้นช่องไฟระหว่างส่วนไว้ 20px
+ * เพิ่มเป็น 6 เมื่อไหร่หน้าจะล้นกรอบ 15px แล้วแถวสุดท้ายถูกตัดขาดทันที
+ * (มีเคส e2e "ไม่มีแถบเลื่อนของกรอบ" คอยจับให้ ถ้าเผลอเพิ่มจะแดงเอง)
+ */
 export async function getRecentActivity(ctx: ServiceContext, take = 5) {
   const visible = await documentVisibilityWhere(ctx)
 

@@ -268,6 +268,68 @@ export async function ensureE2ESearchDocument() {
  * ⚠️ ไม่ลบตัวผู้ใช้ เพราะ audit log อ้างถึง `actorUserId` แบบ onDelete: Restrict
  * และ audit เป็นตาราง append-only ที่ลบแถวไม่ได้เลย (§8.5) — บัญชีจึงต้องอยู่ต่อ
  */
+/**
+ * เตรียมหนังสือที่ "รอฉันรับทราบ" ให้การ์ดบนหน้าภาพรวมมีของจริงให้เรนเดอร์
+ *
+ * ⚠️ เพิ่มเพราะเจอของจริงว่า `e2e.runner` ไม่มีหนังสือรอรับทราบเลยสักฉบับ การ์ดนั้น
+ * จึงไม่ถูกเรนเดอร์ในเทสต์ · ผลคือตอนการ์ดนั้นตัดแถวสุดท้ายขาดกลางคัน
+ * (docs/sample_v11.png) ไม่มีเคสไหนจับได้เลย ทั้งที่มีเคสเฝ้าเรื่องแถบเลื่อนอยู่แล้ว
+ *
+ * สร้างสามฉบับเพราะอาการตัดขาดโผล่ตอนแถวเยอะพอจะล้นกรอบ ฉบับเดียวจับไม่ได้
+ *
+ * เขียนตรงเข้าตารางด้วยเหตุผลเดียวกับ ensureE2ENotifications — ทุก transition
+ * ตัด "ผู้ลงมือ" ออกจากรายชื่อผู้รับ ถ้าให้ e2e กดเวียนเอง มันจะไม่มีวันเป็นผู้รับเอง
+ */
+export async function ensureE2EAwaitingAck() {
+  const user = await prisma.user.findUnique({ where: { username: E2E_USERNAME } })
+  if (!user) throw new Error("ยังไม่ได้สร้างบัญชี e2e")
+
+  const orgUnit = await prisma.orgUnit.findFirst({
+    where: { tenantId: user.tenantId, code: "510000" },
+  })
+  const documentType = await prisma.documentType.findFirst({
+    where: { tenantId: user.tenantId, direction: "INTERNAL", isActive: true },
+  })
+
+  if (!orgUnit || !documentType) throw new Error("ข้อมูล seed ไม่ครบ")
+
+  // ฉบับหนึ่งมีกำหนดวัน อีกสองฉบับไม่มี — บรรทัดรองของทั้งสามแถวต้องสูงเท่ากันอยู่ดี
+  const specs = [
+    { suffix: "ด่วนมากและมีกำหนดวัน", urgencyLevel: 2, dueDate: new Date(Date.now() + 86_400_000) },
+    { suffix: "ด่วน", urgencyLevel: 1, dueDate: null },
+    { suffix: "ปกติ", urgencyLevel: 0, dueDate: null },
+  ]
+
+  for (const spec of specs) {
+    const document = await prisma.document.create({
+      data: {
+        tenantId: user.tenantId,
+        documentTypeId: documentType.id,
+        direction: "INTERNAL",
+        status: "CIRCULATING",
+        bookCode: documentType.defaultBookCode,
+        subject: `${E2E_PREFIX} หนังสือรอรับทราบ ${spec.suffix}`,
+        confidentialityLevel: 0,
+        urgencyLevel: spec.urgencyLevel,
+        dueDate: spec.dueDate,
+        ownerUnitId: orgUnit.id,
+        createdById: user.id,
+        createdByUnitId: orgUnit.id,
+      },
+    })
+
+    await prisma.documentRecipient.create({
+      data: {
+        documentId: document.id,
+        userId: user.id,
+        kind: "TO",
+        status: "PENDING",
+        sentAt: new Date(),
+      },
+    })
+  }
+}
+
 export async function cleanupE2EDocuments() {
   const documents = await prisma.document.findMany({
     where: { subject: { startsWith: E2E_PREFIX } },
@@ -308,6 +370,7 @@ if (command) {
       await ensureE2EAdminUser()
       await ensureE2ENotifications()
       await ensureE2ESearchDocument()
+      await ensureE2EAwaitingAck()
       console.log(`[e2e] พร้อมใช้บัญชี ${user.username} พร้อมแจ้งเตือนและเอกสารตัวอย่าง`)
     } else if (command === "cleanup") {
       const removed = await cleanupE2EDocuments()

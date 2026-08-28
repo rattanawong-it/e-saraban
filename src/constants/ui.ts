@@ -213,7 +213,6 @@ export const DASHBOARD = {
   recentActivity: "ความเคลื่อนไหวล่าสุด",
   systemActor: "ระบบ",
   recentActivityEmpty: "ยังไม่มีความเคลื่อนไหวของหนังสือ",
-  activityNoDocNo: "ยังไม่มีเลข",
 
   // เหตุการณ์ที่ขึ้นแผงความเคลื่อนไหว — เขียนจากมุมของคนอ่าน ไม่ใช่ชื่อสถานะในระบบ
   // ("ตีกลับให้แก้ไข" บอกว่าต้องทำอะไรต่อ · "RETURNED" ไม่ได้บอก)
@@ -247,6 +246,7 @@ export const DASHBOARD = {
   awaitingAckTitle: "รอฉันรับทราบ",
   awaitingAckEmpty: "ไม่มีหนังสือค้างรับทราบ",
   awaitingAckDue: (date: string) => `กำหนดภายใน ${date}`,
+  awaitingAckNoDue: "ไม่ได้กำหนดวันรับทราบ",
   noDocNoYet: "ยังไม่มีเลข",
 } as const
 

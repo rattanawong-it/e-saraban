@@ -93,19 +93,21 @@ test("หน้าภาพรวมไม่มีแถบเลื่อน�
 
   // ผู้ดูแลสั่งเมื่อ 28 ส.ค. 2569 ว่าห้ามมีแถบเลื่อนทั้งของหน้าและของกรอบข้างใน
   // (เดิมรายการอยู่ในกรอบที่ overflow-y-auto — เคสนี้เคยบังคับให้ต้องมี ตอนนี้กลับกัน)
-  const scrollers = await page.evaluate(() =>
+  // ⚠️ ต้องจับ **ทั้งสองอาการ** ไม่ใช่แค่แถบเลื่อน — กรอบที่ overflow-hidden แล้วเนื้อหาล้น
+  // จะไม่มีแถบเลื่อนก็จริง แต่มันตัดแถวสุดท้ายขาดกลางคันแทน (ของจริงที่เกิดกับการ์ด
+  // "รอฉันรับทราบ" · docs/sample_v11.png) · เคสเดิมดูแค่ overflow auto/scroll จึงปล่อยผ่าน
+  const clipped = await page.evaluate(() =>
     [...document.querySelectorAll("main *")]
       .filter((el) => {
         const overflowY = getComputedStyle(el).overflowY
-        return (
-          (overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight + 1
-        )
+        // overflow: visible ล้นได้โดยไม่ถูกตัดและยังอ่านได้ครบ จึงไม่นับ
+        return overflowY !== "visible" && el.scrollHeight > el.clientHeight + 1
       })
-      .map((el) => el.tagName + "." + el.className)
+      .map((el) => `${el.tagName}.${el.className}`)
       .slice(0, 3),
   )
 
-  expect(scrollers, "ต้องไม่มีกรอบที่ต้องเลื่อนในหน้าภาพรวม").toEqual([])
+  expect(clipped, "ต้องไม่มีกรอบที่ต้องเลื่อนหรือตัดเนื้อหาทิ้งในหน้าภาพรวม").toEqual([])
 
   // ⚠️ "ไม่มีแถบเลื่อน" ทำให้ผ่านได้ด้วยการตัดเนื้อหาทิ้งเหมือนกัน (การ์ดมี overflow-hidden)
   // จึงต้องยืนยันด้วยว่าแถวสุดท้ายยังอยู่ในกรอบจริง ไม่ได้ถูกดันตกขอบไปเงียบ ๆ

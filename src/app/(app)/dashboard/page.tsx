@@ -106,14 +106,92 @@ export default async function DashboardPage() {
         />
       </Card>
 
-      {awaitingAck.length > 0 ? (
-        <Card className="mt-4 overflow-hidden lg:flex lg:min-h-0 lg:flex-[1_1_0] lg:flex-col">
+      {/* ⚠️ **สองการ์ดนี้ต้องอยู่คู่กัน ไม่ใช่ซ้อนกัน** บนจอ lg ขึ้นไป
+          หน้านี้ล็อกความสูงไว้ที่หนึ่งจอพอดี (ดูสูตร calc ข้างบน) เหลือพื้นที่ให้สองการ์ดนี้
+          ราว 418px ที่ 1280×720 · วางซ้อนกันต้องการ ~550px จึงล้นแล้วถูก `overflow-hidden`
+          ตัดแถวสุดท้ายขาดกลางคัน (ของจริงใน docs/sample_v11.png)
+          วางคู่กันแล้วความสูงคิดจากการ์ดที่สูงกว่า ไม่ใช่ผลรวม */}
+      <div className="mt-4 grid gap-4 lg:mt-5 lg:min-h-0 lg:grid-cols-2 lg:items-start lg:gap-5">
+        {/* ⚠️ การ์ดนี้เคยยืดตามพื้นที่ที่เหลือ (`lg:flex-[1_1_0]`) คู่กับ `overflow-hidden`
+            ผลคือแถวสุดท้ายถูกตัดขาดกลางคันเมื่อมีของเกินพื้นที่ (docs/sample_v11.png)
+            — ปล่อยให้สูงเท่าเนื้อหาเหมือนการ์ดความเคลื่อนไหวข้างล่าง */}
+        {awaitingAck.length > 0 ? (
+          <Card className="overflow-hidden">
+            <CardHeader
+              title={DASHBOARD.awaitingAckTitle}
+              className="py-3"
+              action={
+                <Link
+                  href="/inbox"
+                  className="text-caption font-semibold text-primary hover:underline"
+                >
+                  {COMMON.showAll} →
+                </Link>
+              }
+            />
+
+            <ul>
+              {awaitingAck.map((row) => (
+                <li key={row.recipientId} className="border-b border-row-border last:border-b-0">
+                  <Link
+                    href={`/documents/${row.id}`}
+                    className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-sunken"
+                  >
+                    {/* โครงเดียวกับการ์ด "ความเคลื่อนไหวล่าสุด" ทุกจุด — เลขหนังสือนำหน้า
+                        ชื่อเรื่องในบรรทัดเดียวกัน แล้วบรรทัดรองเป็นข้อมูลประกอบ
+                        สองการ์ดนี้อยู่ติดกันบนหน้าเดียว ถ้าวางคนละแบบจะอ่านเป็นคนละระบบ */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="tabular shrink-0 text-label font-semibold text-text-strong">
+                          {row.docNo ?? DASHBOARD.noDocNoYet}
+                        </span>
+                        <span className="truncate text-label text-text-medium">{row.subject}</span>
+                      </div>
+                      {/* บรรทัดรองต้องมีเสมอ ไม่ใช่โผล่เฉพาะฉบับที่มีกำหนดวัน —
+                          ไม่งั้นแถวจะสูงไม่เท่ากันและป้ายด้านขวาจะเยื้องกันทั้งคอลัมน์ */}
+                      <div className="truncate text-micro text-text-subtle">
+                        {row.dueDate
+                          ? DASHBOARD.awaitingAckDue(formatThaiDate(row.dueDate, "short"))
+                          : DASHBOARD.awaitingAckNoDue}
+                      </div>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {row.confidentialityLevel > 0 ? (
+                        <ConfidentialityBadge
+                          level={row.confidentialityLevel}
+                          label={CONFIDENTIALITY_LEVELS[row.confidentialityLevel]?.label ?? ""}
+                        />
+                      ) : null}
+                      {row.urgencyLevel > 0 ? (
+                        <Badge tone={row.urgencyLevel >= 2 ? "danger" : "warning"}>
+                          {URGENCY_LEVELS[row.urgencyLevel]?.label}
+                        </Badge>
+                      ) : null}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ) : null}
+
+        {/* ไม่ยืดเต็มพื้นที่ที่เหลือแล้ว — เมื่อรายการคงที่ 5 แถว การ์ดที่ยืดจะเหลือ
+            ช่องว่างในกรอบก้อนใหญ่ · ปล่อยให้สูงเท่าเนื้อหาแล้วหน้ายังจบในจอเดียวเหมือนเดิม */}
+        <Card
+          className={
+            // ไม่มีการ์ดคู่ก็กินเต็มความกว้าง ไม่งั้นคอลัมน์ขวาจะว่างเปล่า
+            awaitingAck.length > 0 ? "overflow-hidden" : "overflow-hidden lg:col-span-2"
+          }
+        >
           <CardHeader
-            title={DASHBOARD.awaitingAckTitle}
+            title={DASHBOARD.recentActivity}
             className="py-3"
             action={
+              // เดิมชี้ไป /admin/audit ซึ่งคนทั่วไปเข้าไม่ได้ ปุ่มจึงหายไปทั้งปุ่มสำหรับคนส่วนใหญ่
+              // แผงนี้พูดเรื่องหนังสือแล้ว ปลายทางที่ถูกจึงเป็นหน้าค้นหาที่ทุกคนใช้ได้
               <Link
-                href="/inbox"
+                href="/search"
                 className="text-caption font-semibold text-primary hover:underline"
               >
                 {COMMON.showAll} →
@@ -121,102 +199,46 @@ export default async function DashboardPage() {
             }
           />
 
-          <ul>
-            {awaitingAck.map((row) => (
-              <li key={row.recipientId} className="border-b border-row-border last:border-b-0">
-                <Link
-                  href={`/documents/${row.id}`}
-                  className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-sunken"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-label font-semibold text-text-strong">
-                      {row.subject}
+          {/* ⚠️ **ห้ามใส่ overflow-y-auto กลับเข้ามาที่รายการข้างล่าง** — ผู้ดูแลสั่งเมื่อ
+              28 ส.ค. 2569 ว่าหน้านี้ต้องจบในหน้าจอเดียวโดยไม่มีแถบเลื่อนทั้งของหน้าและของกรอบ
+              คุมความยาวด้วยจำนวนแถวที่ service คืนมา ไม่ใช่ด้วยการซ่อนส่วนที่ล้น */}
+          {activity.length === 0 ? (
+            <EmptyState title={DASHBOARD.recentActivityEmpty} />
+          ) : (
+            <ul>
+              {activity.map((row) => (
+                <li key={row.id} className="border-b border-row-border last:border-b-0">
+                  <Link
+                    href={`/documents/${row.documentId}`}
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-secondary/60"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="tabular shrink-0 text-label font-semibold text-text-strong">
+                          {row.docNo ?? DASHBOARD.noDocNoYet}
+                        </span>
+                        <span className="truncate text-label text-text-medium">{row.subject}</span>
+                      </div>
+                      {/* เวลาอยู่บรรทัดรอง ไม่ใช่ริมขวา — พอวางสองการ์ดคู่กัน คอลัมน์แคบลง
+                          ครึ่งหนึ่ง การยกเวลาออกจากแถวบนคืนที่ให้ชื่อเรื่องได้อีกราว 70px
+                          ซึ่งเป็นข้อความที่คนกวาดสายตาหาจริง ๆ */}
+                      <div className="truncate text-micro text-text-subtle">
+                        {DASHBOARD.activityLabels[row.actionType] ?? row.actionType}
+                        {row.actorName ? ` · ${row.actorName}` : ""}
+                        {` · ${formatRelativeThai(row.at)}`}
+                      </div>
                     </div>
-                    <div className="tabular text-micro text-text-subtle">
-                      {row.docNo ?? DASHBOARD.noDocNoYet}
-                      {row.dueDate
-                        ? ` · ${DASHBOARD.awaitingAckDue(formatThaiDate(row.dueDate, "short"))}`
-                        : ""}
-                    </div>
-                  </div>
 
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    {row.confidentialityLevel > 0 ? (
-                      <ConfidentialityBadge
-                        level={row.confidentialityLevel}
-                        label={CONFIDENTIALITY_LEVELS[row.confidentialityLevel]?.label ?? ""}
-                      />
-                    ) : null}
-                    {row.urgencyLevel > 0 ? (
-                      <Badge tone={row.urgencyLevel >= 2 ? "danger" : "warning"}>
-                        {URGENCY_LEVELS[row.urgencyLevel]?.label}
-                      </Badge>
-                    ) : null}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                    {/* ป้ายเดิมเขียนว่า "สำเร็จ" ทุกแถวจึงไม่ได้บอกอะไรเลย —
+                        พื้นที่เท่ากันนี้ใช้บอกสถานะปัจจุบันของหนังสือมีประโยชน์กว่า */}
+                    <DocumentStatusBadge status={row.status} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
-      ) : null}
-
-      {/* ไม่ยืดเต็มพื้นที่ที่เหลือแล้ว — เมื่อรายการคงที่ 5 แถว การ์ดที่ยืดจะเหลือ
-          ช่องว่างในกรอบก้อนใหญ่ · ปล่อยให้สูงเท่าเนื้อหาแล้วหน้ายังจบในจอเดียวเหมือนเดิม */}
-      <Card className="mt-4 overflow-hidden">
-        <CardHeader
-          title={DASHBOARD.recentActivity}
-          className="py-3"
-          action={
-            // เดิมชี้ไป /admin/audit ซึ่งคนทั่วไปเข้าไม่ได้ ปุ่มจึงหายไปทั้งปุ่มสำหรับคนส่วนใหญ่
-            // แผงนี้พูดเรื่องหนังสือแล้ว ปลายทางที่ถูกจึงเป็นหน้าค้นหาที่ทุกคนใช้ได้
-            <Link
-              href="/search"
-              className="text-caption font-semibold text-primary hover:underline"
-            >
-              {COMMON.showAll} →
-            </Link>
-          }
-        />
-
-        {/* ⚠️ **ห้ามใส่ overflow-y-auto กลับเข้ามาที่รายการข้างล่าง** — ผู้ดูแลสั่งเมื่อ
-            28 ส.ค. 2569 ว่าหน้านี้ต้องจบในหน้าจอเดียวโดยไม่มีแถบเลื่อนทั้งของหน้าและของกรอบ
-            คุมความยาวด้วยจำนวนแถวที่ service คืนมา ไม่ใช่ด้วยการซ่อนส่วนที่ล้น */}
-        {activity.length === 0 ? (
-          <EmptyState title={DASHBOARD.recentActivityEmpty} />
-        ) : (
-          <ul>
-            {activity.map((row) => (
-              <li key={row.id} className="border-b border-row-border last:border-b-0">
-                <Link
-                  href={`/documents/${row.documentId}`}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-secondary/60"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="tabular shrink-0 text-label font-semibold text-text-strong">
-                        {row.docNo ?? DASHBOARD.activityNoDocNo}
-                      </span>
-                      <span className="truncate text-label text-text-medium">{row.subject}</span>
-                    </div>
-                    <div className="truncate text-micro text-text-subtle">
-                      {DASHBOARD.activityLabels[row.actionType] ?? row.actionType}
-                      {row.actorName ? ` · ${row.actorName}` : ""}
-                    </div>
-                  </div>
-
-                  {/* ป้ายเดิมเขียนว่า "สำเร็จ" ทุกแถวจึงไม่ได้บอกอะไรเลย —
-                      พื้นที่เท่ากันนี้ใช้บอกสถานะปัจจุบันของหนังสือมีประโยชน์กว่า */}
-                  <DocumentStatusBadge status={row.status} />
-
-                  <div className="shrink-0 text-micro text-text-subtle">
-                    {formatRelativeThai(row.at)}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      </div>
     </div>
   )
 }
