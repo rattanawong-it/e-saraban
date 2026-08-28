@@ -2276,3 +2276,53 @@ push แล้ว (`1f8e0d1`/`ede3780` · 27 ส.ค. 2569 เย็น) · **�
 `pnpm/action-setup@v4` ถูกบังคับให้รันบน Node 24 อยู่แล้วตอนนี้ ยังไม่พัง แต่วันที่ GitHub ถอด
 Node 20 ออกจริงจะพังทั้งสามงานพร้อมกัน · แก้คือเลื่อนเป็น `@v5` สามบรรทัดใน
 `.github/workflows/ci.yml` — **ยังไม่ได้ทำ**
+
+### 23.20 ✅ P6 — เข้าสู่ระบบด้วย Google (28 ส.ค. 2569)
+
+ผู้ดูแลถามสามข้อ (เทียบ Better Auth · รับ Google · ควรเปลี่ยน library ไหม) แล้วเคาะว่า
+**คงของเดิม เพิ่ม Google เป็น provider ที่สอง · ไม่รับ LINE** — บันทึกเป็น **D19** และ **spec §17**
+
+#### ห้าขั้นที่ทำ
+
+| ขั้น | ทำอะไร |
+| --- | --- |
+| 1 | บันทึกมติ D19 · §15 ข้อ 8 · §17.5 แบบหน้า login ตาม `docs/sample_v8.png` |
+| 2 | ฐานข้อมูล — `user_identities` · `users.email` unique ต่อ tenant · `passwordHash` ว่างได้ |
+| 3 | หลังบ้าน — `providers/google.ts` · `oauth-state.ts` · start + callback route |
+| 4 | หน้าจอ — ปุ่ม Google · เส้นคั่น "หรือ" · ข้อความผิดพลาดจาก `?error=` |
+| 5 | เทสต์ + แก้สองข้อที่เจอตอนตรวจ (ดู §17.6) |
+
+#### บทเรียนที่ต้องไม่ลืม
+
+**1. `prisma migrate dev` ใช้ไม่ได้บนเอเจนต์** — คำสั่งนี้เป็น interactive และจะหยุดทันที
+ที่มีคำเตือน (เช่น "จะเพิ่ม unique constraint") · ทางที่ใช้ได้คือ
+`prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`
+เขียนลงโฟลเดอร์ migration เอง แล้ว `prisma migrate deploy` · ตรวจ drift ซ้ำด้วย `diff` อีกรอบ
+
+**2. อย่าอ่านผลของ `migrate diff` ผ่าน `| tail`** — `ALTER TABLE ... DROP NOT NULL` อยู่บรรทัดบนสุด
+เกือบเข้าใจผิดว่า Prisma ไม่ได้สร้างคำสั่งนั้นให้ แล้วจะไปเขียน SQL เพิ่มเองซ้ำซ้อน
+
+**3. `where: { tenantId: undefined }` = ไม่มีตัวกรองเลย** — Prisma เมินทิ้งเงียบ ๆ
+ไม่ใช่ "หาแถวที่ tenantId เป็น null" · เป็นบั๊กชนิดที่เทสต์บน single-tenant จับไม่ได้เลย
+
+**4. integration test แตะเส้นทางล็อกอินได้แล้ว** — เพิ่ม alias `next/headers` →
+`tests/stubs/next-headers.ts` (cookie/header ในหน่วยความจำ) · ก่อนหน้านี้ทั้ง `login()`
+และ `loginWithGoogle()` ทดสอบไม่ได้เลยเพราะเรียก `cookies()` ที่มีได้เฉพาะตอนมี request จริง
+
+**5. ปุ่มที่ทำงานไม่ได้ แย่กว่าไม่มีปุ่ม** — ปุ่ม Google ซ่อนตัวเองเมื่อยังไม่ตั้ง
+`GOOGLE_CLIENT_ID/SECRET` และ route ตอบ 404 · deploy ที่อยู่ในวงปิดจึงได้หน้าจอที่ถูกต้อง
+โดยไม่ต้องแก้โค้ด (D13 กำหนด on-premise แต่ Google ต้องออกอินเทอร์เน็ต)
+
+#### ผลตรวจ
+
+| ชุด | ก่อน | หลัง |
+| --- | --- | --- |
+| unit | 166 | **180** |
+| integration | 124 | **134** |
+| e2e | 111 | **114** |
+
+lint · typecheck · production build ผ่านหมด · และมีการล็อกอินด้วย Google **ของจริง**
+สำเร็จแล้วหนึ่งครั้งบนฐาน dev (audit `auth.identity.linked` + `auth.login.google` เวลา 10:35)
+
+⚠️ **กุญแจ Google ชุดที่ใช้อยู่ผ่านหน้าแชตมา** — ก่อนขึ้นเครื่องจริงต้อง reset client secret
+ที่ Google Cloud Console แล้วเปลี่ยนค่าใน `.env` ของเครื่องนั้น
