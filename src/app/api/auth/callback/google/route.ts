@@ -70,6 +70,16 @@ export async function GET(request: Request) {
       return backToLogin(request, "google_failed")
     }
 
-    throw error
+    // ⚠️ **error ที่ไม่รู้จักต้องไม่หลุดขึ้นไปเป็นหน้า 500 ของ Next**
+    //
+    // เดิมโยนต่อเพื่อไม่ให้บั๊กจริงถูกกลบ แต่ของจริงที่เกิดขึ้น (28 ส.ค. 2569) คือ
+    // dev server ค้างอยู่กับ Prisma Client รุ่นก่อน migration แล้ว createSession() พัง —
+    // ผู้ใช้เห็นหน้า stack trace ของ Next แทนที่จะรู้ว่าให้ลองใหม่หรือใช้รหัสผ่าน
+    //
+    // หน้านี้เป็นปลายทางที่ Google พาผู้ใช้กลับมา ไม่ใช่ API ที่โค้ดเราเรียกเอง
+    // สิ่งที่ควรได้จึงเป็นทางเดินต่อ ไม่ใช่ร่องรอยของบั๊ก · ร่องรอยยังอยู่ครบใน log
+    console.error("[google-auth] unexpected", error)
+
+    return backToLogin(request, "google_failed")
   }
 }
