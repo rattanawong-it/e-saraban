@@ -160,14 +160,21 @@ model OrgUnit {
 // ---------------------------------------------------------------------------
 
 model User {
-  id           String  @id @default(uuid(7))
-  tenantId     String
-  username     String  @unique
-  passwordHash String
-  email        String?
-  prefix       String?
-  firstName    String
-  lastName     String
+  id       String @id @default(uuid(7))
+  tenantId String
+  username String @unique
+
+  /// ว่างได้ตั้งแต่ D19 — ผู้ใช้ที่เข้าด้วย Google อย่างเดียวไม่มีรหัสผ่าน (spec §17.3)
+  /// ⚠️ ทุกจุดที่อ่านค่านี้ต้องเผื่อ null เสมอ ห้ามสมมติว่ามีรหัสผ่าน
+  passwordHash String?
+
+  /// ⚠️ **เก็บเป็นตัวพิมพ์เล็กเสมอ** — เป็นคีย์ที่ใช้จับคู่บัญชี Google ครั้งแรก (spec §17.3)
+  /// unique ต่อ tenant · ค่า null ซ้ำกันได้ตามปกติของ Postgres (ผู้ใช้ที่ยังไม่มีอีเมล)
+  email  String?
+  prefix String?
+
+  firstName String
+  lastName  String
 
   /// ชั้นความลับสูงสุดที่เข้าถึงได้ 0–3 (spec §8.1)
   clearanceLevel Int @default(0)
@@ -205,9 +212,51 @@ model User {
   confidentialRegistrarOf        ConfidentialRegistrar[] @relation("ConfidentialRegistrarUser")
   assignedConfidentialRegistrars ConfidentialRegistrar[] @relation("ConfidentialRegistrarAssignedBy")
 
+  identities UserIdentity[]
+
+  @@unique([tenantId, email])
   @@index([tenantId, isActive])
   @@index([tenantId, lastName, firstName])
   @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// UserIdentity (spec §17.3 · D19) — บัญชีจากผู้ให้บริการภายนอกที่ผูกกับผู้ใช้ในระบบ
+//
+// ทำไมเป็นตารางแยกและมีคอลัมน์ `provider` ตั้งแต่แรก แทนที่จะยัดฟิลด์ googleSub
+// ลงใน User: วันที่เพิ่ม M365 หรือ LDAP จะได้ไม่ต้อง migrate ตาราง users อีกรอบ
+//
+// ⚠️ **จับคู่ด้วย providerAccountId (`sub` ของ Google) ไม่ใช่ด้วยอีเมล** หลังผูกครั้งแรก
+// เพราะ Google Workspace เปลี่ยนชื่ออีเมลได้ และอีเมลของคนที่ลาออกถูกยกให้คนใหม่ได้ —
+// ยึดอีเมลอย่างเดียวคือเปิดทางให้เข้าบัญชีผิดคน (spec §17.3)
+// ---------------------------------------------------------------------------
+
+model UserIdentity {
+  id     String @id @default(uuid(7))
+  userId String
+
+  /// ผู้ให้บริการ — ตอนนี้มีค่าเดียวคือ "google" (D19 ไม่รับ LINE)
+  provider String
+
+  /// ตัวระบุถาวรของผู้ใช้ฝั่งผู้ให้บริการ — ของ Google คือ `sub` ใน id_token
+  providerAccountId String
+
+  /// อีเมลที่ผู้ให้บริการคืนมา ณ ตอนผูก — เก็บไว้เพื่อการตรวจสอบย้อนหลังเท่านั้น
+  /// **ห้ามใช้ค่านี้ตัดสินสิทธิ์** เพราะอาจไม่ตรงกับ `User.email` ปัจจุบันแล้ว
+  email String?
+
+  /// โดเมน Google Workspace (`hd`) ณ ตอนผูก — ใช้ตามหลังตอนตรวจสอบ
+  hostedDomain String?
+
+  linkedAt   DateTime  @default(now()) @db.Timestamptz(3)
+  lastUsedAt DateTime? @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, providerAccountId])
+  @@unique([userId, provider])
+  @@index([userId])
+  @@map("user_identities")
 }
 
 /// สังกัดของผู้ใช้ (spec §5.2) — คนหนึ่งอยู่ได้หลายหน่วยงานพร้อมกัน
@@ -306,9 +355,21 @@ model UserRole {
 // Session (spec §8.4) — JWT ใน cookie + ตาราง Session เพื่อให้ revoke ได้จริง
 // ---------------------------------------------------------------------------
 
+/// วิธีที่ผู้ใช้ยืนยันตัวตนของเซสชันนี้ (spec §17.3 · D19)
+enum AuthMethod {
+  PASSWORD
+  GOOGLE
+}
+
 model Session {
   id     String @id @default(uuid(7))
   userId String
+
+  /// ⚠️ ใช้ตัดสินว่าจะบังคับเปลี่ยนรหัสผ่านครั้งแรกหรือไม่ — คนที่เข้าด้วย Google
+  /// ไม่ได้ใช้รหัสผ่านชั่วคราวนั้นอยู่แล้ว การไล่ไปหน้าเปลี่ยนรหัสผ่านที่ขอ
+  /// "รหัสผ่านปัจจุบัน" จึงทำให้เขาติดอยู่ตรงนั้นออกไปไหนไม่ได้เลย
+  /// ค่าในตาราง users ยังเป็น true เหมือนเดิม ถ้ากลับมาล็อกอินด้วยรหัสผ่านจะโดนบังคับตามปกติ
+  authMethod AuthMethod @default(PASSWORD)
 
   /// หน่วยงานที่ผู้ใช้กำลังสวมบทบาทอยู่ (Context Switcher · spec §5.2)
   activeOrgUnitId String?

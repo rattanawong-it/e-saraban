@@ -77,7 +77,7 @@ export async function getAppSession(): Promise<AppSession | null> {
   const affiliations: UserAffiliation[] = resolved.affiliations
   const activeAffiliation = affiliations.find((a) => a.orgUnitId === activeOrgUnitId) ?? null
 
-  return { ctx, user, affiliations, activeAffiliation }
+  return { ctx, authMethod: session.authMethod, user, affiliations, activeAffiliation }
 }
 
 /**
@@ -90,7 +90,17 @@ export async function requireSession(options: { skipPasswordCheck?: boolean } = 
   const session = await getAppSession()
   if (!session) redirect(LOGIN_PATH)
 
-  if (!options.skipPasswordCheck && session.user.mustChangePassword) {
+  // ⚠️ **เซสชันที่เข้าด้วย Google ข้ามด่านนี้โดยตั้งใจ** (spec §17.3 · D19)
+  //
+  // จุดประสงค์ของ §8.4 ข้อนี้คือกันไม่ให้ใช้รหัสผ่านชั่วคราวที่คนอื่นรู้ต่อไปเรื่อย ๆ
+  // ซึ่งคนที่เข้าด้วย Google ไม่ได้ใช้รหัสผ่านนั้นอยู่แล้ว · ถ้าไม่ข้าม เขาจะถูกเด้งมา
+  // หน้าที่ขอ "รหัสผ่านปัจจุบัน" ที่เขาไม่มี แล้วออกไปไหนไม่ได้เลยทั้งที่ล็อกอินสำเร็จ
+  //
+  // ค่า mustChangePassword ในตาราง users ยังเป็น true เหมือนเดิม —
+  // วันที่เขากลับมาล็อกอินด้วยรหัสผ่านจะโดนบังคับเปลี่ยนตามปกติ
+  const skipForGoogle = session.authMethod === "GOOGLE"
+
+  if (!options.skipPasswordCheck && !skipForGoogle && session.user.mustChangePassword) {
     redirect(CHANGE_PASSWORD_PATH)
   }
 

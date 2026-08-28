@@ -13,7 +13,13 @@ export const createUserSchema = z.object({
   firstName: z.string().trim().min(1, "กรุณากรอกชื่อ").max(100),
   lastName: z.string().trim().min(1, "กรุณากรอกนามสกุล").max(100),
   username: usernameSchema,
-  email: z.string().trim().email("รูปแบบอีเมลไม่ถูกต้อง").optional().or(z.literal("")),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("รูปแบบอีเมลไม่ถูกต้อง")
+    .optional()
+    .or(z.literal("")),
   clearanceLevel: clearanceLevelSchema.default(0),
 
   // สังกัดแรกกำหนดตอนสร้างเลย — ผู้ใช้ที่ไม่มีสังกัดใช้งานอะไรไม่ได้
@@ -29,7 +35,13 @@ export const updateUserSchema = z.object({
   prefix: z.string().trim().max(30).optional(),
   firstName: z.string().trim().min(1, "กรุณากรอกชื่อ").max(100),
   lastName: z.string().trim().min(1, "กรุณากรอกนามสกุล").max(100),
-  email: z.string().trim().email("รูปแบบอีเมลไม่ถูกต้อง").optional().or(z.literal("")),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("รูปแบบอีเมลไม่ถูกต้อง")
+    .optional()
+    .or(z.literal("")),
   clearanceLevel: clearanceLevelSchema,
 })
 

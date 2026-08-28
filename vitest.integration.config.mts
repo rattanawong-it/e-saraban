@@ -14,6 +14,9 @@ export default defineConfig({
       // service layer ทุกไฟล์ import "server-only" ซึ่งโยน error นอก React Server Component
       // แทนที่ด้วยโมดูลเปล่าเพื่อให้ทดสอบ "โค้ดตัวจริง" ได้ ไม่ต้องก๊อปปี้ logic มาไว้ในเทสต์
       "server-only": fileURLToPath(new URL("./tests/stubs/server-only.ts", import.meta.url)),
+      // เส้นทางล็อกอินอ่าน cookie/header ของ request ซึ่งมีได้เฉพาะตอนมี request จริง
+      // แทนด้วยตัวเก็บในหน่วยความจำ เพื่อให้ทดสอบด่านของ auth.service ตัวจริงได้
+      "next/headers": fileURLToPath(new URL("./tests/stubs/next-headers.ts", import.meta.url)),
     },
   },
   test: {

@@ -30,8 +30,18 @@ export async function hashPassword(plain: string): Promise<string> {
 /**
  * ตรวจรหัสผ่าน — คืน false เมื่อ hash เสียหายแทนที่จะโยน error
  * เพื่อไม่ให้ผู้โจมตีแยกแยะ "บัญชีไม่มี" กับ "hash พัง" จากพฤติกรรมของระบบ
+ *
+ * รับ null ได้ตั้งแต่ D19 — บัญชีที่เข้าด้วย Google อย่างเดียวไม่มีรหัสผ่าน (spec §17.3)
  */
-export async function verifyPassword(hashValue: string, plain: string): Promise<boolean> {
+export async function verifyPassword(hashValue: string | null, plain: string): Promise<boolean> {
+  // บัญชีที่ไม่มีรหัสผ่าน: ยัง hash ทิ้งหนึ่งครั้งให้เวลาตอบใกล้เคียงกับกรณีปกติ
+  // ไม่งั้นเวลาที่ตอบเร็วผิดปกติจะกลายเป็นเครื่องมือไล่หาว่าบัญชีไหนผูกกับ Google อยู่
+  // — หลักเดียวกับที่ auth.service ทำตอนหาบัญชีไม่เจอ
+  if (hashValue === null) {
+    await hashPassword(plain)
+    return false
+  }
+
   try {
     return await verify(hashValue, plain, ARGON2_OPTIONS)
   } catch {

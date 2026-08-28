@@ -19,6 +19,38 @@ import { assertPermission, ServiceError } from "./errors"
 // หลักที่ยึด: **Role ผูกกับคู่ (User, OrgUnit)** ไม่ใช่กับ User เดี่ยว
 // ทุกครั้งที่เพิ่ม/ถอดสังกัด จึงต้องจัดการ UserRole ของหน่วยงานนั้นไปด้วยเสมอ
 
+/**
+ * อีเมลต้องไม่ซ้ำกันภายใน tenant ตั้งแต่ D19 เพราะเป็นคีย์ที่ใช้จับคู่บัญชี Google
+ * ครั้งแรก (spec §17.3) — ปล่อยให้ไปชน unique index แล้วโยน P2002 ออกหน้าจอไม่ได้
+ * เพราะผู้ดูแลจะเห็นข้อความของฐานข้อมูลแทนที่จะรู้ว่าต้องแก้อะไร
+ *
+ * ค่าว่างข้ามการตรวจ — ผู้ใช้ที่ยังไม่มีอีเมลมีได้หลายคน (Postgres ยอมให้ null ซ้ำ)
+ */
+async function assertEmailAvailable(
+  tenantId: string,
+  email: string | undefined,
+  exceptUserId?: string,
+) {
+  if (!email) return
+
+  const owner = await prisma.user.findFirst({
+    where: {
+      tenantId,
+      email,
+      deletedAt: null,
+      ...(exceptUserId ? { NOT: { id: exceptUserId } } : {}),
+    },
+    select: { username: true },
+  })
+
+  if (owner) {
+    throw new ServiceError(
+      `อีเมล "${email}" ถูกใช้กับบัญชี "${owner.username}" อยู่แล้ว`,
+      "CONFLICT",
+    )
+  }
+}
+
 export interface UserListItem {
   id: string
   username: string
@@ -139,6 +171,8 @@ export async function createUser(ctx: ServiceContext, input: CreateUserInput) {
   const existing = await prisma.user.findUnique({ where: { username: input.username } })
   if (existing) throw new ServiceError(`ชื่อผู้ใช้ "${input.username}" ถูกใช้ไปแล้ว`, "CONFLICT")
 
+  await assertEmailAvailable(ctx.tenantId, input.email)
+
   const temporaryPassword = generateTemporaryPassword(12)
   const passwordHash = await hashPassword(temporaryPassword)
 
@@ -202,6 +236,8 @@ export async function createUser(ctx: ServiceContext, input: CreateUserInput) {
 
 export async function updateUser(ctx: ServiceContext, input: UpdateUserInput) {
   assertPermission(ctx, PERMISSIONS.USER_MANAGE)
+
+  await assertEmailAvailable(ctx.tenantId, input.email, input.id)
 
   return prisma.$transaction(async (tx) => {
     const before = await tx.user.findFirst({
@@ -492,6 +528,8 @@ export async function reviewRegistration(ctx: ServiceContext, input: ReviewRegis
 
   const taken = await prisma.user.findUnique({ where: { username: request.username } })
   if (taken) throw new ServiceError(`ชื่อผู้ใช้ "${request.username}" ถูกใช้ไปแล้ว`, "CONFLICT")
+
+  await assertEmailAvailable(request.tenantId, request.email)
 
   await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({

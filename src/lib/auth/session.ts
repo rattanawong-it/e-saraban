@@ -3,6 +3,7 @@ import "server-only"
 import { cookies, headers } from "next/headers"
 import { jwtVerify, SignJWT } from "jose"
 
+import type { AuthMethod } from "@/generated/prisma/client"
 import { prisma } from "@/lib/db"
 import { DEFAULT_SETTINGS } from "@/lib/settings/definitions"
 
@@ -19,7 +20,8 @@ export const SESSION_COOKIE = "esaraban-session"
 const JWT_ISSUER = "e-saraban"
 const JWT_AUDIENCE = "e-saraban-app"
 
-function getSecret(): Uint8Array {
+/** กุญแจลงนามของระบบ — ใช้ทั้งเซสชันและ state ของ OAuth (src/lib/auth/providers) */
+export function getAuthSecret(): Uint8Array {
   const secret = process.env.AUTH_SECRET
 
   if (!secret || secret.length < 32) {
@@ -44,12 +46,12 @@ async function signSessionToken(payload: SessionTokenPayload, expiresAt: Date): 
     .setAudience(JWT_AUDIENCE)
     .setIssuedAt()
     .setExpirationTime(expiresAt)
-    .sign(getSecret())
+    .sign(getAuthSecret())
 }
 
 async function readSessionToken(token: string): Promise<SessionTokenPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, getSecret(), {
+    const { payload } = await jwtVerify(token, getAuthSecret(), {
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
     })
@@ -64,6 +66,8 @@ async function readSessionToken(token: string): Promise<SessionTokenPayload | nu
 export interface CreateSessionInput {
   userId: string
   activeOrgUnitId: string | null
+  /** วิธีที่ผู้ใช้ยืนยันตัวตนของเซสชันนี้ — ปริยายคือรหัสผ่าน (spec §17.3) */
+  authMethod?: AuthMethod
   /** true = ผู้ใช้ติ๊ก "จดจำการเข้าสู่ระบบ" → ใช้ absolute timeout เต็ม */
   remember: boolean
   absoluteHours?: number
@@ -81,6 +85,7 @@ export async function createSession(input: CreateSessionInput): Promise<string> 
     data: {
       userId: input.userId,
       activeOrgUnitId: input.activeOrgUnitId,
+      authMethod: input.authMethod ?? "PASSWORD",
       ip,
       userAgent,
       expiresAt,
@@ -105,6 +110,7 @@ export interface ActiveSession {
   id: string
   userId: string
   activeOrgUnitId: string | null
+  authMethod: AuthMethod
   ip: string | null
   userAgent: string | null
   expiresAt: Date
@@ -151,6 +157,7 @@ export async function getActiveSession(): Promise<ActiveSession | null> {
     id: session.id,
     userId: session.userId,
     activeOrgUnitId: session.activeOrgUnitId,
+    authMethod: session.authMethod,
     ip: session.ip,
     userAgent: session.userAgent,
     expiresAt: session.expiresAt,

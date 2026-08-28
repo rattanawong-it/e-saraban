@@ -1,3 +1,4 @@
+import type { AuthMethod } from "@/generated/prisma/client"
 import type { AuthzContext } from "@/lib/authz"
 
 // ServiceContext — spec §11.3 ข้อ 2:
@@ -46,6 +47,8 @@ export interface UserAffiliation {
 /** ทุกอย่างที่ layout ของ (app) ต้องใช้ในการ render — โหลดครั้งเดียวต่อ request */
 export interface AppSession {
   ctx: ServiceContext
+  /** วิธีที่ยืนยันตัวตนของเซสชันนี้ — ด่าน mustChangePassword ใช้ตัดสิน (spec §17.3) */
+  authMethod: AuthMethod
   user: CurrentUser
   affiliations: UserAffiliation[]
   activeAffiliation: UserAffiliation | null

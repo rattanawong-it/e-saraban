@@ -21,6 +21,8 @@ import {
   validatePassword,
   verifyPassword,
 } from "@/lib/auth"
+import type { Prisma } from "@/generated/prisma/client"
+import type { GoogleProfile } from "@/lib/auth/providers/google"
 import { prisma } from "@/lib/db"
 import { getSystemSettings } from "@/lib/settings"
 import type { ChangePasswordInput, LoginInput, RegisterInput } from "@/schemas/auth.schema"
@@ -216,6 +218,15 @@ export async function changeOwnPassword(
 ): Promise<void> {
   const user = await prisma.user.findUnique({ where: { id: ctx.userId } })
   if (!user) throw new ServiceError("ไม่พบบัญชีผู้ใช้", "NOT_FOUND")
+
+  // บัญชีที่ผูกกับ Google อย่างเดียวยังไม่มีรหัสผ่านให้เปลี่ยน (D19 · spec §17.3)
+  // บอกตรง ๆ ได้เพราะเป็นบัญชีของผู้ที่ล็อกอินอยู่เอง ไม่ใช่ข้อมูลของคนอื่น
+  if (user.passwordHash === null) {
+    throw new ServiceError(
+      "บัญชีนี้เข้าสู่ระบบด้วย Google จึงยังไม่มีรหัสผ่านให้เปลี่ยน — ติดต่อผู้ดูแลระบบหากต้องการตั้งรหัสผ่าน",
+      "VALIDATION",
+    )
+  }
 
   const currentOk = await verifyPassword(user.passwordHash, input.currentPassword)
   if (!currentOk) throw new ServiceError("รหัสผ่านปัจจุบันไม่ถูกต้อง", "VALIDATION")
@@ -514,4 +525,236 @@ function assertPublicFormRate(scope: string, ip: string | null, message: string)
   )
 
   if (!limit.allowed) throw new ServiceError(message, "RATE_LIMIT")
+}
+
+// ---------------------------------------------------------------------------
+// เข้าสู่ระบบด้วย Google (spec §17.3 · D19)
+//
+// Google ทำหน้าที่เดียวคือ "พิสูจน์ว่าเป็นใคร" — เซสชัน สิทธิ์ ชั้นความลับ และ audit
+// ยังเป็นของระบบเราทั้งหมด จึงจบด้วย createSession() ตัวเดียวกับล็อกอินด้วยรหัสผ่าน
+// ---------------------------------------------------------------------------
+
+export type GoogleLoginFailure =
+  "EMAIL_UNVERIFIED" | "DOMAIN_NOT_ALLOWED" | "NO_ACCOUNT" | "INACTIVE"
+
+export class GoogleLoginError extends Error {
+  constructor(readonly reason: GoogleLoginFailure) {
+    super(reason)
+    this.name = "GoogleLoginError"
+  }
+}
+
+export interface GoogleLoginResult {
+  /** true = เพิ่งผูกบัญชี Google กับผู้ใช้คนนี้เป็นครั้งแรก */
+  linked: boolean
+}
+
+/**
+ * ด่านตรวจสามชั้นตาม §17.3 แล้วสร้างเซสชัน
+ *
+ * ⚠️ **ห้ามสร้างผู้ใช้ใหม่จากเส้นทางนี้เด็ดขาด** — ผู้ใช้ที่ไม่มีหน่วยงาน ไม่มีบทบาท
+ * และไม่มี clearanceLevel ไม่มีความหมายในระบบนี้ · และถ้าเปิดไว้ ใครก็ตามที่มีบัญชี
+ * ในโดเมนมหาวิทยาลัย (รวมนักศึกษา) จะเดินเข้าระบบสารบรรณได้ทันที
+ * คนใหม่ต้องผ่านคิวอนุมัติที่ /register เหมือนเดิม
+ */
+export async function loginWithGoogle(
+  profile: GoogleProfile,
+  allowedHostedDomain: string | null,
+): Promise<GoogleLoginResult> {
+  const { ip, userAgent } = await getRequestMeta()
+
+  assertPublicFormRate("google", ip, "พยายามเข้าสู่ระบบถี่เกินไป กรุณารอสักครู่แล้วลองใหม่")
+
+  // ── ชั้นที่ 1: อีเมลต้องยืนยันแล้ว ──────────────────────────────────────
+  if (!profile.emailVerified || !profile.email) {
+    await writeGoogleDenyAudit(profile, "EMAIL_UNVERIFIED", ip, userAgent)
+    throw new GoogleLoginError("EMAIL_UNVERIFIED")
+  }
+
+  // ── ชั้นที่ 2: ต้องเป็นโดเมน Workspace ขององค์กร ────────────────────────
+  // ตรวจที่นี่ ไม่ใช่เชื่อพารามิเตอร์ `hd` ที่ส่งไปตอนขอ — ค่านั้นเป็นแค่คำใบ้
+  // ให้หน้าเลือกบัญชีของ Google กรองให้ ผู้ใช้แก้ URL แล้วข้ามไปได้
+  if (allowedHostedDomain && profile.hostedDomain !== allowedHostedDomain) {
+    await writeGoogleDenyAudit(profile, "DOMAIN_NOT_ALLOWED", ip, userAgent)
+    throw new GoogleLoginError("DOMAIN_NOT_ALLOWED")
+  }
+
+  // ── ชั้นที่ 3: ต้องมีบัญชีในระบบอยู่แล้ว ────────────────────────────────
+  // หาด้วย sub ก่อนเสมอ — อีเมลใช้ได้ครั้งแรกครั้งเดียว เพราะ Workspace
+  // เปลี่ยนชื่ออีเมลได้ และอีเมลของคนที่ลาออกถูกยกให้คนใหม่ได้ (§17.3)
+  const identity = await prisma.userIdentity.findUnique({
+    where: {
+      provider_providerAccountId: { provider: "google", providerAccountId: profile.subject },
+    },
+    include: { user: { include: { orgUnits: primaryOrgUnitQuery } } },
+  })
+
+  // ⚠️ **การจับคู่ด้วยอีเมลต้องอยู่ในขอบเขต tenant เสมอ** — unique ของ users
+  // เป็น [tenantId, email] อีเมลเดียวกันจึงมีได้หลาย tenant เมื่อ D1 กลายเป็น
+  // multi-tenant จริง · ถ้าไม่กรอง findFirst จะหยิบแถวไหนก็ได้ = เข้าบัญชีผิดคน
+  // วันที่มีหลาย tenant จริง ให้แมป profile.hostedDomain → tenant ที่ตรงนี้
+  const tenantId = identity ? null : await resolveTenantIdForGoogle()
+
+  // ⚠️ **ห้ามส่ง tenantId ที่เป็น undefined เข้า where** — Prisma จะเมินตัวกรองนั้นทิ้ง
+  // ทั้งอันเงียบ ๆ แล้วกลับไปค้นข้ามทุก tenant ซึ่งคือบั๊กเดียวกับที่กำลังปิดอยู่นี่เอง
+  const user =
+    identity?.user.deletedAt === null
+      ? identity.user
+      : tenantId
+        ? await prisma.user.findFirst({
+            where: { tenantId, email: profile.email, deletedAt: null },
+            include: { orgUnits: primaryOrgUnitQuery },
+          })
+        : null
+
+  if (!user) {
+    await writeGoogleDenyAudit(profile, "NO_ACCOUNT", ip, userAgent)
+    throw new GoogleLoginError("NO_ACCOUNT")
+  }
+
+  if (!user.isActive) {
+    await writeGoogleDenyAudit(profile, "INACTIVE", ip, userAgent, user)
+    throw new GoogleLoginError("INACTIVE")
+  }
+
+  // ⚠️ **ไม่ตรวจ lockedUntil ตรงนี้โดยตั้งใจ** — การล็อกเกิดจากการเดารหัสผ่านผิดซ้ำ ๆ
+  // ซึ่งไม่เกี่ยวกับเส้นทางนี้เลย · ถ้าตรวจด้วย ใครก็ตามที่รู้ชื่อผู้ใช้ของคนอื่นจะกด
+  // รหัสผิดรัว ๆ เพื่อปิดทาง Google ของคนนั้นได้ กลายเป็นเครื่องมือกลั่นแกล้งแทน
+  // การระงับบัญชีจริงใช้ isActive ซึ่งตรวจไปแล้วข้างบน
+
+  const linked = identity === null || identity.user.deletedAt !== null
+  const now = new Date()
+  const primaryUnitId = user.orgUnits[0]?.orgUnitId ?? null
+  const settings = await getSystemSettings(user.tenantId)
+
+  await prisma.$transaction(async (tx) => {
+    if (linked) {
+      await tx.userIdentity.create({
+        data: {
+          userId: user.id,
+          provider: "google",
+          providerAccountId: profile.subject,
+          email: profile.email,
+          hostedDomain: profile.hostedDomain,
+          lastUsedAt: now,
+        },
+      })
+
+      await writeAudit(tx, {
+        tenantId: user.tenantId,
+        action: AUDIT_ACTIONS.IDENTITY_LINKED,
+        entityType: AUDIT_ENTITY_TYPES.USER_IDENTITY,
+        entityId: user.id,
+        actorUserId: user.id,
+        severity: "NOTICE",
+        ip,
+        userAgent,
+        metadata: {
+          username: user.username,
+          provider: "google",
+          googleSubject: profile.subject,
+          email: profile.email,
+          hostedDomain: profile.hostedDomain,
+        },
+      })
+    } else {
+      await tx.userIdentity.update({ where: { id: identity.id }, data: { lastUsedAt: now } })
+    }
+
+    await tx.user.update({
+      where: { id: user.id },
+      data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: now },
+    })
+  })
+
+  // ผู้ใช้ที่เข้าด้วย Google ไม่มีรหัสผ่านให้จำ จึงให้เซสชันยาวเท่าที่ตั้งไว้เสมอ
+  const sessionId = await createSession({
+    userId: user.id,
+    activeOrgUnitId: primaryUnitId,
+    remember: true,
+    absoluteHours: settings.session.absoluteHours,
+    authMethod: "GOOGLE",
+  })
+
+  resetRateLimit(`google:${ip ?? "unknown"}`)
+
+  await writeAuditStandalone({
+    tenantId: user.tenantId,
+    action: AUDIT_ACTIONS.LOGIN_GOOGLE,
+    entityType: AUDIT_ENTITY_TYPES.USER,
+    entityId: user.id,
+    actorUserId: user.id,
+    actorOrgUnitId: primaryUnitId,
+    sessionId,
+    ip,
+    userAgent,
+    metadata: { username: user.username, googleSubject: profile.subject, linked },
+  })
+
+  // ไม่คืน mustChangePassword ออกไปโดยตั้งใจ — เซสชันที่ authMethod = GOOGLE
+  // ข้ามด่านนั้นที่ requireSession() อยู่แล้ว การพาไปหน้าเปลี่ยนรหัสผ่านจากตรงนี้
+  // จะขัดกันเองและพาผู้ใช้ไปหน้าที่เขากรอกอะไรไม่ได้
+  return { linked }
+}
+
+/**
+ * tenant ที่ใช้จับคู่อีเมลจาก Google
+ *
+ * MVP เป็น single-tenant (D1) จึงคืน tenant เดียวที่มี · แยกเป็นฟังก์ชันไว้เพราะ
+ * วันที่มีหลาย tenant จริง จุดที่ต้องแก้คือที่นี่ที่เดียว — แมปจาก hostedDomain
+ * ของ Google Workspace ไปเป็น tenant แทนการเดา
+ */
+async function resolveTenantIdForGoogle(): Promise<string | null> {
+  const tenant = await prisma.tenant.findFirst({
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  })
+
+  return tenant?.id ?? null
+}
+
+/** สังกัดหลักของผู้ใช้ — ชุดเดียวกับที่ login() ใช้ เพื่อให้ activeOrgUnitId ตรงกัน */
+const primaryOrgUnitQuery = {
+  where: { orgUnit: { isActive: true } },
+  orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+  take: 1,
+} satisfies Prisma.User$orgUnitsArgs
+
+/**
+ * บันทึกการปฏิเสธของเส้นทาง Google
+ *
+ * ต้องลงทุกครั้งแม้ยังไม่รู้ว่าเป็นผู้ใช้คนไหน — ถ้ามีคนนอกองค์กรพยายามเข้าซ้ำ ๆ
+ * ผู้ดูแลต้องเห็นจาก audit ไม่ใช่รู้ตอนที่มีคนเข้าได้แล้ว
+ */
+async function writeGoogleDenyAudit(
+  profile: GoogleProfile,
+  reason: GoogleLoginFailure,
+  ip: string | null,
+  userAgent: string | null,
+  user?: { id: string; tenantId: string; username: string },
+) {
+  const tenantId =
+    user?.tenantId ?? (await prisma.tenant.findFirst({ orderBy: { createdAt: "asc" } }))?.id
+
+  if (!tenantId) return
+
+  await writeAuditStandalone({
+    tenantId,
+    action: AUDIT_ACTIONS.LOGIN_FAILED,
+    entityType: AUDIT_ENTITY_TYPES.USER,
+    entityId: user?.id ?? profile.subject,
+    actorUserId: user?.id ?? null,
+    result: "DENY",
+    severity: "WARNING",
+    ip,
+    userAgent,
+    metadata: {
+      provider: "google",
+      reason,
+      googleSubject: profile.subject,
+      email: profile.email,
+      hostedDomain: profile.hostedDomain,
+      ...(user ? { username: user.username } : {}),
+    },
+  })
 }

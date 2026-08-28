@@ -2,7 +2,15 @@ import { expect, test } from "@playwright/test"
 
 import { HELP } from "@/constants/help"
 import { NOTIFICATION_UI } from "@/constants/notification"
-import { AUDIT, DASHBOARD, DOCUMENTS, REGISTER_REPORT, SEARCH } from "@/constants/ui"
+import {
+  AUDIT,
+  DASHBOARD,
+  DOCUMENTS,
+  LOGIN,
+  LOGIN_ERRORS,
+  REGISTER_REPORT,
+  SEARCH,
+} from "@/constants/ui"
 
 // หน้าหลักทุกหน้าต้องเปิดได้จริงโดยไม่มี error ในคอนโซล
 //
@@ -102,4 +110,42 @@ test("เมนูข้างไม่แสดงเมนูที่ผู�
 
   await expect(sidebar.getByRole("link", { name: "ผู้ใช้งาน" })).toHaveCount(0)
   await expect(sidebar.getByRole("link", { name: "บทบาทและสิทธิ์" })).toHaveCount(0)
+})
+
+// ── หน้าล็อกอิน (spec §17.5 · D19) ────────────────────────────────────────────
+//
+// ต้องเปิดแบบยังไม่ล็อกอิน — ชุดอื่นใช้เซสชันที่ auth.setup.ts เตรียมไว้
+// ซึ่งจะทำให้ /login เด้งไป /dashboard ทันทีและไม่ได้ทดสอบอะไรเลย
+test.describe("หน้าเข้าสู่ระบบ", () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+
+  test("มีปุ่ม Google · เส้นคั่น · ช่องจดจำ และช่องแรกรับได้ทั้งชื่อผู้ใช้และอีเมล", async ({
+    page,
+  }) => {
+    await page.goto("/login")
+
+    const google = page.getByRole("link", { name: LOGIN.google })
+
+    await expect(google).toBeVisible()
+    await expect(google).toHaveAttribute("href", "/api/auth/google/start")
+
+    await expect(page.getByText(LOGIN.divider, { exact: true })).toBeVisible()
+    await expect(page.getByLabel(LOGIN.username)).toBeVisible()
+    await expect(page.getByLabel(LOGIN.remember)).toBeVisible()
+    await expect(page.getByRole("button", { name: LOGIN.submit })).toBeVisible()
+  })
+
+  test("แสดงข้อความเมื่อ callback ของ Google ส่งรหัสเหตุผลกลับมา", async ({ page }) => {
+    await page.goto("/login?error=google_no_account")
+
+    await expect(page.getByText(LOGIN_ERRORS.google_no_account!)).toBeVisible()
+  })
+
+  test("รหัสเหตุผลที่ไม่รู้จักต้องไม่ขึ้นข้อความอะไรเลย", async ({ page }) => {
+    // ใครก็ใส่ ?error= อะไรก็ได้แล้วส่งลิงก์ไปหลอกคนอื่นว่าเป็นข้อความจากระบบ
+    await page.goto("/login?error=บัญชีของคุณถูกยึด+โทร+02-000-0000")
+
+    // Alert โทน danger เรนเดอร์เป็น role="alert" — ไม่มีกล่องแดง = ไม่มีข้อความหลุดออกมา
+    await expect(page.getByRole("alert")).toHaveCount(0)
+  })
 })

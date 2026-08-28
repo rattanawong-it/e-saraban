@@ -65,3 +65,6 @@ backups/
 /playwright-report/
 /blob-report/
 tests/e2e/.auth/
+
+# log ของ dev server ที่เอเจนต์เขียนไว้ตอนรัน
+dev.log

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Eye, EyeOff, Loader2, LogIn, Lock, User } from "lucide-react"
 
 import { LOGIN } from "@/constants"
+import { AuthDivider, GoogleSignInButton } from "@/components/auth/google-button"
 import { Button } from "@/components/ui/button"
 import { Checkbox, FieldError, Input, InputShell, Label } from "@/components/ui/field"
 import { Alert } from "@/components/ui/primitives"
@@ -18,14 +19,31 @@ import { IDLE_STATE } from "@/server/actions/types"
 // การเพิ่ม state ฝั่ง client เข้ามาจะไม่ได้อะไรกลับมา นอกจากทำให้ฟอร์ม
 // ใช้งานไม่ได้เมื่อ JavaScript ยังโหลดไม่เสร็จ
 
-export function LoginForm() {
+export function LoginForm({
+  googleEnabled = false,
+  externalError,
+}: {
+  /** ซ่อนปุ่ม Google เมื่อยังไม่ได้ตั้ง GOOGLE_CLIENT_ID/SECRET (spec §17.5) */
+  googleEnabled?: boolean
+  /** ข้อความผิดพลาดที่ส่งกลับมาจาก /api/auth/callback/google */
+  externalError?: string
+}) {
   const [state, formAction, pending] = useActionState(loginAction, IDLE_STATE)
   const [showPassword, setShowPassword] = useState(false)
 
+  // ข้อความจาก URL แสดงเฉพาะตอนที่ยังไม่ได้ลองล็อกอินด้วยรหัสผ่านในหน้านี้
+  // ไม่งั้นผู้ใช้ที่กรอกรหัสผิดจะเห็นสองกล่องพร้อมกันแล้วไม่รู้ว่าอันไหนคือของรอบนี้
+  const alertMessage = state.status === "error" ? state.message : externalError
+
   return (
     <>
-      {state.status === "error" ? (
-        <Alert tone="danger" className="mb-5" title={state.message} />
+      {alertMessage ? <Alert tone="danger" className="mb-5" title={alertMessage} /> : null}
+
+      {googleEnabled ? (
+        <>
+          <GoogleSignInButton />
+          <AuthDivider />
+        </>
       ) : null}
 
       <form action={formAction} className="flex flex-col gap-4.5">
